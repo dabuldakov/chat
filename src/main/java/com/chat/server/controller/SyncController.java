@@ -2,6 +2,7 @@ package com.chat.server.controller;
 
 import com.chat.server.dto.response.SyncResponseDto;
 import com.chat.server.service.SyncService;
+import com.chat.server.service.SyncStatusResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -71,12 +72,4 @@ public class SyncController {
         var status = syncService.getSyncStatus(userId);
         return ResponseEntity.ok(status);
     }
-
-    record SyncStatusResponse(
-            LocalDateTime lastFullSync,
-            LocalDateTime lastMessagesSync,
-            long totalChats,
-            long totalMessages,
-            long pendingUploads
-    ) {}
 }

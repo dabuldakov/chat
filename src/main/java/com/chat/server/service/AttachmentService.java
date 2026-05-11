@@ -9,6 +9,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -17,6 +19,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -65,6 +68,11 @@ public class AttachmentService {
         }
 
         attachment.setMessageId(message.getMessageId());
+
+        // Обновляем флаг has_attachments у сообщения
+        message.setHasAttachments(true);
+        messageService.updateMessageAttachmentsFlag(message.getMessageId(), true);
+
         return attachmentRepository.save(attachment);
     }
 
@@ -81,12 +89,14 @@ public class AttachmentService {
 
     @Transactional(readOnly = true)
     public List<Attachment> getAttachmentsByChatId(Long chatId, int page, int size) {
-        return attachmentRepository.findByChatId(chatId, page, size);
+        int offset = page * size;
+        return attachmentRepository.findByChatId(chatId, size, offset);
     }
 
     @Transactional(readOnly = true)
     public List<Attachment> getMediaAttachmentsByChatId(Long chatId, int page, int size) {
-        return attachmentRepository.findMediaByChatId(chatId, page, size);
+        int offset = page * size;
+        return attachmentRepository.findMediaByChatId(chatId, size, offset);
     }
 
     @Transactional(readOnly = true)
@@ -134,6 +144,8 @@ public class AttachmentService {
             }
         }
 
+        Long messageId = attachment.getMessageId();
+
         // Удаляем файл
         try {
             Files.deleteIfExists(storageLocation.resolve(attachment.getFileUrl()));
@@ -145,7 +157,50 @@ public class AttachmentService {
         }
 
         attachmentRepository.delete(attachment);
+
+        // Если у сообщения больше нет вложений, обновляем флаг
+        if (messageId != null) {
+            long remainingAttachments = attachmentRepository.countByMessageId(messageId);
+            if (remainingAttachments == 0) {
+                messageService.updateMessageAttachmentsFlag(messageId, false);
+            }
+        }
+
         log.info("Attachment deleted: {}", attachmentUuid);
+    }
+
+    @Transactional
+    public void deleteAllAttachmentsByMessageId(Long messageId) {
+        List<Attachment> attachments = attachmentRepository.findByMessageId(messageId);
+        for (Attachment attachment : attachments) {
+            try {
+                Files.deleteIfExists(storageLocation.resolve(attachment.getFileUrl()));
+                if (attachment.getThumbnailUrl() != null) {
+                    Files.deleteIfExists(storageLocation.resolve(attachment.getThumbnailUrl()));
+                }
+            } catch (IOException e) {
+                log.warn("Failed to delete file for attachment: {}", attachment.getAttachmentUuid(), e);
+            }
+        }
+        attachmentRepository.deleteByMessageId(messageId);
+        log.info("All attachments deleted for message: {}", messageId);
+    }
+
+    @Transactional
+    public void cleanupOrphanedAttachments() {
+        LocalDateTime cutoffDate = LocalDateTime.now().minusHours(24);
+        int deletedCount = attachmentRepository.deleteOrphanedAttachments(cutoffDate);
+        log.info("Cleaned up {} orphaned attachments", deletedCount);
+    }
+
+    @Transactional(readOnly = true)
+    public long getAttachmentsCountByChatId(Long chatId) {
+        return attachmentRepository.countByChatId(chatId);
+    }
+
+    @Transactional(readOnly = true)
+    public long getMediaCountByChatId(Long chatId) {
+        return attachmentRepository.countMediaByChatId(chatId);
     }
 
     private Attachment.AttachmentType detectAttachmentType(String mimeType) {

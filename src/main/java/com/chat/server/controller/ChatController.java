@@ -191,7 +191,7 @@ public class ChatController {
     @GetMapping("/unread/all")
     @Operation(summary = "Получение общего количества непрочитанных сообщений")
     public ResponseEntity<UnreadCountResponse> getTotalUnreadCount(Authentication authentication) {
-        Long userId = Long.parseLong(authentication.getName());
+        Long userId = userService.getUserIdByUuid(UUID.fromString(authentication.getName()));
         long totalUnread = chatService.getTotalUnreadCount(userId);
         return ResponseEntity.ok(new UnreadCountResponse(totalUnread));
     }

@@ -1,9 +1,9 @@
 package com.chat.server.service;
 
 import com.chat.server.dto.request.UpdateProfileRequestDto;
+import com.chat.server.entity.BlockedUser;
+import com.chat.server.entity.Contact;
 import com.chat.server.entity.User;
-import com.chat.server.entity.User.Block;
-import com.chat.server.entity.User.Contact;
 import com.chat.server.exception.ConflictException;
 import com.chat.server.exception.NotFoundException;
 import com.chat.server.repository.UserRepository;
@@ -25,6 +25,7 @@ import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -33,6 +34,18 @@ public class UserService implements UserDetailsService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+
+    // ==================== Вспомогательные методы ====================
+
+    public List<User> findAllByIds(List<Long> ids) {
+        return userRepository.findAllById(ids);
+    }
+
+    public List<User> getUsersByIds(List<Long> userIds) {
+        return userRepository.findAllById(userIds);
+    }
+
+    // ==================== Spring Security ====================
 
     @Override
     public UserDetails loadUserByUsername(String userId) throws UsernameNotFoundException {
@@ -49,6 +62,8 @@ public class UserService implements UserDetailsService {
             throw new UsernameNotFoundException("Invalid user ID format: " + userId);
         }
     }
+
+    // ==================== Создание пользователя ====================
 
     @Transactional
     public User createUser(String username, String email, String rawPassword) {
@@ -78,6 +93,8 @@ public class UserService implements UserDetailsService {
         return savedUser;
     }
 
+    // ==================== Поиск пользователей ====================
+
     @Transactional(readOnly = true)
     @Cacheable(value = "users", key = "#userId")
     public User getUserById(Long userId) {
@@ -90,7 +107,7 @@ public class UserService implements UserDetailsService {
     @Cacheable(value = "users", key = "#userUuid")
     public User getUserByUuid(UUID userUuid) {
         log.debug("Fetching user by uuid: {}", userUuid);
-        return userRepository.findAllById(userUuid)
+        return userRepository.findByUserUuid(userUuid)
                 .orElseThrow(() -> new NotFoundException("User not found with uuid: " + userUuid));
     }
 
@@ -126,9 +143,11 @@ public class UserService implements UserDetailsService {
 
     @Transactional(readOnly = true)
     public Long getUserIdByUuid(UUID userUuid) {
-        return userRepository.findUserIdByUuid(userUuid)
+        return userRepository.findUserIdByUserUuid(userUuid)
                 .orElseThrow(() -> new NotFoundException("User not found with uuid: " + userUuid));
     }
+
+    // ==================== Обновление профиля ====================
 
     @Transactional
     @CacheEvict(value = "users", key = "#userId")
@@ -202,6 +221,8 @@ public class UserService implements UserDetailsService {
         return Boolean.TRUE.equals(user.getIsOnline());
     }
 
+    // ==================== Удаление пользователя ====================
+
     @Transactional
     @CacheEvict(value = "users", key = "#userId")
     public void deleteUser(Long userId) {
@@ -212,113 +233,5 @@ public class UserService implements UserDetailsService {
         user.setStatus(User.UserStatus.INACTIVE);
         userRepository.save(user);
         log.info("User soft deleted: {}", userId);
-    }
-
-    @Transactional
-    public void addContact(Long userId, UUID contactUuid) {
-        User user = getUserById(userId);
-        User contact = getUserByUuid(contactUuid);
-
-        if (user.getContacts() == null) {
-            user.setContacts(Collections.emptyList());
-        }
-
-        boolean alreadyContact = user.getContacts().stream()
-                .anyMatch(c -> c.getContactId().equals(contact.getUserId()));
-
-        if (!alreadyContact) {
-            Contact newContact = new Contact();
-            newContact.setContactId(contact.getUserId());
-            newContact.setContactUuid(contact.getUserUuid());
-            newContact.setAddedAt(LocalDateTime.now());
-            user.getContacts().add(newContact);
-            userRepository.save(user);
-            log.info("Contact added: {} -> {}", userId, contact.getUserId());
-        }
-    }
-
-    @Transactional
-    public void removeContact(Long userId, UUID contactUuid) {
-        User user = getUserById(userId);
-        User contact = getUserByUuid(contactUuid);
-
-        if (user.getContacts() != null) {
-            user.getContacts().removeIf(c -> c.getContactId().equals(contact.getUserId()));
-            userRepository.save(user);
-            log.info("Contact removed: {} -> {}", userId, contact.getUserId());
-        }
-    }
-
-    @Transactional(readOnly = true)
-    public List<User> getUserContacts(Long userId) {
-        User user = getUserById(userId);
-        if (user.getContacts() == null || user.getContacts().isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        List<Long> contactIds = user.getContacts().stream()
-                .map(Contact::getContactId)
-                .toList();
-
-        return userRepository.findAllById(contactIds);
-    }
-
-    @Transactional
-    public void blockUser(Long userId, UUID blockUuid) {
-        User user = getUserById(userId);
-        User blockUser = getUserByUuid(blockUuid);
-
-        if (user.getBlockedUsers() == null) {
-            user.setBlockedUsers(Collections.emptyList());
-        }
-
-        boolean alreadyBlocked = user.getBlockedUsers().stream()
-                .anyMatch(b -> b.getBlockedId().equals(blockUser.getUserId()));
-
-        if (!alreadyBlocked) {
-            Block block = new Block();
-            block.setBlockedId(blockUser.getUserId());
-            block.setBlockedUuid(blockUser.getUserUuid());
-            block.setBlockedAt(LocalDateTime.now());
-            user.getBlockedUsers().add(block);
-            userRepository.save(user);
-            log.info("User blocked: {} -> {}", userId, blockUser.getUserId());
-        }
-    }
-
-    @Transactional
-    public void unblockUser(Long userId, UUID blockUuid) {
-        User user = getUserById(userId);
-        User blockUser = getUserByUuid(blockUuid);
-
-        if (user.getBlockedUsers() != null) {
-            user.getBlockedUsers().removeIf(b -> b.getBlockedId().equals(blockUser.getUserId()));
-            userRepository.save(user);
-            log.info("User unblocked: {} -> {}", userId, blockUser.getUserId());
-        }
-    }
-
-    @Transactional(readOnly = true)
-    public List<User> getBlockedUsers(Long userId) {
-        User user = getUserById(userId);
-        if (user.getBlockedUsers() == null || user.getBlockedUsers().isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        List<Long> blockedIds = user.getBlockedUsers().stream()
-                .map(Block::getBlockedId)
-                .toList();
-
-        return userRepository.findAllById(blockedIds);
-    }
-
-    @Transactional(readOnly = true)
-    public boolean isBlocked(Long userId, Long targetUserId) {
-        User user = getUserById(userId);
-        if (user.getBlockedUsers() == null) {
-            return false;
-        }
-        return user.getBlockedUsers().stream()
-                .anyMatch(b -> b.getBlockedId().equals(targetUserId));
     }
 }

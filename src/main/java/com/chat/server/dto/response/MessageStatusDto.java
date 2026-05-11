@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 public class MessageStatusDto {
 
     private Long userId;
-    private String status; // SENT, DELIVERED, READ, FAILED
+    private DeliveryStatusDto status; // SENT, DELIVERED, READ, FAILED
     private LocalDateTime deliveredAt;
     private LocalDateTime readAt;
 }

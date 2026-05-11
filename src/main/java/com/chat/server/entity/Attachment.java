@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Data
@@ -18,8 +19,10 @@ import java.util.UUID;
 @Table(name = "attachments",
         indexes = {
                 @Index(name = "idx_attachments_message_id", columnList = "message_id"),
+                @Index(name = "idx_attachments_chat_id", columnList = "chat_id"),
                 @Index(name = "idx_attachments_uploader_id", columnList = "uploader_id"),
                 @Index(name = "idx_attachments_type", columnList = "type"),
+                @Index(name = "idx_attachments_attachment_uuid", columnList = "attachment_uuid"),
                 @Index(name = "idx_attachments_created_at", columnList = "created_at")
         })
 public class Attachment extends BaseEntity {
@@ -32,8 +35,14 @@ public class Attachment extends BaseEntity {
     @Column(name = "attachment_uuid", unique = true, updatable = false, nullable = false)
     private UUID attachmentUuid = UUID.randomUUID();
 
-    @Column(name = "message_id", nullable = false)
+    @Column(name = "message_id")
     private Long messageId;
+
+    @Column(name = "chat_id", nullable = false)
+    private Long chatId;
+
+    @Column(name = "uploader_id")
+    private Long uploaderId;
 
     @Column(name = "file_name", nullable = false, length = 255)
     private String fileName;
@@ -57,20 +66,17 @@ public class Attachment extends BaseEntity {
     private Integer height;
 
     @Column(name = "duration")
-    private Integer duration; // Длительность для видео/аудио в секундах
+    private Integer duration;
 
     @Column(name = "type", length = 20)
     @Enumerated(EnumType.STRING)
-    private AttachmentType type;
-
-    @Column(name = "uploader_id")
-    private Long uploaderId;
+    private AttachmentType type = AttachmentType.OTHER;
 
     @Column(name = "is_compressed")
     private Boolean isCompressed = false;
 
-    @Column(name = "metadata")
-    private String metadata; // JSON с дополнительными данными (exif и т.д.)
+    @Column(name = "metadata", columnDefinition = "TEXT")
+    private String metadata;
 
     public enum AttachmentType {
         IMAGE, VIDEO, AUDIO, DOCUMENT, OTHER
@@ -103,5 +109,9 @@ public class Attachment extends BaseEntity {
 
     public boolean isAudio() {
         return type == AttachmentType.AUDIO;
+    }
+
+    public boolean isDocument() {
+        return type == AttachmentType.DOCUMENT;
     }
 }

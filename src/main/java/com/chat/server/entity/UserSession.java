@@ -20,10 +20,12 @@ import java.util.UUID;
         indexes = {
                 @Index(name = "idx_sessions_user_id", columnList = "user_id"),
                 @Index(name = "idx_sessions_token", columnList = "token"),
+                @Index(name = "idx_sessions_refresh_token", columnList = "refresh_token"),
                 @Index(name = "idx_sessions_fcm_token", columnList = "fcm_token"),
                 @Index(name = "idx_sessions_device_id", columnList = "device_id"),
-                @Index(name = "idx_sessions_last_activity", columnList = "last_activity"),
-                @Index(name = "idx_sessions_is_active", columnList = "is_active")
+                @Index(name = "idx_sessions_is_active", columnList = "is_active"),
+                @Index(name = "idx_sessions_expires_at", columnList = "expires_at"),
+                @Index(name = "idx_sessions_last_activity", columnList = "last_activity")
         })
 public class UserSession extends BaseEntity {
 
@@ -39,13 +41,13 @@ public class UserSession extends BaseEntity {
     private Long userId;
 
     @Column(name = "token", nullable = false, unique = true, length = 500)
-    private String token; // JWT токен
+    private String token;
 
     @Column(name = "refresh_token", length = 500)
     private String refreshToken;
 
     @Column(name = "fcm_token", length = 500)
-    private String fcmToken; // Firebase Cloud Messaging токен
+    private String fcmToken;
 
     @Column(name = "device_id", length = 255)
     private String deviceId;
@@ -54,12 +56,12 @@ public class UserSession extends BaseEntity {
     private String deviceName;
 
     @Column(name = "device_type", length = 50)
-    private String deviceType; // ANDROID, IOS, WEB
+    private String deviceType; // ANDROID, IOS, WEB, DESKTOP
 
     @Column(name = "ip_address", length = 45)
     private String ipAddress;
 
-    @Column(name = "user_agent", length = 500)
+    @Column(name = "user_agent", columnDefinition = "TEXT")
     private String userAgent;
 
     @Column(name = "last_activity")
@@ -77,7 +79,12 @@ public class UserSession extends BaseEntity {
         if (sessionUuid == null) {
             sessionUuid = UUID.randomUUID();
         }
-        lastActivity = LocalDateTime.now();
+        if (lastActivity == null) {
+            lastActivity = LocalDateTime.now();
+        }
+        if (expiresAt == null) {
+            expiresAt = LocalDateTime.now().plusDays(30);
+        }
     }
 
     public void updateActivity() {
@@ -87,5 +94,19 @@ public class UserSession extends BaseEntity {
 
     public boolean isExpired() {
         return expiresAt != null && expiresAt.isBefore(LocalDateTime.now());
+    }
+
+    public boolean isValid() {
+        return Boolean.TRUE.equals(isActive) && !isExpired();
+    }
+
+    public void invalidate() {
+        this.isActive = false;
+        this.setUpdatedAt(LocalDateTime.now());
+    }
+
+    public void extendExpiry(int days) {
+        this.expiresAt = LocalDateTime.now().plusDays(days);
+        this.setUpdatedAt(LocalDateTime.now());
     }
 }

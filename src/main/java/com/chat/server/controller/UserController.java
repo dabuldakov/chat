@@ -3,8 +3,11 @@ package com.chat.server.controller;
 import com.chat.server.dto.request.UpdateProfileRequestDto;
 import com.chat.server.dto.response.UserDto;
 import com.chat.server.dto.response.UserProfileDto;
+import com.chat.server.dto.response.UserSessionDto;
 import com.chat.server.entity.User;
+import com.chat.server.service.FileUploadService;
 import com.chat.server.service.UserService;
+import com.chat.server.service.UserSessionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -29,6 +32,7 @@ import java.util.stream.Collectors;
 public class UserController {
 
     private final UserService userService;
+    private final UserSessionService userSessionService;
     private final FileUploadService fileUploadService;
 
     @GetMapping("/me")
@@ -115,66 +119,6 @@ public class UserController {
         Long userId = Long.parseLong(authentication.getName());
         List<UserSessionDto> sessions = userSessionService.getUserSessions(userId);
         return ResponseEntity.ok(sessions);
-    }
-
-    @GetMapping("/me/contacts")
-    @Operation(summary = "Получение списка контактов")
-    public ResponseEntity<List<UserDto>> getMyContacts(Authentication authentication) {
-        Long userId = Long.parseLong(authentication.getName());
-        List<User> contacts = userService.getUserContacts(userId);
-        return ResponseEntity.ok(contacts.stream()
-                .map(UserDto::fromEntity)
-                .collect(Collectors.toList()));
-    }
-
-    @PostMapping("/me/contacts/{contactUserUuid}")
-    @Operation(summary = "Добавление контакта")
-    public ResponseEntity<Void> addContact(
-            @PathVariable UUID contactUserUuid,
-            Authentication authentication) {
-        Long userId = Long.parseLong(authentication.getName());
-        userService.addContact(userId, contactUserUuid);
-        return ResponseEntity.ok().build();
-    }
-
-    @DeleteMapping("/me/contacts/{contactUserUuid}")
-    @Operation(summary = "Удаление контакта")
-    public ResponseEntity<Void> removeContact(
-            @PathVariable UUID contactUserUuid,
-            Authentication authentication) {
-        Long userId = Long.parseLong(authentication.getName());
-        userService.removeContact(userId, contactUserUuid);
-        return ResponseEntity.ok().build();
-    }
-
-    @GetMapping("/me/blocked")
-    @Operation(summary = "Получение списка заблокированных пользователей")
-    public ResponseEntity<List<UserDto>> getBlockedUsers(Authentication authentication) {
-        Long userId = Long.parseLong(authentication.getName());
-        List<User> blockedUsers = userService.getBlockedUsers(userId);
-        return ResponseEntity.ok(blockedUsers.stream()
-                .map(UserDto::fromEntity)
-                .collect(Collectors.toList()));
-    }
-
-    @PostMapping("/me/block/{userUuid}")
-    @Operation(summary = "Блокировка пользователя")
-    public ResponseEntity<Void> blockUser(
-            @PathVariable UUID userUuid,
-            Authentication authentication) {
-        Long userId = Long.parseLong(authentication.getName());
-        userService.blockUser(userId, userUuid);
-        return ResponseEntity.ok().build();
-    }
-
-    @DeleteMapping("/me/block/{userUuid}")
-    @Operation(summary = "Разблокировка пользователя")
-    public ResponseEntity<Void> unblockUser(
-            @PathVariable UUID userUuid,
-            Authentication authentication) {
-        Long userId = Long.parseLong(authentication.getName());
-        userService.unblockUser(userId, userUuid);
-        return ResponseEntity.ok().build();
     }
 
     @DeleteMapping("/me")

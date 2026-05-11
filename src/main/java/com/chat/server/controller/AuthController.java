@@ -1,5 +1,6 @@
 package com.chat.server.controller;
 
+import com.chat.server.config.JwtUtil;
 import com.chat.server.dto.request.LoginRequestDto;
 import com.chat.server.dto.request.RefreshTokenRequestDto;
 import com.chat.server.dto.request.RegisterRequestDto;
@@ -7,7 +8,6 @@ import com.chat.server.dto.response.AuthResponseDto;
 import com.chat.server.dto.response.UserDto;
 import com.chat.server.entity.User;
 import com.chat.server.entity.UserSession;
-import com.chat.server.security.JwtUtil;
 import com.chat.server.service.AuthService;
 import com.chat.server.service.UserService;
 import com.chat.server.service.UserSessionService;

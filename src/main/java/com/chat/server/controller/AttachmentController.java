@@ -17,6 +17,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
 
@@ -50,7 +51,7 @@ public class AttachmentController {
     @Operation(summary = "Скачивание вложения")
     public ResponseEntity<Resource> downloadAttachment(
             @PathVariable UUID attachmentUuid,
-            Authentication authentication) {
+            Authentication authentication) throws IOException {
         Long userId = Long.parseLong(authentication.getName());
 
         Attachment attachment = attachmentService.getAttachmentByUuid(attachmentUuid);
@@ -71,7 +72,7 @@ public class AttachmentController {
     @Operation(summary = "Просмотр превью вложения")
     public ResponseEntity<Resource> previewAttachment(
             @PathVariable UUID attachmentUuid,
-            Authentication authentication) {
+            Authentication authentication) throws IOException {
         Long userId = Long.parseLong(authentication.getName());
 
         Attachment attachment = attachmentService.getAttachmentByUuid(attachmentUuid);

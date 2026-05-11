@@ -42,7 +42,7 @@ public class ParticipantService {
                 .map(Participant::getUserId)
                 .toList();
 
-        List<User> users = userService.getUsersByIds(userIds);
+        List<User> users = userService.findAllByIds(userIds);
         Map<Long, User> userMap = users.stream()
                 .collect(Collectors.toMap(User::getUserId, u -> u));
 

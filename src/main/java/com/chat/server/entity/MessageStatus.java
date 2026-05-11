@@ -84,8 +84,21 @@ public class MessageStatus extends BaseEntity {
         this.status = DeliveryStatus.READ;
         this.readAt = LocalDateTime.now();
         if (this.deliveredAt == null) {
-            this.deliveredAt = readAt;
+            this.deliveredAt = this.readAt;
         }
         this.setUpdatedAt(LocalDateTime.now());
+    }
+
+    public void markAsFailed() {
+        this.status = DeliveryStatus.FAILED;
+        this.setUpdatedAt(LocalDateTime.now());
+    }
+
+    public boolean isDelivered() {
+        return status == DeliveryStatus.DELIVERED || status == DeliveryStatus.READ;
+    }
+
+    public boolean isRead() {
+        return status == DeliveryStatus.READ;
     }
 }

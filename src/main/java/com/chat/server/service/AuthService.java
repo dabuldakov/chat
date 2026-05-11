@@ -1,5 +1,6 @@
 package com.chat.server.service;
 
+import com.chat.server.config.JwtUtil;
 import com.chat.server.entity.User;
 import com.chat.server.entity.UserSession;
 import com.chat.server.exception.BadRequestException;
@@ -7,7 +8,6 @@ import com.chat.server.exception.NotFoundException;
 import com.chat.server.exception.UnauthorizedException;
 import com.chat.server.repository.UserRepository;
 import com.chat.server.repository.UserSessionRepository;
-import com.chat.server.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -64,8 +64,9 @@ public class AuthService {
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         userRepository.save(user);
 
-        // Инвалидируем все сессии кроме текущей
-        userSessionRepository.invalidateAllSessionsExceptCurrent(userId, null);
+        // Инвалидируем все сессии пользователя (кроме текущей, если знаем ID)
+        // Метод invalidateAllSessions уже есть в репозитории
+        userSessionRepository.invalidateAllSessions(userId, LocalDateTime.now());
 
         log.info("Password changed for user: {}", userId);
     }
@@ -102,7 +103,7 @@ public class AuthService {
         userRepository.save(user);
 
         // Инвалидируем все сессии
-        userSessionRepository.invalidateAllSessions(user.getUserId());
+        userSessionRepository.invalidateAllSessions(user.getUserId(), LocalDateTime.now());
 
         log.info("Password reset successfully for user: {}", user.getUserId());
     }

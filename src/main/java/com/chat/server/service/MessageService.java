@@ -215,6 +215,17 @@ public class MessageService {
         return messageRepository.searchMessagesInChats(chatIds, query, pageable);
     }
 
+    // ==================== Методы для работы с флагами сообщений ====================
+
+    @Transactional
+    public void updateMessageAttachmentsFlag(Long messageId, boolean hasAttachments) {
+        log.debug("Updating attachments flag for message: {} to {}", messageId, hasAttachments);
+
+        Message message = getMessageById(messageId);
+        message.setHasAttachments(hasAttachments);
+        messageRepository.save(message);
+    }
+
     @Transactional(readOnly = true)
     public List<Message> searchMessagesInChat(Long chatId, Long userId, String keyword, int limit) {
         log.debug("Searching messages in chat: {} for keyword: {}", chatId, keyword);

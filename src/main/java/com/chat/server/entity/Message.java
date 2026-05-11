@@ -67,6 +67,9 @@ public class Message extends BaseEntity {
     @Column(name = "is_deleted")
     private Boolean isDeleted = false;
 
+    @Column(name = "is_pinned")
+    private Boolean isPinned = false;
+
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
