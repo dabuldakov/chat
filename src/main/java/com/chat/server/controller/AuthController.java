@@ -19,9 +19,15 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
+import java.util.UUID;
 
 @Slf4j
 @RestController
@@ -46,8 +52,8 @@ public class AuthController {
                 request.getPassword()
         );
 
-        String token = jwtUtil.generateToken(user.getUserId(), user.getUsername());
-        String refreshToken = jwtUtil.generateRefreshToken(user.getUserId());
+        String token = jwtUtil.generateToken(user.getUserUuid(), user.getUsername());
+        String refreshToken = jwtUtil.generateRefreshToken(user.getUserUuid());
 
         // Сохраняем сессию
         userSessionService.createSession(
@@ -61,14 +67,7 @@ public class AuthController {
                 request.getUserAgent()
         );
 
-        return ResponseEntity.ok(AuthResponseDto.builder()
-                .token(token)
-                .refreshToken(refreshToken)
-                .userId(user.getUserId())
-                .userUuid(user.getUserUuid())
-                .username(user.getUsername())
-                .email(user.getEmail())
-                .build());
+        return getResponse(token, refreshToken, user);
     }
 
     @PostMapping("/login")
@@ -80,8 +79,8 @@ public class AuthController {
 
         User user = authService.authenticate(request.getUsername(), request.getPassword());
 
-        String token = jwtUtil.generateToken(user.getUserId(), user.getUsername());
-        String refreshToken = jwtUtil.generateRefreshToken(user.getUserId());
+        String token = jwtUtil.generateToken(user.getUserUuid(), user.getUsername());
+        String refreshToken = jwtUtil.generateRefreshToken(user.getUserUuid());
 
         // Сохраняем сессию
         userSessionService.createSession(
@@ -98,14 +97,7 @@ public class AuthController {
         // Обновляем статус онлайн
         userService.updateOnlineStatus(user.getUserId(), true);
 
-        return ResponseEntity.ok(AuthResponseDto.builder()
-                .token(token)
-                .refreshToken(refreshToken)
-                .userId(user.getUserId())
-                .userUuid(user.getUserUuid())
-                .username(user.getUsername())
-                .email(user.getEmail())
-                .build());
+        return getResponse(token, refreshToken, user);
     }
 
     @PostMapping("/refresh")
@@ -114,14 +106,11 @@ public class AuthController {
         log.info("Refreshing token");
 
         UserSession session = userSessionService.refreshSession(request.getRefreshToken());
-        String newToken = jwtUtil.generateToken(session.getUserId(),
-                userService.getUserById(session.getUserId()).getUsername());
+        UUID userIdFromToken = jwtUtil.getUserIdFromToken(request.getRefreshToken());
+        User user = userService.getUserById(session.getUserId());
+        String newToken = jwtUtil.generateToken(userIdFromToken, user.getUsername());
 
-        return ResponseEntity.ok(AuthResponseDto.builder()
-                .token(newToken)
-                .refreshToken(session.getRefreshToken())
-                .userId(session.getUserId())
-                .build());
+        return getResponse(newToken, session.getRefreshToken(), user);
     }
 
     @PostMapping("/logout")
@@ -209,5 +198,16 @@ public class AuthController {
         log.info("Verifying email with token");
         authService.verifyEmail(token);
         return ResponseEntity.ok().build();
+    }
+
+    private static ResponseEntity<AuthResponseDto> getResponse(String token, String refreshToken, User user) {
+        return ResponseEntity.ok(AuthResponseDto.builder()
+                .token(token)
+                .refreshToken(refreshToken)
+                .userUuid(user.getUserUuid())
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .avatarUrl(user.getAvatarUrl())
+                .build());
     }
 }

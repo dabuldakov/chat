@@ -1,8 +1,6 @@
 package com.chat.server.service;
 
-import com.chat.server.config.JwtUtil;
 import com.chat.server.entity.User;
-import com.chat.server.entity.UserSession;
 import com.chat.server.exception.BadRequestException;
 import com.chat.server.exception.NotFoundException;
 import com.chat.server.exception.UnauthorizedException;
@@ -25,7 +23,6 @@ public class AuthService {
     private final UserRepository userRepository;
     private final UserSessionRepository userSessionRepository;
     private final PasswordEncoder passwordEncoder;
-    private final JwtUtil jwtUtil;
     private final EmailService emailService;
 
     @Transactional(readOnly = true)
@@ -64,8 +61,7 @@ public class AuthService {
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         userRepository.save(user);
 
-        // Инвалидируем все сессии пользователя (кроме текущей, если знаем ID)
-        // Метод invalidateAllSessions уже есть в репозитории
+        // ⭐ Инвалидируем все сессии (используем правильный метод)
         userSessionRepository.invalidateAllSessions(userId, LocalDateTime.now());
 
         log.info("Password changed for user: {}", userId);

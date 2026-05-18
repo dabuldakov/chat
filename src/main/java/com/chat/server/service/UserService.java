@@ -50,8 +50,7 @@ public class UserService implements UserDetailsService {
     @Override
     public UserDetails loadUserByUsername(String userId) throws UsernameNotFoundException {
         try {
-            Long id = Long.parseLong(userId);
-            User user = getUserById(id);
+            User user = getUserByUuid(UUID.fromString(userId));
 
             return new org.springframework.security.core.userdetails.User(
                     user.getUserId().toString(),

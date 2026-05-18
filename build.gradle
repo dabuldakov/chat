@@ -36,6 +36,9 @@ dependencies {
     // Firebase Cloud Messaging
     implementation 'com.google.firebase:firebase-admin:9.2.0'
 
+    // Spring Boot Mail (для отправки email)
+    implementation 'org.springframework.boot:spring-boot-starter-mail'
+
     // Database
     implementation 'org.postgresql:postgresql:42.7.1'
     implementation 'org.flywaydb:flyway-core:9.22.3'

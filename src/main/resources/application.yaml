@@ -17,9 +17,25 @@ spring:
   flyway:
     enabled: true
     baseline-on-migrate: true
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: your-email@gmail.com
+    password: your-app-password
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+    protocol: smtp
 
 jwt:
-  secret: ${JWT_SECRET:your-256-bit-secret-key-for-jwt-please-change-in-production}
+  secret: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
   expiration: 86400000  # 24 часа в миллисекундах
   refresh-expiration: 604800000  # 7 дней
 

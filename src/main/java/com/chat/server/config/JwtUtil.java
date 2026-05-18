@@ -9,6 +9,8 @@ import org.springframework.stereotype.Component;
 
 import java.security.Key;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 @Component
@@ -28,29 +30,86 @@ public class JwtUtil {
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
-    // Теперь используем Long userId
-    public String generateToken(Long userId, String username) {
+    /**
+     * Генерация access JWT токена
+     * @param uuid UUID пользователя
+     * @param username имя пользователя
+     * @return JWT токен
+     */
+    public String generateToken(UUID uuid, String username) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + expiration);
 
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("username", username);
+        claims.put("type", "access");
+
         return Jwts.builder()
-                .setSubject(userId.toString())  // Long в строку
-                .claim("username", username)
+                .setClaims(claims)
+                .setSubject(uuid.toString())  // UUID как строка
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
-                .signWith(getSigningKey())
+                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
 
+    /**
+     * Генерация refresh JWT токена
+     * @param uuid UUID пользователя
+     * @return Refresh JWT токен
+     */
+    public String generateRefreshToken(UUID uuid) {
+        Date now = new Date();
+        Date expiryDate = new Date(now.getTime() + refreshExpiration);
+
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("type", "refresh");
+
+        return Jwts.builder()
+                .setClaims(claims)
+                .setSubject(uuid.toString())  // UUID как строка
+                .setIssuedAt(now)
+                .setExpiration(expiryDate)
+                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+                .compact();
+    }
+
+    /**
+     * Извлечение UUID пользователя из токена
+     * @param token JWT токен
+     * @return UUID пользователя
+     */
     public UUID getUserIdFromToken(String token) {
         Claims claims = Jwts.parserBuilder()
                 .setSigningKey(getSigningKey())
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
-        return UUID.fromString(claims.getSubject());  // Строку в Long
+
+        String subject = claims.getSubject();
+        return UUID.fromString(subject);
     }
 
+    /**
+     * Извлечение username из токена
+     * @param token JWT токен
+     * @return username
+     */
+    public String getUsernameFromToken(String token) {
+        Claims claims = Jwts.parserBuilder()
+                .setSigningKey(getSigningKey())
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+
+        return (String) claims.get("username");
+    }
+
+    /**
+     * Проверка валидности токена
+     * @param token JWT токен
+     * @return true если токен валиден
+     */
     public boolean validateToken(String token) {
         try {
             Jwts.parserBuilder()
@@ -63,16 +122,19 @@ public class JwtUtil {
         }
     }
 
-    // JwtUtil.java - добавить метод
-    public String generateRefreshToken(Long userId) {
-        Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + refreshExpiration); // 7 дней, например
-
-        return Jwts.builder()
-                .setSubject(userId.toString())
-                .setIssuedAt(now)
-                .setExpiration(expiryDate)
-                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
-                .compact();
+    /**
+     * Проверка, является ли токен refresh токеном
+     */
+    public boolean isRefreshToken(String token) {
+        try {
+            Claims claims = Jwts.parserBuilder()
+                    .setSigningKey(getSigningKey())
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+            return "refresh".equals(claims.get("type"));
+        } catch (Exception e) {
+            return false;
+        }
     }
 }

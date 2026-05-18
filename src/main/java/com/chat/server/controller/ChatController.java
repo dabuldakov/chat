@@ -46,9 +46,7 @@ public class ChatController {
     @GetMapping
     @Operation(summary = "Получение всех чатов пользователя")
     public ResponseEntity<List<ChatResponseDto>> getAllByUser(Authentication authentication) {
-        var userUUID = UUID.fromString(authentication.getName());
-        var userId = userService.getUserIdByUuid(userUUID);
-        List<ChatResponseDto> chats = chatService.getUserChatsWithDetails(userId);
+        List<ChatResponseDto> chats = chatService.getUserChatsWithDetails(Long.valueOf(authentication.getName()));
         return ResponseEntity.ok(chats);
     }
 
@@ -57,11 +55,10 @@ public class ChatController {
     public ResponseEntity<ChatDetailsResponseDto> getByChatUUID(
             @PathVariable UUID chatUuid,
             Authentication authentication) {
-        UUID userUUID = UUID.fromString(authentication.getName());
-        Long userId = userService.getUserIdByUuid(userUUID);
+        Long userId = Long.parseLong(authentication.getName());
         Long chatId = chatService.getChatIdByUuid(chatUuid);
-        chatService.validateUserAccessToChat(chatId, userId);
 
+        chatService.validateUserAccessToChat(chatId, userId);
         var chat = chatService.getChatDetails(chatId, userId);
         return ResponseEntity.ok(chat);
     }
@@ -71,8 +68,7 @@ public class ChatController {
     public ResponseEntity<ChatResponseDto> createPrivateChat(
             @Valid @RequestBody CreatePrivateChatRequestDto request,
             Authentication authentication) {
-        var userUUID = UUID.fromString(authentication.getName());
-        var userId = userService.getUserIdByUuid(userUUID);
+        var userId = Long.parseLong(authentication.getName());
         var otherUserId = userService.getUserIdByUuid(request.getOtherUserUuid());
 
         return ResponseEntity.ok(chatService.createPrivateChat(userId, otherUserId));
@@ -83,8 +79,7 @@ public class ChatController {
     public ResponseEntity<ChatResponseDto> createGroupChat(
             @Valid @RequestBody CreateGroupChatRequestDto request,
             Authentication authentication) {
-        UUID userUUID = UUID.fromString(authentication.getName());
-        Long userId = userService.getUserIdByUuid(userUUID);
+        Long userId = Long.parseLong(authentication.getName());
 
         List<Long> memberIds = request.getMemberUuids().stream()
                 .map(userService::getUserIdByUuid)
@@ -113,7 +108,7 @@ public class ChatController {
             @PathVariable UUID chatUuid,
             @RequestParam("file") MultipartFile file,
             Authentication authentication) {
-        Long userId = userService.getUserIdByUuid(UUID.fromString(authentication.getName()));
+        Long userId = Long.parseLong(authentication.getName());
         Long chatId = chatService.getChatIdByUuid(chatUuid);
 
         chatService.validateUserAccessToChat(chatId, userId);
@@ -129,7 +124,7 @@ public class ChatController {
     public ResponseEntity<Void> deleteChat(
             @PathVariable UUID chatUuid,
             Authentication authentication) {
-        Long userId = userService.getUserIdByUuid(UUID.fromString(authentication.getName()));
+        Long userId = Long.parseLong(authentication.getName());
         Long chatId = chatService.getChatIdByUuid(chatUuid);
 
         chatService.deleteChat(chatId, userId);
@@ -141,7 +136,7 @@ public class ChatController {
     public ResponseEntity<Void> archiveChat(
             @PathVariable UUID chatUuid,
             Authentication authentication) {
-        Long userId = userService.getUserIdByUuid(UUID.fromString(authentication.getName()));
+        Long userId = Long.parseLong(authentication.getName());
         Long chatId = chatService.getChatIdByUuid(chatUuid);
 
         chatService.archiveChat(chatId, userId);
@@ -165,7 +160,7 @@ public class ChatController {
     public ResponseEntity<List<ParticipantInfoDto>> getChatParticipants(
             @PathVariable UUID chatUuid,
             Authentication authentication) {
-        Long userId = userService.getUserIdByUuid(UUID.fromString(authentication.getName()));
+        Long userId = Long.parseLong(authentication.getName());
         Long chatId = chatService.getChatIdByUuid(chatUuid);
 
         chatService.validateUserAccessToChat(chatId, userId);
@@ -179,7 +174,7 @@ public class ChatController {
     public ResponseEntity<UnreadCountResponse> getUnreadCount(
             @PathVariable UUID chatUuid,
             Authentication authentication) {
-        Long userId = userService.getUserIdByUuid(UUID.fromString(authentication.getName()));
+        Long userId = Long.parseLong(authentication.getName());
         Long chatId = chatService.getChatIdByUuid(chatUuid);
 
         chatService.validateUserAccessToChat(chatId, userId);
@@ -191,10 +186,12 @@ public class ChatController {
     @GetMapping("/unread/all")
     @Operation(summary = "Получение общего количества непрочитанных сообщений")
     public ResponseEntity<UnreadCountResponse> getTotalUnreadCount(Authentication authentication) {
-        Long userId = userService.getUserIdByUuid(UUID.fromString(authentication.getName()));
+        Long userId = Long.parseLong(authentication.getName());
         long totalUnread = chatService.getTotalUnreadCount(userId);
+
         return ResponseEntity.ok(new UnreadCountResponse(totalUnread));
     }
 
-    record UnreadCountResponse(long count) {}
+    record UnreadCountResponse(long count) {
+    }
 }

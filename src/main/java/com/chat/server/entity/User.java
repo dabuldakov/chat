@@ -6,7 +6,7 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import org.hibernate.annotations.Where;
+import org.hibernate.annotations.SQLRestriction;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -22,9 +22,12 @@ import java.util.UUID;
                 @Index(name = "idx_users_username", columnList = "username"),
                 @Index(name = "idx_users_email", columnList = "email"),
                 @Index(name = "idx_users_user_uuid", columnList = "user_uuid"),
-                @Index(name = "idx_users_status", columnList = "status")
+                @Index(name = "idx_users_status", columnList = "status"),
+                // ⭐ Добавьте индексы для токенов
+                @Index(name = "idx_users_reset_token", columnList = "reset_token"),
+                @Index(name = "idx_users_email_verification_token", columnList = "email_verification_token")
         })
-@Where(clause = "is_deleted = false")
+@SQLRestriction("is_deleted = false")
 public class User extends BaseEntity {
 
     @Id
@@ -80,6 +83,16 @@ public class User extends BaseEntity {
 
     @Column(name = "two_factor_secret")
     private String twoFactorSecret;
+
+    // ⭐ ДОБАВЬТЕ ЭТИ ПОЛЯ ДЛЯ ВОССТАНОВЛЕНИЯ ПАРОЛЯ
+    @Column(name = "reset_token")
+    private String resetToken;
+
+    @Column(name = "reset_token_expiry")
+    private LocalDateTime resetTokenExpiry;
+
+    @Column(name = "email_verification_token")
+    private String emailVerificationToken;
 
     public enum UserStatus {
         ACTIVE, INACTIVE, SUSPENDED, BANNED
