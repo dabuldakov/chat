@@ -65,10 +65,8 @@ public class ChatController {
     public ResponseEntity<ChatResponseDto> createPrivateChat(
             @Valid @RequestBody CreatePrivateChatRequestDto request,
             Authentication authentication) {
-        var userId = Long.parseLong(authentication.getName());
-        var otherUserId = userService.getUserIdByUuid(request.getOtherUserUuid());
 
-        return ResponseEntity.ok(chatService.createPrivateChat(userId, otherUserId));
+        return ResponseEntity.ok(chatService.createPrivateChat(UUID.fromString(authentication.getName()), request.getOtherUserUuid()));
     }
 
     @PostMapping("/group")
@@ -76,13 +74,7 @@ public class ChatController {
     public ResponseEntity<ChatResponseDto> createGroupChat(
             @Valid @RequestBody CreateGroupChatRequestDto request,
             Authentication authentication) {
-        Long userId = Long.parseLong(authentication.getName());
-
-        List<Long> memberIds = request.getMemberUuids().stream()
-                .map(userService::getUserIdByUuid)
-                .toList();
-
-        return ResponseEntity.ok(chatService.createGroupChat(request.getTitle(), userId, memberIds));
+        return ResponseEntity.ok(chatService.createGroupChat(request.getTitle(), Long.parseLong(authentication.getName()), request.getMemberUuids()));
     }
 
     @PutMapping("/{chatUuid}")

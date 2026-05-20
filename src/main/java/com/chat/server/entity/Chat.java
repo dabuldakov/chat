@@ -29,6 +29,7 @@ public class Chat extends BaseEntity {
     @Column(name = "chat_id")
     private Long chatId;
 
+    @Builder.Default
     @Column(name = "chat_uuid", unique = true, updatable = false, nullable = false)
     private UUID chatUuid = UUID.randomUUID();
 

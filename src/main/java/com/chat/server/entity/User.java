@@ -35,6 +35,7 @@ public class User extends BaseEntity {
     @Column(name = "user_id")
     private Long userId;
 
+    @Builder.Default
     @Column(name = "user_uuid", unique = true, updatable = false, nullable = false)
     private UUID userUuid = UUID.randomUUID();
 

@@ -5,6 +5,7 @@ import com.chat.server.dto.response.ChatDetailsResponseDto;
 import com.chat.server.dto.response.ChatResponseDto;
 import com.chat.server.entity.Chat;
 import com.chat.server.entity.Participant;
+import com.chat.server.entity.User;
 import com.chat.server.exception.AccessDeniedException;
 import com.chat.server.exception.ConflictException;
 import com.chat.server.exception.NotFoundException;
@@ -56,12 +57,16 @@ public class ChatService {
     }
 
     @Transactional
-    public ChatResponseDto createPrivateChat(Long user1Id, Long user2Id) {
-        log.info("Creating private chat between users: {} and {}", user1Id, user2Id);
+    public ChatResponseDto createPrivateChat(UUID user1Uuid, UUID user2Uuid) {
+        log.info("Creating private chat between users: {} and {}", user1Uuid, user2Uuid);
 
-        if (user1Id.equals(user2Id)) {
+        if (user1Uuid.equals(user2Uuid)) {
             throw new ConflictException("Cannot create chat with yourself");
         }
+
+        Long user1Id = userService.getUserIdByUuid(user1Uuid);
+        Long user2Id = userService.getUserIdByUuid(user2Uuid);
+
 
         Optional<Chat> existingChat = chatRepository.findPrivateChatBetweenUsers(user1Id, user2Id);
         if (existingChat.isPresent()) {
@@ -78,38 +83,45 @@ public class ChatService {
         Chat savedChat = chatRepository.save(chat);
         log.info("Private chat created with id: {}", savedChat.getChatId());
 
-        addParticipant(savedChat.getChatId(), user1Id, Participant.ParticipantRole.OWNER);
-        addParticipant(savedChat.getChatId(), user2Id, Participant.ParticipantRole.MEMBER);
+        addParticipant(savedChat.getChatId(), user1Id, user1Uuid, Participant.ParticipantRole.OWNER);
+        addParticipant(savedChat.getChatId(), user2Id, user2Uuid, Participant.ParticipantRole.MEMBER);
 
         return ChatResponseDto.fromEntity(savedChat, participantRepository.findUserIdsByChatId(savedChat.getChatId()));
     }
 
     @Transactional
-    public ChatResponseDto createGroupChat(String title, Long creatorId, List<Long> memberIds) {
+    public ChatResponseDto createGroupChat(String title, Long creatorId, List<UUID> members) {
         log.info("Creating group chat with title: {} by user: {}", title, creatorId);
+
+        var creator = userService.getUserById(creatorId);
 
         var chat = Chat.builder()
                 .chatType(Chat.ChatType.GROUP)
                 .title(title)
-                .createdBy(creatorId)
+                .createdBy(creator.getUserId())
                 .build();
 
         var savedChat = chatRepository.save(chat);
         log.info("Group chat created with id: {}", savedChat.getChatId());
 
-        addParticipant(savedChat.getChatId(), creatorId, Participant.ParticipantRole.OWNER);
-        memberIds.forEach(memberId -> addParticipant(savedChat.getChatId(), memberId, Participant.ParticipantRole.MEMBER));
+        addParticipant(savedChat.getChatId(), creator.getUserId(), creator.getUserUuid(), Participant.ParticipantRole.OWNER);
+        members.forEach(memberUuid -> addParticipant(
+                savedChat.getChatId(),
+                userService.getUserIdByUuid(memberUuid),
+                memberUuid,
+                Participant.ParticipantRole.MEMBER));
 
         return ChatResponseDto.fromEntity(
                 savedChat,
                 participantRepository.findUserIdsByChatId(savedChat.getChatId()));
     }
 
-    private void addParticipant(Long chatId, Long userId, Participant.ParticipantRole role) {
+    private void addParticipant(Long chatId, Long userId, UUID userUuid, Participant.ParticipantRole role) {
         if (!participantRepository.existsByChatIdAndUserId(chatId, userId)) {
             Participant participant = Participant.builder()
                     .chatId(chatId)
                     .userId(userId)
+                    .userUUID(userUuid)
                     .role(role)
                     .joinedAt(LocalDateTime.now())
                     .build();

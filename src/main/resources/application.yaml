@@ -6,7 +6,7 @@ spring:
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
-      ddl-auto: none
+      ddl-auto: update
     show-sql: true
     properties:
       hibernate:
@@ -15,7 +15,8 @@ spring:
   flyway:
     enabled: true
     baseline-on-migrate: true
-    validate-on-migrate: false
+    locations: classpath:db/migration  # ← Проверьте этот путь
+    table: flyway_schema_history
   mail:
     host: smtp.gmail.com
     port: 587
@@ -47,17 +48,28 @@ server:
 # OpenAPI (Swagger) конфигурация
 springdoc:
   api-docs:
+    enabled: true
     path: /api-docs
-    enabled: true
   swagger-ui:
-    path: /swagger-ui.html
     enabled: true
+    path: /swagger-ui.html
     operations-sorter: method
     tags-sorter: alpha
-  show-actuator: false
+    try-it-out-enabled: true
+    filter: true
+    display-request-duration: true
+    doc-expansion: none
+  show-activator: false
   packages-to-scan: com.chat.server.controller
   paths-to-match: /api/**
+  cache:
+    disabled: true
 
 # Firebase Cloud Messaging
 fcm:
   service-account-file: firebase-service-account.json
+
+logging:
+  level:
+    org.flywaydb: DEBUG
+    org.springframework.boot.autoconfigure.flyway: DEBUG
