@@ -11,7 +11,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
 
 import javax.annotation.PostConstruct;
-import java.io.IOException;
 import java.io.InputStream;
 
 @Slf4j
@@ -24,7 +23,20 @@ public class FirebaseConfig {
     @PostConstruct
     public void initialize() {
         try {
-            InputStream serviceAccount = new ClassPathResource(serviceAccountFile).getInputStream();
+            log.info("Initializing Firebase with file: {}", serviceAccountFile);
+
+            // Пробуем загрузить файл
+            ClassPathResource resource = new ClassPathResource(serviceAccountFile);
+
+            if (!resource.exists()) {
+                log.error("Firebase service account file not found: {}", serviceAccountFile);
+                log.error("Current classpath: {}", System.getProperty("java.class.path"));
+                return;
+            }
+
+            log.info("File found, size: {} bytes", resource.contentLength());
+
+            InputStream serviceAccount = resource.getInputStream();
 
             FirebaseOptions options = FirebaseOptions.builder()
                     .setCredentials(GoogleCredentials.fromStream(serviceAccount))
@@ -33,15 +45,31 @@ public class FirebaseConfig {
             if (FirebaseApp.getApps().isEmpty()) {
                 FirebaseApp.initializeApp(options);
                 log.info("Firebase application initialized successfully");
+            } else {
+                log.info("Firebase application already initialized");
             }
-        } catch (IOException e) {
-            log.error("Failed to initialize Firebase", e);
-            throw new RuntimeException("Failed to initialize Firebase", e);
+
+        } catch (Exception e) {
+            log.error("Failed to initialize Firebase: {}", e.getMessage(), e);
         }
     }
 
     @Bean
     public FirebaseMessaging firebaseMessaging() {
-        return FirebaseMessaging.getInstance();
+        try {
+            if (FirebaseApp.getApps().isEmpty()) {
+                log.warn("FirebaseApp not initialized, trying to initialize...");
+                initialize();
+            }
+
+            if (!FirebaseApp.getApps().isEmpty()) {
+                return FirebaseMessaging.getInstance();
+            }
+        } catch (Exception e) {
+            log.error("Failed to get FirebaseMessaging instance: {}", e.getMessage());
+        }
+
+        log.warn("Returning null FirebaseMessaging bean");
+        return null;
     }
 }

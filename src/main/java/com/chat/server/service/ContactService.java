@@ -25,7 +25,7 @@ public class ContactService {
 
     private final ContactRepository contactRepository;
     private final UserService userService;
-    private final BlockedUserService blockedUserService;
+    //private final BlockedUserService blockedUserService;
 
     @Transactional
     public Contact addContact(Long userId, AddContactRequestDto request) {
@@ -39,10 +39,10 @@ public class ContactService {
             throw new ConflictException("Cannot add yourself as a contact");
         }
 
-        // Проверяем, не заблокирован ли контакт
+/*        // Проверяем, не заблокирован ли контакт
         if (blockedUserService.isBlocked(userId, contactUser.getUserId())) {
             throw new ConflictException("Cannot add blocked user as contact");
-        }
+        }*/
 
         // Проверяем, не добавлен ли уже
         if (contactRepository.existsByUserIdAndContactUserId(userId, contactUser.getUserId())) {

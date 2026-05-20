@@ -41,16 +41,6 @@ public interface MessageStatusRepository extends JpaRepository<MessageStatus, Lo
     List<MessageStatus> findUnreadMessagesInChat(@Param("chatId") Long chatId,
                                                  @Param("userId") Long userId);
 
-    @Query(value = """
-        SELECT ms.* FROM message_statuses ms
-        JOIN messages m ON ms.message_id = m.message_id
-        WHERE m.chat_id = :chatId 
-        AND ms.user_id = :userId 
-        AND ms.status != 'READ'
-    """, nativeQuery = true)
-    List<MessageStatus> findUnreadMessagesInChatNative(@Param("chatId") Long chatId,
-                                                       @Param("userId") Long userId);
-
     // ==================== Обновление статусов ====================
 
     @Modifying
@@ -65,7 +55,6 @@ public interface MessageStatusRepository extends JpaRepository<MessageStatus, Lo
                     @Param("userId") Long userId,
                     @Param("readAt") LocalDateTime readAt);
 
-    // ⭐ Массовое обновление сообщений как прочитанных (оптимизированная версия)
     @Modifying
     @Query("""
         UPDATE MessageStatus ms 
@@ -83,9 +72,6 @@ public interface MessageStatusRepository extends JpaRepository<MessageStatus, Lo
             @Param("upToMessageId") Long upToMessageId,
             @Param("readAt") LocalDateTime readAt
     );
-
-    // ⭐ Обновление last_read_message_id в Participant (через ParticipantRepository, не здесь!)
-    // Этот метод не должен быть в MessageStatusRepository, так как он обновляет Participant
 
     @Modifying
     @Query("UPDATE MessageStatus ms SET ms.status = 'FAILED' WHERE ms.messageId = :messageId AND ms.userId = :userId")
@@ -123,19 +109,24 @@ public interface MessageStatusRepository extends JpaRepository<MessageStatus, Lo
     boolean isMessageReadByUser(@Param("messageId") Long messageId,
                                 @Param("userId") Long userId);
 
-    @Query("SELECT COUNT(ms) = (SELECT COUNT(DISTINCT p.userId) FROM Participant p WHERE p.chatId = :chatId) FROM MessageStatus ms WHERE ms.messageId = :messageId AND ms.status = 'READ'")
+    @Query("""
+        SELECT COUNT(ms) = (SELECT COUNT(DISTINCT p.userId) FROM Participant p WHERE p.chatId = :chatId) 
+        FROM MessageStatus ms 
+        WHERE ms.messageId = :messageId AND ms.status = 'READ'
+    """)
     boolean isMessageReadByAll(@Param("messageId") Long messageId, @Param("chatId") Long chatId);
 
-    // ==================== Статистика ====================
+    // ==================== Статистика (исправлено!) ====================
 
     @Query("SELECT ms.status, COUNT(ms) FROM MessageStatus ms WHERE ms.messageId = :messageId GROUP BY ms.status")
     List<Object[]> getStatusDistribution(@Param("messageId") Long messageId);
 
-    @Query("""
-        SELECT AVG(EXTRACT(EPOCH FROM (ms.readAt - m.createdAt))) 
-        FROM MessageStatus ms 
-        JOIN Message m ON ms.messageId = m.messageId 
-        WHERE m.chatId = :chatId AND ms.status = 'READ'
-    """)
+    // ⭐ ИСПРАВЛЕННЫЙ ЗАПРОС - использует NATIVE SQL вместо JPQL
+    @Query(value = """
+        SELECT AVG(EXTRACT(EPOCH FROM (ms.read_at - m.created_at))) 
+        FROM message_statuses ms 
+        JOIN messages m ON ms.message_id = m.message_id 
+        WHERE m.chat_id = :chatId AND ms.status = 'READ'
+    """, nativeQuery = true)
     Double getAverageReadTimeInChat(@Param("chatId") Long chatId);
 }

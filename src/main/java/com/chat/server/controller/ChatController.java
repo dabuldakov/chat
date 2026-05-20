@@ -5,10 +5,8 @@ import com.chat.server.dto.request.CreatePrivateChatRequestDto;
 import com.chat.server.dto.request.UpdateChatRequestDto;
 import com.chat.server.dto.response.ChatDetailsResponseDto;
 import com.chat.server.dto.response.ChatResponseDto;
-import com.chat.server.dto.response.ParticipantInfoDto;
 import com.chat.server.service.ChatService;
 import com.chat.server.service.FileUploadService;
-import com.chat.server.service.ParticipantService;
 import com.chat.server.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -39,7 +37,6 @@ import java.util.UUID;
 public class ChatController {
 
     private final ChatService chatService;
-    private final ParticipantService participantService;
     private final FileUploadService fileUploadService;
     private final UserService userService;
 
@@ -153,20 +150,6 @@ public class ChatController {
 
         chatService.unarchiveChat(chatId, userId);
         return ResponseEntity.ok().build();
-    }
-
-    @GetMapping("/{chatUuid}/participants")
-    @Operation(summary = "Получение списка участников чата")
-    public ResponseEntity<List<ParticipantInfoDto>> getChatParticipants(
-            @PathVariable UUID chatUuid,
-            Authentication authentication) {
-        Long userId = Long.parseLong(authentication.getName());
-        Long chatId = chatService.getChatIdByUuid(chatUuid);
-
-        chatService.validateUserAccessToChat(chatId, userId);
-
-        var participants = participantService.getChatParticipantsWithDetails(chatId);
-        return ResponseEntity.ok(participants);
     }
 
     @GetMapping("/{chatUuid}/unread-count")

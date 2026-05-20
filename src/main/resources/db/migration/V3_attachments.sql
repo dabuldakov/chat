@@ -24,15 +24,17 @@ CREATE TABLE IF NOT EXISTS attachments (
     version BIGINT DEFAULT 0
     );
 
--- Индексы
-CREATE INDEX idx_attachments_message_id ON attachments(message_id);
-CREATE INDEX idx_attachments_chat_id ON attachments(chat_id);
-CREATE INDEX idx_attachments_uploader_id ON attachments(uploader_id);
-CREATE INDEX idx_attachments_type ON attachments(type);
-CREATE INDEX idx_attachments_attachment_uuid ON attachments(attachment_uuid);
-CREATE INDEX idx_attachments_created_at ON attachments(created_at DESC);
+-- Индексы (добавлен IF NOT EXISTS)
+CREATE INDEX IF NOT EXISTS idx_attachments_message_id ON attachments(message_id);
+CREATE INDEX IF NOT EXISTS idx_attachments_chat_id ON attachments(chat_id);
+CREATE INDEX IF NOT EXISTS idx_attachments_uploader_id ON attachments(uploader_id);
+CREATE INDEX IF NOT EXISTS idx_attachments_type ON attachments(type);
+CREATE INDEX IF NOT EXISTS idx_attachments_attachment_uuid ON attachments(attachment_uuid);
+CREATE INDEX IF NOT EXISTS idx_attachments_created_at ON attachments(created_at DESC);
 
--- Триггер
+-- Триггер (добавлен DROP перед созданием)
+DROP TRIGGER IF EXISTS update_attachments_updated_at ON attachments;
 CREATE TRIGGER update_attachments_updated_at
     BEFORE UPDATE ON attachments
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();

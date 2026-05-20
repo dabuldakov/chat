@@ -6,6 +6,8 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -23,7 +25,7 @@ import java.util.UUID;
                 @Index(name = "idx_attachments_uploader_id", columnList = "uploader_id"),
                 @Index(name = "idx_attachments_type", columnList = "type"),
                 @Index(name = "idx_attachments_attachment_uuid", columnList = "attachment_uuid"),
-                @Index(name = "idx_attachments_created_at", columnList = "created_at")
+                @Index(name = "idx_attachments_created_at", columnList = "created_at DESC")
         })
 public class Attachment extends BaseEntity {
 
@@ -76,6 +78,7 @@ public class Attachment extends BaseEntity {
     private Boolean isCompressed = false;
 
     @Column(name = "metadata", columnDefinition = "TEXT")
+    @JdbcTypeCode(SqlTypes.JSON)  // ← Добавьте для лучшей работы с JSON
     private String metadata;
 
     public enum AttachmentType {
@@ -88,10 +91,16 @@ public class Attachment extends BaseEntity {
         if (attachmentUuid == null) {
             attachmentUuid = UUID.randomUUID();
         }
+        if (isCompressed == null) {
+            isCompressed = false;
+        }
+        if (type == null) {
+            type = AttachmentType.OTHER;
+        }
     }
 
     public String getFileExtension() {
-        if (fileName == null) return "";
+        if (fileName == null || fileName.isEmpty()) return "";
         int lastDot = fileName.lastIndexOf('.');
         if (lastDot > 0) {
             return fileName.substring(lastDot + 1).toLowerCase();
@@ -113,5 +122,18 @@ public class Attachment extends BaseEntity {
 
     public boolean isDocument() {
         return type == AttachmentType.DOCUMENT;
+    }
+
+    // Добавьте полезные методы
+    public boolean hasThumbnail() {
+        return thumbnailUrl != null && !thumbnailUrl.isEmpty();
+    }
+
+    public String getFormattedFileSize() {
+        if (fileSize == null) return "0 B";
+        if (fileSize < 1024) return fileSize + " B";
+        if (fileSize < 1024 * 1024) return String.format("%.1f KB", fileSize / 1024.0);
+        if (fileSize < 1024 * 1024 * 1024) return String.format("%.1f MB", fileSize / (1024.0 * 1024));
+        return String.format("%.1f GB", fileSize / (1024.0 * 1024 * 1024));
     }
 }

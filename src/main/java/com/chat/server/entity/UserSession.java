@@ -25,7 +25,7 @@ import java.util.UUID;
                 @Index(name = "idx_sessions_device_id", columnList = "device_id"),
                 @Index(name = "idx_sessions_is_active", columnList = "is_active"),
                 @Index(name = "idx_sessions_expires_at", columnList = "expires_at"),
-                @Index(name = "idx_sessions_last_activity", columnList = "last_activity")
+                @Index(name = "idx_sessions_last_activity", columnList = "last_activity DESC")
         })
 public class UserSession extends BaseEntity {
 
@@ -56,7 +56,7 @@ public class UserSession extends BaseEntity {
     private String deviceName;
 
     @Column(name = "device_type", length = 50)
-    private String deviceType; // ANDROID, IOS, WEB, DESKTOP
+    private String deviceType;
 
     @Column(name = "ip_address", length = 45)
     private String ipAddress;
@@ -75,7 +75,6 @@ public class UserSession extends BaseEntity {
 
     @PrePersist
     protected void onCreate() {
-        super.onCreate();
         if (sessionUuid == null) {
             sessionUuid = UUID.randomUUID();
         }
@@ -85,6 +84,15 @@ public class UserSession extends BaseEntity {
         if (expiresAt == null) {
             expiresAt = LocalDateTime.now().plusDays(30);
         }
+        if (isActive == null) {
+            isActive = true;
+        }
+        // Вызов super.onCreate() если нужен
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        // Обновление updated_at через BaseEntity
     }
 
     public void updateActivity() {
@@ -106,7 +114,18 @@ public class UserSession extends BaseEntity {
     }
 
     public void extendExpiry(int days) {
-        this.expiresAt = LocalDateTime.now().plusDays(days);
-        this.setUpdatedAt(LocalDateTime.now());
+        if (days > 0) {
+            this.expiresAt = LocalDateTime.now().plusDays(days);
+            this.setUpdatedAt(LocalDateTime.now());
+        }
+    }
+
+    // Вспомогательные методы для удобства
+    public boolean isWebSession() {
+        return "WEB".equalsIgnoreCase(deviceType);
+    }
+
+    public boolean isMobileSession() {
+        return "ANDROID".equalsIgnoreCase(deviceType) || "IOS".equalsIgnoreCase(deviceType);
     }
 }

@@ -6,11 +6,11 @@ import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 
 @Slf4j
-@Service
-@RequiredArgsConstructor
+//@Service
+//@RequiredArgsConstructor
 public class CacheService {
 
-    private final CacheManager cacheManager;
+    private final CacheManager cacheManager = null;
 
     public void evictUserCache(Long userId) {
         cacheManager.getCache("users").evict(userId);
