@@ -145,6 +145,38 @@ class UserSessionServiceIT extends AbstractIntegrationTest {
     }
 
     @Test
+    void shouldRegisterFcmTokenForMatchingDevice() {
+        createSession("token-1", "device-1");
+        createSession("token-2", "device-2");
+
+        userSessionService.registerFcmToken(user.getUserId(), "device-2", "fcm-device-2");
+
+        assertThat(userSessionRepository.findByToken("token-1").orElseThrow().getFcmToken()).isNull();
+        assertThat(userSessionRepository.findByToken("token-2").orElseThrow().getFcmToken())
+                .isEqualTo("fcm-device-2");
+    }
+
+    @Test
+    void shouldRegisterFcmTokenForAllSessionsWhenDeviceUnknown() {
+        createSession("token-1", "device-1");
+        createSession("token-2", "device-2");
+
+        userSessionService.registerFcmToken(user.getUserId(), null, "fcm-shared");
+
+        assertThat(userSessionService.getActiveFcmTokens(user.getUserId()))
+                .hasSize(2)
+                .allMatch("fcm-shared"::equals);
+    }
+
+    @Test
+    void shouldRejectBlankFcmToken() {
+        createSession("token-1", "device-1");
+
+        assertThatThrownBy(() -> userSessionService.registerFcmToken(user.getUserId(), "device-1", "  "))
+                .isInstanceOf(com.chat.server.exception.BadRequestException.class);
+    }
+
+    @Test
     void shouldGetUserSessions() {
         createSession("token-1", "device-1");
         createSession("token-2", "device-2");

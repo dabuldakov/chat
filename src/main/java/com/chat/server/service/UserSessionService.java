@@ -2,6 +2,7 @@ package com.chat.server.service;
 
 import com.chat.server.dto.response.UserSessionDto;
 import com.chat.server.entity.UserSession;
+import com.chat.server.exception.BadRequestException;
 import com.chat.server.exception.UnauthorizedException;
 import com.chat.server.repository.UserSessionRepository;
 import lombok.RequiredArgsConstructor;
@@ -105,6 +106,25 @@ public class UserSessionService {
     public void updateFcmToken(Long sessionId, String fcmToken) {
         userSessionRepository.updateFcmToken(sessionId, fcmToken);
         log.debug("FCM token updated for session: {}", sessionId);
+    }
+
+    @Transactional
+    public void registerFcmToken(Long userId, String deviceId, String fcmToken) {
+        if (fcmToken == null || fcmToken.isBlank()) {
+            throw new BadRequestException("FCM token is required");
+        }
+
+        if (deviceId != null && !deviceId.isBlank()) {
+            userSessionRepository.findActiveSessionByDeviceId(userId, deviceId)
+                    .ifPresentOrElse(
+                            session -> userSessionRepository.updateFcmToken(session.getSessionId(), fcmToken),
+                            () -> userSessionRepository.findActiveSessionsByUserId(userId)
+                                    .forEach(s -> userSessionRepository.updateFcmToken(s.getSessionId(), fcmToken)));
+        } else {
+            userSessionRepository.findActiveSessionsByUserId(userId)
+                    .forEach(s -> userSessionRepository.updateFcmToken(s.getSessionId(), fcmToken));
+        }
+        log.info("FCM token registered for user: {}", userId);
     }
 
     @Transactional(readOnly = true)

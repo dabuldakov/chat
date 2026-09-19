@@ -70,6 +70,16 @@ public class UserController {
         return ResponseEntity.ok().build();
     }
 
+    @PutMapping("/me/fcm-token")
+    @Operation(summary = "Регистрация FCM-токена устройства для пуш-уведомлений")
+    public ResponseEntity<Void> registerFcmToken(
+            @RequestBody FcmTokenRequest request,
+            Authentication authentication) {
+        Long userId = Long.parseLong(authentication.getName());
+        userSessionService.registerFcmToken(userId, request.deviceId(), request.token());
+        return ResponseEntity.ok().build();
+    }
+
     @GetMapping("/{userUuid}")
     @Operation(summary = "Получение профиля пользователя по UUID")
     public ResponseEntity<UserDto> getUserByUuid(@PathVariable UUID userUuid) {
@@ -128,6 +138,8 @@ public class UserController {
     }
 
     public record AvatarResponse(String avatarUrl) {}
+
+    public record FcmTokenRequest(String token, String deviceId) {}
 
     record UserStatusResponse(boolean online) {}
 }
