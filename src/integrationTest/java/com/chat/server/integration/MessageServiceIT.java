@@ -3,6 +3,7 @@ package com.chat.server.integration;
 import com.chat.server.entity.Chat;
 import com.chat.server.entity.Message;
 import com.chat.server.entity.MessageStatus;
+import com.chat.server.dto.response.ChatResponseDto;
 import com.chat.server.entity.User;
 import com.chat.server.exception.AccessDeniedException;
 import com.chat.server.exception.NotFoundException;
@@ -70,6 +71,30 @@ class MessageServiceIT extends AbstractIntegrationTest {
                 .isOnline(false)
                 .isDeleted(false)
                 .build());
+    }
+
+    @Test
+    void shouldExposeUnreadCountInChatListMatchingTotal() {
+        messageService.sendMessage(chat.getChatId(), user2.getUserId(),
+                "one", Message.MessageType.TEXT, null, null);
+        Message second = messageService.sendMessage(chat.getChatId(), user2.getUserId(),
+                "two", Message.MessageType.TEXT, null, null);
+
+        assertThat(chatService.getUserChatsWithDetails(user1.getUserId()))
+                .filteredOn(c -> c.getChatUuid().equals(chat.getChatUuid()))
+                .singleElement()
+                .extracting(ChatResponseDto::getUnreadCount)
+                .isEqualTo(2L);
+        assertThat(chatService.getTotalUnreadCount(user1.getUserId())).isEqualTo(2L);
+
+        messageStatusService.markMessagesAsRead(chat.getChatId(), user1.getUserId(), second.getMessageUuid());
+
+        assertThat(chatService.getUserChatsWithDetails(user1.getUserId()))
+                .filteredOn(c -> c.getChatUuid().equals(chat.getChatUuid()))
+                .singleElement()
+                .extracting(ChatResponseDto::getUnreadCount)
+                .isEqualTo(0L);
+        assertThat(chatService.getTotalUnreadCount(user1.getUserId())).isZero();
     }
 
     @Test
