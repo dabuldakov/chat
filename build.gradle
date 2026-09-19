@@ -44,6 +44,7 @@ dependencies {
     implementation 'org.flywaydb:flyway-core:9.22.3'
 
     // Utilities
+    implementation 'io.minio:minio:8.5.9'
     implementation 'org.projectlombok:lombok:1.18.30'
     annotationProcessor 'org.projectlombok:lombok:1.18.30'
 

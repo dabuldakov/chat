@@ -188,7 +188,7 @@ public class UserService implements UserDetailsService {
     }
 
     @Transactional
-    @CacheEvict(value = "users", key = "#userId")
+    @CacheEvict(value = "users", allEntries = true)
     public void updateAvatar(Long userId, String avatarUrl) {
         User user = getUserById(userId);
         user.setAvatarUrl(avatarUrl);
@@ -197,7 +197,7 @@ public class UserService implements UserDetailsService {
     }
 
     @Transactional
-    @CacheEvict(value = "users", key = "#userId")
+    @CacheEvict(value = "users", allEntries = true)
     public void deleteAvatar(Long userId) {
         User user = getUserById(userId);
         user.setAvatarUrl(null);

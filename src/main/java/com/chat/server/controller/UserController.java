@@ -5,7 +5,7 @@ import com.chat.server.dto.response.UserDto;
 import com.chat.server.dto.response.UserProfileDto;
 import com.chat.server.dto.response.UserSessionDto;
 import com.chat.server.entity.User;
-import com.chat.server.service.FileUploadService;
+import com.chat.server.service.UserAvatarService;
 import com.chat.server.service.UserService;
 import com.chat.server.service.UserSessionService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -33,7 +33,7 @@ public class UserController {
 
     private final UserService userService;
     private final UserSessionService userSessionService;
-    private final FileUploadService fileUploadService;
+    private final UserAvatarService avatars;
 
     @GetMapping("/me")
     @Operation(summary = "Получение своего профиля")
@@ -55,20 +55,18 @@ public class UserController {
 
     @PostMapping("/me/avatar")
     @Operation(summary = "Загрузка аватара")
-    public ResponseEntity<String> uploadAvatar(
+    public ResponseEntity<AvatarResponse> uploadAvatar(
             @RequestParam("file") MultipartFile file,
             Authentication authentication) {
         Long userId = Long.parseLong(authentication.getName());
-        String avatarUrl = fileUploadService.uploadAvatar(userId, file);
-        userService.updateAvatar(userId, avatarUrl);
-        return ResponseEntity.ok(avatarUrl);
+        return ResponseEntity.ok(new AvatarResponse(avatars.upload(userId, file)));
     }
 
     @DeleteMapping("/me/avatar")
     @Operation(summary = "Удаление аватара")
     public ResponseEntity<Void> deleteAvatar(Authentication authentication) {
         Long userId = Long.parseLong(authentication.getName());
-        userService.deleteAvatar(userId);
+        avatars.delete(userId);
         return ResponseEntity.ok().build();
     }
 
@@ -128,6 +126,8 @@ public class UserController {
         userService.deleteUser(userId);
         return ResponseEntity.ok().build();
     }
+
+    public record AvatarResponse(String avatarUrl) {}
 
     record UserStatusResponse(boolean online) {}
 }

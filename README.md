@@ -9,6 +9,40 @@
 
 Gradle ставить не нужно, используется wrapper — `./gradlew`.
 
+## Аватары пользователей (MinIO)
+
+Android загружает аватар из экрана профиля в `POST /api/users/me/avatar`
+(multipart-поле `file`, chat JWT). Ответ: `{"avatarUrl":"/api/avatars/<userUuid>/<version>.png"}`.
+`GET /api/users/me` возвращает текущий URL, `DELETE /api/users/me/avatar` удаляет аватар.
+Публичный `GET /api/avatars/<userUuid>/<version>.png` выдаёт картинку через chat API:
+bucket остаётся закрытым, внешний адрес MinIO приложению не нужен.
+Поддерживаются JPEG/PNG до 5 MB; изображение преобразуется в PNG до 512 px.
+Новая версия получает новый URL. Контакты, приватные чаты и сообщения возвращают этот URL.
+
+Для Docker Compose сначала запустите MinIO из проекта makeup. Добавьте в локальный
+`chat/.env` настройки доступа к **этому же** MinIO (значения ключей возьмите из конфигурации makeup):
+
+```dotenv
+MINIO_URL=http://minio:9000
+MINIO_ACCESS_KEY=<ключ доступа из makeup>
+MINIO_SECRET_KEY=<секретный ключ из makeup>
+MINIO_AVATAR_BUCKET=avatars
+MINIO_NETWORK=makeup_makeup-network
+```
+
+`MINIO_NETWORK` — реальное имя Docker-сети makeup (`docker network ls`);
+при другом имени compose-проекта измените его. Chat app подключается к этой внешней
+сети, PostgreSQL остаётся в chat-network. Bucket создаётся при первой загрузке;
+ключу MinIO нужны права создания bucket и чтения/записи/удаления объектов.
+
+```bash
+docker compose up -d --build app
+```
+
+При запуске вне Docker задайте `MINIO_URL=http://localhost:9000` и те же ключи.
+`AvatarFlowIT` использует собственные PostgreSQL и MinIO в Testcontainers,
+проверяя загрузку, замену, удаление, публичное чтение и выдачу в контактах/чате.
+
 ## Виды тестов
 
 | Тип | Где лежат | Суффикс | Что нужно | Команда |

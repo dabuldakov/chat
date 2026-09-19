@@ -41,6 +41,7 @@ public class SecurityConfig {
 
                 // Правила авторизации
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/avatars/**").permitAll()
                         // Публичные эндпоинты
                         .requestMatchers(
                                 "/api/auth/**",
