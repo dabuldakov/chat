@@ -116,7 +116,7 @@ public class MessageController {
         return ResponseEntity.ok(messageDtos);
     }
 
-    @GetMapping("/{messageUuid}")
+    @GetMapping("/by-uuid/{messageUuid}")
     @Operation(summary = "Получение сообщения по UUID")
     public ResponseEntity<MessageDto> getMessageByUuid(
             @PathVariable UUID messageUuid,
