@@ -68,6 +68,7 @@ public class ParticipantService {
                 Participant participant = Participant.builder()
                         .chatId(chatId)
                         .userId(userId)
+                        .userUUID(userService.getUserById(userId).getUserUuid())
                         .role(Participant.ParticipantRole.MEMBER)
                         .joinedAt(LocalDateTime.now())
                         .build();

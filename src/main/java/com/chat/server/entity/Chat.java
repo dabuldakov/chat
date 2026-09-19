@@ -64,6 +64,7 @@ public class Chat extends BaseEntity {
     @Column(name = "last_message_sender_id")
     private Long lastMessageSenderId;
 
+    @Builder.Default
     @Column(name = "message_count")
     private Long messageCount = 0L;
 

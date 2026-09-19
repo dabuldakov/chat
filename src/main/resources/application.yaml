@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/chat_db
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/chat_db}
     username: admin
     password: 45gadfh56s
     driver-class-name: org.postgresql.Driver

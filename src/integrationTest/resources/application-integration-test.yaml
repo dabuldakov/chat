@@ -1,0 +1,8 @@
+spring:
+  # Миграции не применяем в тестах: схему создаёт Hibernate (ddl-auto=update),
+  # как в текущем рантайм-окружении приложения.
+  flyway:
+    enabled: false
+  jpa:
+    hibernate:
+      ddl-auto: update

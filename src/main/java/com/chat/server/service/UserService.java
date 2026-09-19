@@ -57,7 +57,7 @@ public class UserService implements UserDetailsService {
                     user.getPasswordHash(),
                     Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
             );
-        } catch (NumberFormatException e) {
+        } catch (IllegalArgumentException e) {
             throw new UsernameNotFoundException("Invalid user ID format: " + userId);
         }
     }

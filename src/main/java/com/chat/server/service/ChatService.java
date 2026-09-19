@@ -3,6 +3,7 @@ package com.chat.server.service;
 import com.chat.server.dto.request.UpdateChatRequestDto;
 import com.chat.server.dto.response.ChatDetailsResponseDto;
 import com.chat.server.dto.response.ChatResponseDto;
+import com.chat.server.dto.response.MessagePreviewDto;
 import com.chat.server.entity.Chat;
 import com.chat.server.entity.Participant;
 import com.chat.server.entity.User;
@@ -50,21 +51,78 @@ public class ChatService {
         log.debug("Fetching chats with details for user: {}", userId);
         List<Chat> chats = getUserChats(userId);
 
-        return chats.stream().map(chat -> {
-            List<UUID> participantIds = participantRepository.findUserIdsByChatId(chat.getChatId());
-            return ChatResponseDto.fromEntity(chat, participantIds);
-        }).collect(Collectors.toList());
+        return chats.stream()
+                .map(chat -> buildChatResponse(chat, userId))
+                .collect(Collectors.toList());
+    }
+
+    private ChatResponseDto buildChatResponse(Chat chat, Long userId) {
+        List<Participant> participants = participantRepository.findAllByChatId(chat.getChatId());
+        List<UUID> participantIds = participants.stream()
+                .map(Participant::getUserUUID)
+                .collect(Collectors.toList());
+
+        Map<Long, User> usersById = userService.getUsersByIds(
+                        participants.stream().map(Participant::getUserId).distinct().toList())
+                .stream().collect(Collectors.toMap(User::getUserId, u -> u));
+
+        String title = chat.getTitle();
+        String avatarUrl = chat.getAvatarUrl();
+        if (chat.getChatType() == Chat.ChatType.PRIVATE) {
+            Optional<Long> otherId = participants.stream()
+                    .filter(p -> !p.getUserId().equals(userId))
+                    .map(Participant::getUserId)
+                    .findFirst();
+            if (otherId.isPresent()) {
+                User other = usersById.get(otherId.get());
+                if (other != null) {
+                    title = other.getFullName();
+                    avatarUrl = other.getAvatarUrl();
+                }
+            }
+        }
+
+        MessagePreviewDto lastMessage = buildLastMessagePreview(chat, usersById);
+        long unreadCount = getUnreadMessagesCount(chat.getChatId(), userId);
+
+        return ChatResponseDto.builder()
+                .chatUuid(chat.getChatUuid())
+                .chatType(chat.getChatType().name())
+                .title(title)
+                .avatarUrl(avatarUrl)
+                .createdAt(chat.getCreatedAt())
+                .updatedAt(chat.getUpdatedAt())
+                .participantIds(participantIds)
+                .participantCount((long) participantIds.size())
+                .lastMessage(lastMessage)
+                .unreadCount(unreadCount)
+                .isArchived(chat.getIsArchived() != null && chat.getIsArchived())
+                .build();
+    }
+
+    private MessagePreviewDto buildLastMessagePreview(Chat chat, Map<Long, User> usersById) {
+        if (chat.getLastMessageText() == null && chat.getLastMessageSenderId() == null) {
+            return null;
+        }
+        User sender = usersById.get(chat.getLastMessageSenderId());
+        return MessagePreviewDto.builder()
+                .text(chat.getLastMessageText())
+                .senderId(chat.getLastMessageSenderId())
+                .senderName(sender != null ? sender.getFullName() : null)
+                .createdAt(chat.getUpdatedAt())
+                .build();
     }
 
     @Transactional
-    public ChatResponseDto createPrivateChat(UUID user1Uuid, UUID user2Uuid) {
-        log.info("Creating private chat between users: {} and {}", user1Uuid, user2Uuid);
+    public ChatResponseDto createPrivateChat(Long user1Id, UUID user2Uuid) {
+        log.info("Creating private chat between users: {} and {}", user1Id, user2Uuid);
 
-        if (user1Uuid.equals(user2Uuid)) {
+        var creator = userService.getUserById(user1Id);
+
+        if (creator.getUserUuid().equals(user2Uuid)) {
             throw new ConflictException("Cannot create chat with yourself");
         }
 
-        Long user1Id = userService.getUserIdByUuid(user1Uuid);
         Long user2Id = userService.getUserIdByUuid(user2Uuid);
 
 
@@ -83,7 +141,7 @@ public class ChatService {
         Chat savedChat = chatRepository.save(chat);
         log.info("Private chat created with id: {}", savedChat.getChatId());
 
-        addParticipant(savedChat.getChatId(), user1Id, user1Uuid, Participant.ParticipantRole.OWNER);
+        addParticipant(savedChat.getChatId(), user1Id, creator.getUserUuid(), Participant.ParticipantRole.OWNER);
         addParticipant(savedChat.getChatId(), user2Id, user2Uuid, Participant.ParticipantRole.MEMBER);
 
         return ChatResponseDto.fromEntity(savedChat, participantRepository.findUserIdsByChatId(savedChat.getChatId()));

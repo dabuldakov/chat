@@ -66,7 +66,7 @@ public class ChatController {
             @Valid @RequestBody CreatePrivateChatRequestDto request,
             Authentication authentication) {
 
-        return ResponseEntity.ok(chatService.createPrivateChat(UUID.fromString(authentication.getName()), request.getOtherUserUuid()));
+        return ResponseEntity.ok(chatService.createPrivateChat(Long.parseLong(authentication.getName()), request.getOtherUserUuid()));
     }
 
     @PostMapping("/group")
@@ -120,7 +120,7 @@ public class ChatController {
         return ResponseEntity.ok().build();
     }
 
-    @PostMapping("/{chatUuid}/archive")
+    @PostMapping("/archive/{chatUuid}")
     @Operation(summary = "Архивировать чат")
     public ResponseEntity<Void> archiveChat(
             @PathVariable UUID chatUuid,
@@ -132,7 +132,7 @@ public class ChatController {
         return ResponseEntity.ok().build();
     }
 
-    @PostMapping("/{chatUuid}/unarchive")
+    @PostMapping("/unarchive/{chatUuid}")
     @Operation(summary = "Разархивировать чат")
     public ResponseEntity<Void> unarchiveChat(
             @PathVariable UUID chatUuid,
@@ -144,7 +144,7 @@ public class ChatController {
         return ResponseEntity.ok().build();
     }
 
-    @GetMapping("/{chatUuid}/unread-count")
+    @GetMapping("/unread-count/{chatUuid}")
     @Operation(summary = "Получение количества непрочитанных сообщений")
     public ResponseEntity<UnreadCountResponse> getUnreadCount(
             @PathVariable UUID chatUuid,
@@ -158,7 +158,7 @@ public class ChatController {
         return ResponseEntity.ok(new UnreadCountResponse(unreadCount));
     }
 
-    @GetMapping("/unread/all")
+    @GetMapping("/unread-count/all")
     @Operation(summary = "Получение общего количества непрочитанных сообщений")
     public ResponseEntity<UnreadCountResponse> getTotalUnreadCount(Authentication authentication) {
         Long userId = Long.parseLong(authentication.getName());

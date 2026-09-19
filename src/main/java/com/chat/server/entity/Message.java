@@ -64,6 +64,7 @@ public class Message extends BaseEntity {
     @Column(name = "edit_history")
     private String editHistory; // JSON строка с историей изменений
 
+    @Builder.Default
     @Column(name = "is_deleted")
     private Boolean isDeleted = false;
 
