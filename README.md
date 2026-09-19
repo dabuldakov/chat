@@ -19,21 +19,21 @@ bucket остаётся закрытым, внешний адрес MinIO при
 Поддерживаются JPEG/PNG до 5 MB; изображение преобразуется в PNG до 512 px.
 Новая версия получает новый URL. Контакты, приватные чаты и сообщения возвращают этот URL.
 
-Для Docker Compose сначала запустите MinIO из проекта makeup. Добавьте в локальный
-`chat/.env` настройки доступа к **этому же** MinIO (значения ключей возьмите из конфигурации makeup):
+Для Docker Compose сначала запустите makeup (в нём поднимается MinIO и публикуется порт 9000).
+Добавьте в `chat/.env` доступ к **тому же** MinIO (значения ключей возьмите из конфигурации makeup):
 
 ```dotenv
-MINIO_URL=http://minio:9000
+MINIO_URL=http://90.188.89.63:9000
 MINIO_ACCESS_KEY=<ключ доступа из makeup>
 MINIO_SECRET_KEY=<секретный ключ из makeup>
 MINIO_AVATAR_BUCKET=avatars
-MINIO_NETWORK=makeup_makeup-network
 ```
 
-`MINIO_NETWORK` — реальное имя Docker-сети makeup (`docker network ls`);
-при другом имени compose-проекта измените его. Chat app подключается к этой внешней
-сети, PostgreSQL остаётся в chat-network. Bucket создаётся при первой загрузке;
-ключу MinIO нужны права создания bucket и чтения/записи/удаления объектов.
+Chat app обращается к MinIO по опубликованному на хосте порту 9000 через
+`extra_hosts: 90.188.89.63:host-gateway` (уже задан в compose) — отдельная Docker-сеть
+и её имя не нужны. `MINIO_URL` по умолчанию `http://90.188.89.63:9000`; если сервер
+другой, задайте свой адрес. Bucket создаётся при первой загрузке; ключу MinIO нужны
+права создания bucket и чтения/записи/удаления объектов.
 
 ```bash
 docker compose up -d --build app
