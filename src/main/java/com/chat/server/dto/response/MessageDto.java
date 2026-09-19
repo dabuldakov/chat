@@ -1,6 +1,7 @@
 package com.chat.server.dto.response;
 
 import com.chat.server.entity.Message;
+import com.chat.server.entity.User;
 import lombok.Builder;
 import lombok.Data;
 
@@ -42,5 +43,16 @@ public class MessageDto {
                 .createdAt(message.getCreatedAt())
                 .updatedAt(message.getUpdatedAt())
                 .build();
+    }
+
+    public static MessageDto fromEntity(Message message, User sender) {
+        MessageDto dto = fromEntity(message);
+        if (sender != null) {
+            dto.setSenderId(sender.getUserId());
+            dto.setSenderUuid(sender.getUserUuid());
+            dto.setSenderName(sender.getFullName() != null ? sender.getFullName() : sender.getUsername());
+            dto.setSenderAvatar(sender.getAvatarUrl());
+        }
+        return dto;
     }
 }

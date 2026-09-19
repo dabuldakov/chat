@@ -38,7 +38,7 @@ public class ParticipantController {
     public ResponseEntity<List<ParticipantInfoDto>> getParticipants(
             @PathVariable UUID chatUuid,
             Authentication authentication) {
-        Long userId = userService.getUserIdByUuid(UUID.fromString(authentication.getName()));
+        Long userId = Long.parseLong(authentication.getName());
         Long chatId = chatService.getChatIdByUuid(chatUuid);
 
         chatService.validateUserAccessToChat(chatId, userId);
@@ -53,7 +53,7 @@ public class ParticipantController {
             @PathVariable UUID chatUuid,
             @Valid @RequestBody AddParticipantsRequestDto request,
             Authentication authentication) {
-        Long requesterId = userService.getUserIdByUuid(UUID.fromString(authentication.getName()));
+        Long requesterId = Long.parseLong(authentication.getName());
         Long chatId = chatService.getChatIdByUuid(chatUuid);
 
         // Конвертируем UUID участников в Long ID
@@ -71,7 +71,7 @@ public class ParticipantController {
             @PathVariable UUID chatUuid,
             @PathVariable UUID userUuid,
             Authentication authentication) {
-        Long requesterId = userService.getUserIdByUuid(UUID.fromString(authentication.getName()));
+        Long requesterId = Long.parseLong(authentication.getName());
         Long chatId = chatService.getChatIdByUuid(chatUuid);
         Long userIdToRemove = userService.getUserIdByUuid(userUuid);
 
@@ -98,7 +98,7 @@ public class ParticipantController {
             @PathVariable UUID userUuid,
             @Valid @RequestBody UpdateParticipantRoleRequestDto request,
             Authentication authentication) {
-        Long requesterId = userService.getUserIdByUuid(UUID.fromString(authentication.getName()));
+        Long requesterId = Long.parseLong(authentication.getName());
         Long chatId = chatService.getChatIdByUuid(chatUuid);
         Long targetUserId = userService.getUserIdByUuid(userUuid);
 
@@ -112,7 +112,7 @@ public class ParticipantController {
             @PathVariable UUID chatUuid,
             @RequestParam(required = false) Integer durationHours,
             Authentication authentication) {
-        Long userId = userService.getUserIdByUuid(UUID.fromString(authentication.getName()));
+        Long userId = Long.parseLong(authentication.getName());
         Long chatId = chatService.getChatIdByUuid(chatUuid);
 
         participantService.muteChat(chatId, userId, durationHours);
@@ -124,7 +124,7 @@ public class ParticipantController {
     public ResponseEntity<Void> unmuteChat(
             @PathVariable UUID chatUuid,
             Authentication authentication) {
-        Long userId = userService.getUserIdByUuid(UUID.fromString(authentication.getName()));
+        Long userId = Long.parseLong(authentication.getName());
         Long chatId = chatService.getChatIdByUuid(chatUuid);
 
         participantService.unmuteChat(chatId, userId);
@@ -136,7 +136,7 @@ public class ParticipantController {
     public ResponseEntity<Void> pinChat(
             @PathVariable UUID chatUuid,
             Authentication authentication) {
-        Long userId = userService.getUserIdByUuid(UUID.fromString(authentication.getName()));
+        Long userId = Long.parseLong(authentication.getName());
         Long chatId = chatService.getChatIdByUuid(chatUuid);
 
         participantService.pinChat(chatId, userId);
@@ -148,7 +148,7 @@ public class ParticipantController {
     public ResponseEntity<Void> unpinChat(
             @PathVariable UUID chatUuid,
             Authentication authentication) {
-        Long userId = userService.getUserIdByUuid(UUID.fromString(authentication.getName()));
+        Long userId = Long.parseLong(authentication.getName());
         Long chatId = chatService.getChatIdByUuid(chatUuid);
 
         participantService.unpinChat(chatId, userId);
@@ -160,7 +160,7 @@ public class ParticipantController {
     public ResponseEntity<MyParticipationDto> getMyParticipation(
             @PathVariable UUID chatUuid,
             Authentication authentication) {
-        Long userId = userService.getUserIdByUuid(UUID.fromString(authentication.getName()));
+        Long userId = Long.parseLong(authentication.getName());
         Long chatId = chatService.getChatIdByUuid(chatUuid);
 
         var participant = participantService.getParticipant(chatId, userId);

@@ -320,7 +320,7 @@ public class ChatService {
 
     @Transactional(readOnly = true)
     public long getTotalUnreadCount(Long userId) {
-        var chatIds = participantRepository.findAllByChatId(userId).stream()
+        var chatIds = participantRepository.findAllByUserId(userId).stream()
                 .map(Participant::getChatId).toList();
         long totalUnread = 0;
 

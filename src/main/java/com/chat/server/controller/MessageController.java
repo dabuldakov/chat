@@ -6,6 +6,7 @@ import com.chat.server.dto.request.SendMessageRequestDto;
 import com.chat.server.dto.response.MessageDto;
 import com.chat.server.dto.response.MessageStatusDto;
 import com.chat.server.entity.Message;
+import com.chat.server.entity.User;
 import com.chat.server.service.ChatService;
 import com.chat.server.service.MessageService;
 import com.chat.server.service.MessageStatusService;
@@ -23,7 +24,10 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Slf4j
 @RestController
@@ -43,7 +47,7 @@ public class MessageController {
             @PathVariable UUID chatUuid,
             @Valid @RequestBody SendMessageRequestDto request,
             Authentication authentication) {
-        Long userId = userService.getUserIdByUuid(UUID.fromString(authentication.getName()));
+        Long userId = Long.parseLong(authentication.getName());
         Long chatId = chatService.getChatIdByUuid(chatUuid);
 
         Message message = messageService.sendMessage(
@@ -55,7 +59,7 @@ public class MessageController {
                 request.getAttachments()
         );
 
-        return ResponseEntity.ok(MessageDto.fromEntity(message));
+        return ResponseEntity.ok(MessageDto.fromEntity(message, userService.getUserById(userId)));
     }
 
     @GetMapping("/{chatUuid}")
@@ -65,11 +69,11 @@ public class MessageController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size,
             Authentication authentication) {
-        Long userId = userService.getUserIdByUuid(UUID.fromString(authentication.getName()));
+        Long userId = Long.parseLong(authentication.getName());
         Long chatId = chatService.getChatIdByUuid(chatUuid);
 
         Page<Message> messages = messageService.getChatMessages(chatId, userId, PageRequest.of(page, size));
-        Page<MessageDto> messageDtos = messages.map(MessageDto::fromEntity);
+        Page<MessageDto> messageDtos = messages.map(msg -> MessageDto.fromEntity(msg, senderMap(messages.getContent()).get(msg.getSenderId())));
 
         return ResponseEntity.ok(messageDtos);
     }
@@ -81,12 +85,13 @@ public class MessageController {
             @PathVariable UUID messageUuid,
             @RequestParam(defaultValue = "50") int limit,
             Authentication authentication) {
-        Long userId = userService.getUserIdByUuid(UUID.fromString(authentication.getName()));
+        Long userId = Long.parseLong(authentication.getName());
         Long chatId = chatService.getChatIdByUuid(chatUuid);
 
         List<Message> messages = messageService.getMessagesBeforeMessage(chatId, userId, messageUuid, limit);
+        Map<Long, User> senderMap = senderMap(messages);
         List<MessageDto> messageDtos = messages.stream()
-                .map(MessageDto::fromEntity)
+                .map(msg -> MessageDto.fromEntity(msg, senderMap.get(msg.getSenderId())))
                 .toList();
 
         return ResponseEntity.ok(messageDtos);
@@ -98,13 +103,14 @@ public class MessageController {
             @PathVariable UUID chatUuid,
             @PathVariable String timestamp,
             Authentication authentication) {
-        Long userId = userService.getUserIdByUuid(UUID.fromString(authentication.getName()));
+        Long userId = Long.parseLong(authentication.getName());
         Long chatId = chatService.getChatIdByUuid(chatUuid);
 
         LocalDateTime since = LocalDateTime.parse(timestamp);
         List<Message> messages = messageService.getMessagesAfter(chatId, userId, since);
+        Map<Long, User> senderMap = senderMap(messages);
         List<MessageDto> messageDtos = messages.stream()
-                .map(MessageDto::fromEntity)
+                .map(msg -> MessageDto.fromEntity(msg, senderMap.get(msg.getSenderId())))
                 .toList();
 
         return ResponseEntity.ok(messageDtos);
@@ -115,12 +121,12 @@ public class MessageController {
     public ResponseEntity<MessageDto> getMessageByUuid(
             @PathVariable UUID messageUuid,
             Authentication authentication) {
-        Long userId = userService.getUserIdByUuid(UUID.fromString(authentication.getName()));
+        Long userId = Long.parseLong(authentication.getName());
 
         Message message = messageService.getMessageByUuid(messageUuid);
         chatService.validateUserAccessToChat(message.getChatId(), userId);
 
-        return ResponseEntity.ok(MessageDto.fromEntity(message));
+        return ResponseEntity.ok(MessageDto.fromEntity(message, userService.getUserById(message.getSenderId())));
     }
 
     @PutMapping("/{messageUuid}")
@@ -129,10 +135,10 @@ public class MessageController {
             @PathVariable UUID messageUuid,
             @Valid @RequestBody EditMessageRequestDto request,
             Authentication authentication) {
-        Long userId = userService.getUserIdByUuid(UUID.fromString(authentication.getName()));
+        Long userId = Long.parseLong(authentication.getName());
 
         Message message = messageService.editMessage(messageUuid, userId, request.getText());
-        return ResponseEntity.ok(MessageDto.fromEntity(message));
+        return ResponseEntity.ok(MessageDto.fromEntity(message, userService.getUserById(message.getSenderId())));
     }
 
     @DeleteMapping("/{messageUuid}")
@@ -141,7 +147,7 @@ public class MessageController {
             @PathVariable UUID messageUuid,
             @RequestParam(defaultValue = "false") boolean hardDelete,
             Authentication authentication) {
-        Long userId = userService.getUserIdByUuid(UUID.fromString(authentication.getName()));
+        Long userId = Long.parseLong(authentication.getName());
 
         messageService.deleteMessage(messageUuid, userId, hardDelete);
         return ResponseEntity.ok().build();
@@ -152,11 +158,11 @@ public class MessageController {
     public ResponseEntity<MessageDto> forwardMessage(
             @Valid @RequestBody ForwardMessageRequestDto request,
             Authentication authentication) {
-        Long userId = userService.getUserIdByUuid(UUID.fromString(authentication.getName()));
+        Long userId = Long.parseLong(authentication.getName());
         Long targetChatId = chatService.getChatIdByUuid(request.getTargetChatUuid());
 
         Message message = messageService.forwardMessage(request.getMessageUuid(), targetChatId, userId);
-        return ResponseEntity.ok(MessageDto.fromEntity(message));
+        return ResponseEntity.ok(MessageDto.fromEntity(message, userService.getUserById(userId)));
     }
 
     @PostMapping("/{chatUuid}/read")
@@ -165,7 +171,7 @@ public class MessageController {
             @PathVariable UUID chatUuid,
             @RequestParam UUID upToMessageUuid,
             Authentication authentication) {
-        Long userId = userService.getUserIdByUuid(UUID.fromString(authentication.getName()));
+        Long userId = Long.parseLong(authentication.getName());
         Long chatId = chatService.getChatIdByUuid(chatUuid);
 
         messageStatusService.markMessagesAsRead(chatId, userId, upToMessageUuid);
@@ -178,7 +184,7 @@ public class MessageController {
             @PathVariable UUID chatUuid,
             @PathVariable UUID messageUuid,
             Authentication authentication) {
-        Long userId = userService.getUserIdByUuid(UUID.fromString(authentication.getName()));
+        Long userId = Long.parseLong(authentication.getName());
         Long chatId = chatService.getChatIdByUuid(chatUuid);
 
         chatService.validateUserAccessToChat(chatId, userId);
@@ -194,11 +200,12 @@ public class MessageController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size,
             Authentication authentication) {
-        Long userId = userService.getUserIdByUuid(UUID.fromString(authentication.getName()));
+        Long userId = Long.parseLong(authentication.getName());
 
         Page<Message> messages = messageService.searchMessages(userId, query, PageRequest.of(page, size));
+        Map<Long, User> senderMap = senderMap(messages.getContent());
         List<MessageDto> messageDtos = messages.stream()
-                .map(MessageDto::fromEntity)
+                .map(msg -> MessageDto.fromEntity(msg, senderMap.get(msg.getSenderId())))
                 .toList();
 
         return ResponseEntity.ok(messageDtos);
@@ -211,12 +218,13 @@ public class MessageController {
             @RequestParam String query,
             @RequestParam(defaultValue = "50") int limit,
             Authentication authentication) {
-        Long userId = userService.getUserIdByUuid(UUID.fromString(authentication.getName()));
+        Long userId = Long.parseLong(authentication.getName());
         Long chatId = chatService.getChatIdByUuid(chatUuid);
 
         List<Message> messages = messageService.searchMessagesInChat(chatId, userId, query, limit);
+        Map<Long, User> senderMap = senderMap(messages);
         List<MessageDto> messageDtos = messages.stream()
-                .map(MessageDto::fromEntity)
+                .map(msg -> MessageDto.fromEntity(msg, senderMap.get(msg.getSenderId())))
                 .toList();
 
         return ResponseEntity.ok(messageDtos);
@@ -228,7 +236,7 @@ public class MessageController {
             @PathVariable UUID chatUuid,
             @PathVariable UUID messageUuid,
             Authentication authentication) {
-        Long userId = userService.getUserIdByUuid(UUID.fromString(authentication.getName()));
+        Long userId = Long.parseLong(authentication.getName());
         Long chatId = chatService.getChatIdByUuid(chatUuid);
 
         messageService.pinMessage(chatId, messageUuid, userId);
@@ -241,7 +249,7 @@ public class MessageController {
             @PathVariable UUID chatUuid,
             @PathVariable UUID messageUuid,
             Authentication authentication) {
-        Long userId = userService.getUserIdByUuid(UUID.fromString(authentication.getName()));
+        Long userId = Long.parseLong(authentication.getName());
         Long chatId = chatService.getChatIdByUuid(chatUuid);
 
         messageService.unpinMessage(chatId, messageUuid, userId);
@@ -253,16 +261,26 @@ public class MessageController {
     public ResponseEntity<List<MessageDto>> getPinnedMessages(
             @PathVariable UUID chatUuid,
             Authentication authentication) {
-        Long userId = userService.getUserIdByUuid(UUID.fromString(authentication.getName()));
+        Long userId = Long.parseLong(authentication.getName());
         Long chatId = chatService.getChatIdByUuid(chatUuid);
 
         chatService.validateUserAccessToChat(chatId, userId);
 
         List<Message> messages = messageService.getPinnedMessages(chatId);
+        Map<Long, User> senderMap = senderMap(messages);
         List<MessageDto> messageDtos = messages.stream()
-                .map(MessageDto::fromEntity)
+                .map(msg -> MessageDto.fromEntity(msg, senderMap.get(msg.getSenderId())))
                 .toList();
 
         return ResponseEntity.ok(messageDtos);
+    }
+
+    private Map<Long, User> senderMap(List<Message> messages) {
+        List<Long> senderIds = messages.stream()
+                .map(Message::getSenderId)
+                .distinct()
+                .toList();
+        return userService.getUsersByIds(senderIds).stream()
+                .collect(Collectors.toMap(User::getUserId, Function.identity()));
     }
 }
