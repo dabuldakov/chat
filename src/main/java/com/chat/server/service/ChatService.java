@@ -3,10 +3,8 @@ package com.chat.server.service;
 import com.chat.server.dto.request.UpdateChatRequestDto;
 import com.chat.server.dto.response.ChatDetailsResponseDto;
 import com.chat.server.dto.response.ChatResponseDto;
-import com.chat.server.dto.response.MessagePreviewDto;
 import com.chat.server.entity.Chat;
 import com.chat.server.entity.Participant;
-import com.chat.server.entity.User;
 import com.chat.server.exception.AccessDeniedException;
 import com.chat.server.exception.ConflictException;
 import com.chat.server.exception.NotFoundException;
@@ -37,6 +35,7 @@ public class ChatService {
     private final ParticipantRepository participantRepository;
     private final MessageRepository messageRepository;
     private final UserService userService;
+    private final ChatResponseAssembler chatResponseAssembler;
 
     private final Map<UUID, Long> uuidToIdCache = new ConcurrentHashMap<>();
 
@@ -52,65 +51,11 @@ public class ChatService {
         List<Chat> chats = getUserChats(userId);
 
         return chats.stream()
-                .map(chat -> buildChatResponse(chat, userId))
+                .map(chat -> chatResponseAssembler.toChatResponse(
+                        chat,
+                        userId,
+                        getUnreadMessagesCount(chat.getChatId(), userId)))
                 .collect(Collectors.toList());
-    }
-
-    private ChatResponseDto buildChatResponse(Chat chat, Long userId) {
-        List<Participant> participants = participantRepository.findAllByChatId(chat.getChatId());
-        List<UUID> participantIds = participants.stream()
-                .map(Participant::getUserUUID)
-                .collect(Collectors.toList());
-
-        Map<Long, User> usersById = userService.getUsersByIds(
-                        participants.stream().map(Participant::getUserId).distinct().toList())
-                .stream().collect(Collectors.toMap(User::getUserId, u -> u));
-
-        String title = chat.getTitle();
-        String avatarUrl = chat.getAvatarUrl();
-        if (chat.getChatType() == Chat.ChatType.PRIVATE) {
-            Optional<Long> otherId = participants.stream()
-                    .filter(p -> !p.getUserId().equals(userId))
-                    .map(Participant::getUserId)
-                    .findFirst();
-            if (otherId.isPresent()) {
-                User other = usersById.get(otherId.get());
-                if (other != null) {
-                    title = other.getFullName();
-                    avatarUrl = other.getAvatarUrl();
-                }
-            }
-        }
-
-        MessagePreviewDto lastMessage = buildLastMessagePreview(chat, usersById);
-        long unreadCount = getUnreadMessagesCount(chat.getChatId(), userId);
-
-        return ChatResponseDto.builder()
-                .chatUuid(chat.getChatUuid())
-                .chatType(chat.getChatType().name())
-                .title(title)
-                .avatarUrl(avatarUrl)
-                .createdAt(chat.getCreatedAt())
-                .updatedAt(chat.getUpdatedAt())
-                .participantIds(participantIds)
-                .participantCount((long) participantIds.size())
-                .lastMessage(lastMessage)
-                .unreadCount(unreadCount)
-                .isArchived(chat.getIsArchived() != null && chat.getIsArchived())
-                .build();
-    }
-
-    private MessagePreviewDto buildLastMessagePreview(Chat chat, Map<Long, User> usersById) {
-        if (chat.getLastMessageText() == null && chat.getLastMessageSenderId() == null) {
-            return null;
-        }
-        User sender = usersById.get(chat.getLastMessageSenderId());
-        return MessagePreviewDto.builder()
-                .text(chat.getLastMessageText())
-                .senderId(chat.getLastMessageSenderId())
-                .senderName(sender != null ? sender.getFullName() : null)
-                .createdAt(chat.getUpdatedAt())
-                .build();
     }
 
     @Transactional

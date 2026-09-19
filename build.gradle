@@ -50,6 +50,7 @@ dependencies {
     // Testing
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
 
     // Testcontainers (для интеграционных тестов с БД в контейнере)
     testImplementation 'org.testcontainers:junit-jupiter:1.21.4'
