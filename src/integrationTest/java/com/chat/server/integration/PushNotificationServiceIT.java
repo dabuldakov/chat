@@ -90,6 +90,18 @@ class PushNotificationServiceIT extends AbstractIntegrationTest {
     }
 
     @Test
+    void shouldNotSendDuplicateNotificationForSameToken() {
+        sessionWithFcm(recipient.getUserId(), "recipient-tok-1", "fcm-same");
+        sessionWithFcm(recipient.getUserId(), "recipient-tok-2", "fcm-same");
+
+        pushNotificationService.sendMessageNotification(message(sender.getUserId(), "hi"),
+                List.of(recipient.getUserId()));
+
+        verify(fcmService, org.mockito.Mockito.times(1))
+                .sendMessageNotification("fcm-same", sender.getUserId(), "hi");
+    }
+
+    @Test
     void shouldSendTypingNotification() {
         sessionWithFcm(recipient.getUserId(), "recipient-tok", "fcm-recipient");
 
