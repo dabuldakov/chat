@@ -23,7 +23,7 @@ services:
       DATABASE_USERNAME: ${POSTGRES_USERNAME}
       DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
-      MINIO_URL: ${MINIO_URL:-http://90.188.89.63:9000}
+      MINIO_URL: ${MINIO_URL:-http://minio:9000}
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
       MINIO_AVATAR_BUCKET: ${MINIO_AVATAR_BUCKET:-avatars}
@@ -34,10 +34,14 @@ services:
       - postgres
     networks:
       - chat-network
+      - shared-minio
     extra_hosts:
       - "90.188.89.63:host-gateway"
 
 networks:
+  shared-minio:
+    external: true
+    name: ${MINIO_NETWORK}
   chat-network:
     driver: bridge
 

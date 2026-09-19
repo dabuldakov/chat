@@ -19,24 +19,36 @@ bucket остаётся закрытым, внешний адрес MinIO при
 Поддерживаются JPEG/PNG до 5 MB; изображение преобразуется в PNG до 512 px.
 Новая версия получает новый URL. Контакты, приватные чаты и сообщения возвращают этот URL.
 
-Для Docker Compose сначала запустите makeup (в нём поднимается MinIO и публикуется порт 9000).
+Для Docker Compose сначала запустите makeup (в нём поднимается MinIO). Chat app подключается
+к **той же Docker-сети**, что и MinIO, и обращается к нему по имени `http://minio:9000`.
+Узнайте реальное имя сети MinIO (оно зависит от имени compose-проекта makeup):
+
+```bash
+docker inspect makeup-backend-minio-1 \
+  --format '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{"\n"}}{{end}}'
+```
+
 Добавьте в `chat/.env` доступ к **тому же** MinIO (значения ключей возьмите из конфигурации makeup):
 
 ```dotenv
-MINIO_URL=http://90.188.89.63:9000
+MINIO_URL=http://minio:9000
 MINIO_ACCESS_KEY=<ключ доступа из makeup>
 MINIO_SECRET_KEY=<секретный ключ из makeup>
 MINIO_AVATAR_BUCKET=avatars
+MINIO_NETWORK=<имя сети из команды выше>
 ```
 
-Chat app обращается к MinIO по опубликованному на хосте порту 9000 через
-`extra_hosts: 90.188.89.63:host-gateway` (уже задан в compose) — отдельная Docker-сеть
-и её имя не нужны. `MINIO_URL` по умолчанию `http://90.188.89.63:9000`; если сервер
-другой, задайте свой адрес. Bucket создаётся при первой загрузке; ключу MinIO нужны
-права создания bucket и чтения/записи/удаления объектов.
+`MINIO_NETWORK` обязателен: compose подключает chat к этой внешней сети. Bucket создаётся
+при первой загрузке; ключу MinIO нужны права создания bucket и чтения/записи/удаления объектов.
 
 ```bash
 docker compose up -d --build app
+```
+
+Проверить доступность из контейнера chat:
+
+```bash
+docker compose exec app wget -qO- http://minio:9000/minio/health/ready && echo " reachable"
 ```
 
 При запуске вне Docker задайте `MINIO_URL=http://localhost:9000` и те же ключи.
