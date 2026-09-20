@@ -29,9 +29,9 @@ class ChatAvatarServiceTest {
     @Test
     void uploadStoresNormalizedPngAndUpdatesChat() throws Exception {
         UUID chatUuid = UUID.randomUUID();
-        when(chats.getChatById(1L)).thenReturn(Chat.builder().chatUuid(chatUuid).avatarUrl(null).build());
+        when(chats.getChatById(1L)).thenReturn(Chat.builder().chatUuid(chatUuid).createdBy(1L).avatarUrl(null).build());
 
-        String url = service.upload(1L, chatUuid, image());
+        String url = service.upload(1L, chatUuid, 1L, image());
 
         assertThat(url).startsWith("/api/avatars/chat/" + chatUuid + "/").endsWith(".png");
         verify(storage).put(argThat(key -> key.startsWith("chat/" + chatUuid + "/")), any());
@@ -39,13 +39,24 @@ class ChatAvatarServiceTest {
     }
 
     @Test
+    void uploadRejectedForNonCreator() throws Exception {
+        UUID chatUuid = UUID.randomUUID();
+        when(chats.getChatById(1L)).thenReturn(Chat.builder().chatUuid(chatUuid).createdBy(99L).build());
+
+        assertThatThrownBy(() -> service.upload(1L, chatUuid, 1L, image()))
+                .isInstanceOf(com.chat.server.exception.AccessDeniedException.class);
+        verify(storage, never()).put(anyString(), any());
+        verify(chats, never()).updateAvatar(anyLong(), anyString());
+    }
+
+    @Test
     void storageFailureDoesNotReplaceExistingAvatar() throws Exception {
         UUID chatUuid = UUID.randomUUID();
-        when(chats.getChatById(1L)).thenReturn(Chat.builder().chatUuid(chatUuid).avatarUrl("/old").build());
+        when(chats.getChatById(1L)).thenReturn(Chat.builder().chatUuid(chatUuid).createdBy(1L).avatarUrl("/old").build());
         doThrow(new IllegalStateException("MinIO unavailable")).when(storage).put(anyString(), any());
 
         var file = image();
-        assertThatThrownBy(() -> service.upload(1L, chatUuid, file)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> service.upload(1L, chatUuid, 1L, file)).isInstanceOf(IllegalStateException.class);
         verify(chats, never()).updateAvatar(anyLong(), anyString());
         verify(storage, never()).delete(anyString());
     }
@@ -54,12 +65,12 @@ class ChatAvatarServiceTest {
     void databaseFailureCleansNewObjectAndKeepsOldOne() throws Exception {
         UUID chatUuid = UUID.randomUUID();
         String oldKey = "chat/" + chatUuid + "/" + UUID.randomUUID() + ".png";
-        when(chats.getChatById(1L)).thenReturn(Chat.builder().chatUuid(chatUuid)
+        when(chats.getChatById(1L)).thenReturn(Chat.builder().chatUuid(chatUuid).createdBy(1L)
                 .avatarUrl("/api/avatars/" + oldKey).build());
         doThrow(new IllegalStateException("DB unavailable")).when(chats).updateAvatar(eq(1L), anyString());
 
         var file = image();
-        assertThatThrownBy(() -> service.upload(1L, chatUuid, file)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> service.upload(1L, chatUuid, 1L, file)).isInstanceOf(IllegalStateException.class);
         verify(storage).delete(argThat(key -> !key.equals(oldKey)));
         verify(storage, never()).delete(oldKey);
     }

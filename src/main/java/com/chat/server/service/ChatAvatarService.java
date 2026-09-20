@@ -1,6 +1,7 @@
 package com.chat.server.service;
 
 import com.chat.server.entity.Chat;
+import com.chat.server.exception.AccessDeniedException;
 import com.chat.server.exception.BadRequestException;
 import com.chat.server.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -31,9 +32,12 @@ public class ChatAvatarService {
     private final MinioAvatarStorage storage;
     private final ChatService chats;
 
-    public String upload(Long chatId, UUID chatUuid, MultipartFile file) {
-        byte[] image = normalize(file);
+    public String upload(Long chatId, UUID chatUuid, Long userId, MultipartFile file) {
         Chat chat = chats.getChatById(chatId);
+        if (!chat.getCreatedBy().equals(userId)) {
+            throw new AccessDeniedException("Only group creator can change the avatar");
+        }
+        byte[] image = normalize(file);
         String oldUrl = chat.getAvatarUrl();
         UUID version = UUID.randomUUID();
         String key = key(chatUuid, version);

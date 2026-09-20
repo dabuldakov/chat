@@ -63,6 +63,10 @@ public class ParticipantService {
 
         chatService.validateUserAccessToChat(chatId, requesterId);
 
+        if (!chat.getCreatedBy().equals(requesterId)) {
+            throw new AccessDeniedException("Only group creator can add participants");
+        }
+
         for (Long userId : userIds) {
             if (!participantRepository.existsByChatIdAndUserId(chatId, userId)) {
                 Participant participant = Participant.builder()

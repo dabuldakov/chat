@@ -6,6 +6,7 @@ import com.chat.server.entity.MessageStatus;
 import com.chat.server.dto.response.ChatResponseDto;
 import com.chat.server.entity.User;
 import com.chat.server.exception.AccessDeniedException;
+import com.chat.server.exception.BadRequestException;
 import com.chat.server.exception.NotFoundException;
 import com.chat.server.repository.ChatRepository;
 import com.chat.server.repository.MessageRepository;
@@ -221,6 +222,36 @@ class MessageServiceIT extends AbstractIntegrationTest {
         assertThat(forwarded.getMessageText()).isEqualTo("forward me");
         assertThat(forwarded.getForwardedFromMessageId()).isEqualTo(original.getMessageId());
         assertThat(forwarded.getForwardedFromUserId()).isEqualTo(user1.getUserId());
+    }
+
+    @Test
+    void shouldRejectForwardingMessageFromForeignChat() {
+        Message original = messageService.sendMessage(chat.getChatId(), user1.getUserId(),
+                "secret", Message.MessageType.TEXT, null, null);
+
+        // outsider не участник chat, но состоит в otherChat — цель доступна, источник нет.
+        var otherResponse = chatService.createPrivateChat(outsider.getUserId(), user1.getUserUuid());
+        Chat otherChat = chatRepository.findByChatUuid(otherResponse.getChatUuid()).orElseThrow();
+
+        assertThatThrownBy(() -> messageService.forwardMessage(
+                original.getMessageUuid(), otherChat.getChatId(), outsider.getUserId()))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void shouldRejectUnpinningMessageFromAnotherChat() {
+        Message message = messageService.sendMessage(chat.getChatId(), user1.getUserId(),
+                "pinned", Message.MessageType.TEXT, null, null);
+        messageService.pinMessage(chat.getChatId(), message.getMessageUuid(), user1.getUserId());
+
+        var otherResponse = chatService.createPrivateChat(user2.getUserId(), outsider.getUserUuid());
+        Chat otherChat = chatRepository.findByChatUuid(otherResponse.getChatUuid()).orElseThrow();
+
+        assertThatThrownBy(() -> messageService.unpinMessage(
+                otherChat.getChatId(), message.getMessageUuid(), user2.getUserId()))
+                .isInstanceOf(BadRequestException.class);
+
+        assertThat(messageService.getPinnedMessages(chat.getChatId())).hasSize(1);
     }
 
     @Test

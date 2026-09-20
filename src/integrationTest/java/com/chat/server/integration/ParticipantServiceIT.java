@@ -133,6 +133,16 @@ class ParticipantServiceIT extends AbstractIntegrationTest {
     }
 
     @Test
+    void shouldRejectAddingByNonCreatorMember() {
+        Chat chat = groupChat();
+
+        assertThatThrownBy(() -> participantService.addParticipantsToGroup(
+                chat.getChatId(), List.of(thirdUser.getUserId()), member.getUserId()))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("Only group creator");
+    }
+
+    @Test
     void shouldRemoveParticipantAsCreator() {
         Chat chat = groupChat();
 

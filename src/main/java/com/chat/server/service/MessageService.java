@@ -3,6 +3,7 @@ package com.chat.server.service;
 import com.chat.server.entity.Message;
 import com.chat.server.entity.MessageStatus;
 import com.chat.server.exception.AccessDeniedException;
+import com.chat.server.exception.BadRequestException;
 import com.chat.server.exception.NotFoundException;
 import com.chat.server.repository.MessageRepository;
 import com.chat.server.repository.MessageStatusRepository;
@@ -207,6 +208,9 @@ public class MessageService {
 
         Message original = getMessageByUuid(originalMessageUuid);
 
+        // Нельзя пересылать сообщение из чата, к которому нет доступа —
+        // иначе по UUID можно вычитать чужой текст.
+        chatService.validateUserAccessToChat(original.getChatId(), userId);
         chatService.validateUserAccessToChat(targetChatId, userId);
 
         Message forwarded = Message.builder()
@@ -288,7 +292,7 @@ public class MessageService {
         Message message = getMessageByUuid(messageUuid);
 
         if (!message.getChatId().equals(chatId)) {
-            throw new IllegalArgumentException("Message does not belong to this chat");
+            throw new BadRequestException("Message does not belong to this chat");
         }
 
         message.setIsPinned(true);
@@ -302,6 +306,11 @@ public class MessageService {
         chatService.validateUserAccessToChat(chatId, userId);
 
         Message message = getMessageByUuid(messageUuid);
+
+        if (!message.getChatId().equals(chatId)) {
+            throw new BadRequestException("Message does not belong to this chat");
+        }
+
         message.setIsPinned(false);
         messageRepository.save(message);
     }

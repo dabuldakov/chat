@@ -12,7 +12,6 @@ public class UserDto {
 
     private UUID userUuid;
     private String username;
-    private String email;
     private String firstName;
     private String lastName;
     private String fullName;
@@ -23,7 +22,6 @@ public class UserDto {
         return UserDto.builder()
                 .userUuid(user.getUserUuid())
                 .username(user.getUsername())
-                .email(user.getEmail())
                 .firstName(user.getFirstName())
                 .lastName(user.getLastName())
                 .fullName(user.getFullName())

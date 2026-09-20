@@ -88,7 +88,7 @@ public class ChatController {
 
         chatService.validateUserAccessToChat(chatId, userId);
 
-        return ResponseEntity.ok(chatService.updateChat(chatId, request));
+        return ResponseEntity.ok(chatService.updateChat(chatId, userId, request));
     }
 
     @PostMapping("/{chatUuid}/avatar")
@@ -102,7 +102,7 @@ public class ChatController {
 
         chatService.validateUserAccessToChat(chatId, userId);
 
-        var avatarUrl = chatAvatarService.upload(chatId, chatUuid, file);
+        var avatarUrl = chatAvatarService.upload(chatId, chatUuid, userId, file);
 
         return ResponseEntity.ok(avatarUrl);
     }

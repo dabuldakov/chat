@@ -161,12 +161,16 @@ public class ChatService {
 
     @Transactional
     @CacheEvict(value = "chats", key = "#chatId")
-    public ChatResponseDto updateChat(Long chatId, UpdateChatRequestDto request) {
+    public ChatResponseDto updateChat(Long chatId, Long userId, UpdateChatRequestDto request) {
         log.info("Updating chat: {}", chatId);
         var chat = getChatById(chatId);
 
         if (chat.getChatType() != Chat.ChatType.GROUP) {
             throw new ConflictException("Only group chats can be updated");
+        }
+
+        if (!chat.getCreatedBy().equals(userId)) {
+            throw new AccessDeniedException("Only group creator can update the chat");
         }
 
         if (request.getTitle() != null) {
@@ -196,6 +200,9 @@ public class ChatService {
     public void archiveChat(Long chatId, Long userId) {
         validateUserAccessToChat(chatId, userId);
         var chat = getChatById(chatId);
+        if (!chat.getCreatedBy().equals(userId)) {
+            throw new AccessDeniedException("Only group creator can archive the chat");
+        }
         chat.setIsArchived(true);
         chatRepository.save(chat);
     }
@@ -205,6 +212,9 @@ public class ChatService {
     public void unarchiveChat(Long chatId, Long userId) {
         validateUserAccessToChat(chatId, userId);
         Chat chat = getChatById(chatId);
+        if (!chat.getCreatedBy().equals(userId)) {
+            throw new AccessDeniedException("Only group creator can unarchive the chat");
+        }
         chat.setIsArchived(false);
         chatRepository.save(chat);
     }
