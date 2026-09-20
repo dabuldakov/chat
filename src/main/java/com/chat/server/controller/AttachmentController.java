@@ -64,8 +64,12 @@ public class AttachmentController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION,
                         "attachment; filename=\"" + attachment.getFileName() + "\"")
-                .contentType(MediaType.parseMediaType(attachment.getMimeType()))
+                .contentType(mediaType(attachment.getMimeType()))
                 .body(resource);
+    }
+
+    private static MediaType mediaType(String mimeType) {
+        return mimeType != null ? MediaType.parseMediaType(mimeType) : MediaType.APPLICATION_OCTET_STREAM;
     }
 
     @GetMapping("/{attachmentUuid}/preview")
@@ -83,7 +87,7 @@ public class AttachmentController {
         Resource resource = attachmentService.getPreview(attachment);
 
         return ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType(attachment.getMimeType()))
+                .contentType(mediaType(attachment.getMimeType()))
                 .body(resource);
     }
 

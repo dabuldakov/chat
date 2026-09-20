@@ -2,6 +2,7 @@ package com.chat.server.repository;
 
 import com.chat.server.entity.Chat;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -14,6 +15,21 @@ import java.util.UUID;
 public interface ChatRepository extends JpaRepository<Chat, Long> {
 
     Optional<Chat> findByChatUuid(UUID uuid);
+
+    @Modifying
+    @Query("""
+        UPDATE Chat c
+        SET c.lastMessageId = :messageId,
+            c.lastMessageText = :text,
+            c.lastMessageSenderId = :senderId,
+            c.messageCount = c.messageCount + 1,
+            c.updatedAt = CURRENT_TIMESTAMP
+        WHERE c.chatId = :chatId
+    """)
+    int updateLastMessage(@Param("chatId") Long chatId,
+                          @Param("messageId") Long messageId,
+                          @Param("text") String text,
+                          @Param("senderId") Long senderId);
 
     @Query("""
         SELECT c FROM Chat c 

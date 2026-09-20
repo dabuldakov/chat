@@ -52,6 +52,11 @@ public class UserService implements UserDetailsService {
         try {
             User user = getUserByUuid(UUID.fromString(userId));
 
+            if ((user.getStatus() != null && user.getStatus() != User.UserStatus.ACTIVE)
+                    || Boolean.TRUE.equals(user.getIsDeleted())) {
+                throw new UsernameNotFoundException("User account is not active");
+            }
+
             return new org.springframework.security.core.userdetails.User(
                     user.getUserId().toString(),
                     user.getPasswordHash(),

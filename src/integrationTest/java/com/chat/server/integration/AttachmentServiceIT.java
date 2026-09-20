@@ -16,11 +16,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.UUID;
 
@@ -28,21 +24,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class AttachmentServiceIT extends AbstractIntegrationTest {
-
-    private static final Path UPLOAD_DIR;
-
-    static {
-        try {
-            UPLOAD_DIR = Files.createTempDirectory("chat-uploads");
-        } catch (Exception e) {
-            throw new ExceptionInInitializerError(e);
-        }
-    }
-
-    @DynamicPropertySource
-    static void overrideUploadDir(DynamicPropertyRegistry registry) {
-        registry.add("file.upload-dir", () -> UPLOAD_DIR.toString());
-    }
 
     @Autowired
     private UserRepository userRepository;
@@ -211,12 +192,22 @@ class AttachmentServiceIT extends AbstractIntegrationTest {
     }
 
     @Test
-    void shouldReturnNotFoundForPreviewAndDownloadOfMissingFile() {
+    void shouldDownloadAndPreviewUploadedAttachment() throws Exception {
         Attachment attachment = upload();
 
-        assertThatThrownBy(() -> attachmentService.getPreview(attachment))
-                .isInstanceOf(NotFoundException.class);
-        assertThatThrownBy(() -> attachmentService.downloadAttachment(attachment))
+        assertThat(attachmentService.downloadAttachment(attachment).exists()).isTrue();
+        assertThat(attachmentService.getPreview(attachment).exists()).isTrue();
+    }
+
+    @Test
+    void shouldReturnNotFoundForMissingFile() {
+        Attachment missing = Attachment.builder()
+                .chatId(chat.getChatId())
+                .fileName("missing.png")
+                .fileUrl("attachments/missing.png")
+                .build();
+
+        assertThatThrownBy(() -> attachmentService.downloadAttachment(missing))
                 .isInstanceOf(NotFoundException.class);
     }
 

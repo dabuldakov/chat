@@ -1,48 +1,32 @@
 package com.chat.server.integration;
 
+import com.chat.server.exception.NotFoundException;
 import com.chat.server.service.FileUploadService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.charset.StandardCharsets;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class FileUploadServiceIT extends AbstractIntegrationTest {
-
-    private static final Path UPLOAD_DIR;
-
-    static {
-        try {
-            UPLOAD_DIR = Files.createTempDirectory("chat-uploads");
-        } catch (Exception e) {
-            throw new ExceptionInInitializerError(e);
-        }
-    }
-
-    @DynamicPropertySource
-    static void overrideUploadDir(DynamicPropertyRegistry registry) {
-        registry.add("file.upload-dir", () -> UPLOAD_DIR.toString());
-    }
 
     @Autowired
     private FileUploadService fileUploadService;
 
     private MockMultipartFile file() {
-        return new MockMultipartFile("file", "test.txt", "text/plain", "hello".getBytes());
+        return new MockMultipartFile("file", "test.txt", "text/plain", "hello".getBytes(StandardCharsets.UTF_8));
     }
 
     @Test
-    void shouldStoreFile() {
+    void shouldStoreAndLoadFile() throws Exception {
         String storedPath = fileUploadService.store(file(), "attachments", "uuid_test.txt");
 
         assertThat(storedPath).isEqualTo("attachments/uuid_test.txt");
-        assertThat(Files.exists(UPLOAD_DIR.resolve(storedPath))).isTrue();
+        assertThat(fileUploadService.load(storedPath).getContentAsByteArray())
+                .isEqualTo("hello".getBytes(StandardCharsets.UTF_8));
     }
 
     @Test
@@ -51,7 +35,7 @@ class FileUploadServiceIT extends AbstractIntegrationTest {
 
         assertThat(path).startsWith("avatars/avatar_42_");
         assertThat(path).endsWith(".txt");
-        assertThat(Files.exists(UPLOAD_DIR.resolve(path))).isTrue();
+        assertThat(fileUploadService.load(path).exists()).isTrue();
     }
 
     @Test
@@ -59,7 +43,7 @@ class FileUploadServiceIT extends AbstractIntegrationTest {
         String path = fileUploadService.uploadChatAvatar(7L, file());
 
         assertThat(path).startsWith("chat_avatars/chat_avatar_7_");
-        assertThat(Files.exists(UPLOAD_DIR.resolve(path))).isTrue();
+        assertThat(fileUploadService.load(path).exists()).isTrue();
     }
 
     @Test
@@ -68,6 +52,7 @@ class FileUploadServiceIT extends AbstractIntegrationTest {
 
         fileUploadService.delete(storedPath);
 
-        assertThat(Files.exists(UPLOAD_DIR.resolve(storedPath))).isFalse();
+        assertThatThrownBy(() -> fileUploadService.load(storedPath))
+                .isInstanceOf(NotFoundException.class);
     }
 }

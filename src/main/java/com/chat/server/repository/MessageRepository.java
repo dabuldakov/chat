@@ -48,13 +48,14 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
     List<Message> findMessagesBefore(
             @Param("chatId") Long chatId,
             @Param("before") LocalDateTime before,
-            @Param("limit") int limit
+            Pageable pageable
     );
 
     @Query("SELECT m FROM Message m WHERE m.chatId = :chatId AND m.createdAt > :after AND m.isDeleted = false ORDER BY m.createdAt ASC")
     List<Message> findMessagesAfter(
             @Param("chatId") Long chatId,
-            @Param("after") LocalDateTime after
+            @Param("after") LocalDateTime after,
+            Pageable pageable
     );
 
     @Query(value = """

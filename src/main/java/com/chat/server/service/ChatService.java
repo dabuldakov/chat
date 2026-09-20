@@ -20,10 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -36,8 +34,6 @@ public class ChatService {
     private final MessageRepository messageRepository;
     private final UserService userService;
     private final ChatResponseAssembler chatResponseAssembler;
-
-    private final Map<UUID, Long> uuidToIdCache = new ConcurrentHashMap<>();
 
     @Transactional(readOnly = true)
     public List<Chat> getUserChats(Long userId) {
@@ -194,13 +190,7 @@ public class ChatService {
     @Transactional
     @CacheEvict(value = "chats", key = "#chatId")
     public void updateLastMessage(Long chatId, Long messageId, String messageText, Long senderId) {
-        Chat chat = getChatById(chatId);
-        chat.setLastMessageId(messageId);
-        chat.setLastMessageText(messageText);
-        chat.setLastMessageSenderId(senderId);
-        chat.setMessageCount(chat.getMessageCount() + 1);
-        chat.setUpdatedAt(LocalDateTime.now());
-        chatRepository.save(chat);
+        chatRepository.updateLastMessage(chatId, messageId, messageText, senderId);
     }
 
     @Transactional(readOnly = true)
@@ -212,15 +202,10 @@ public class ChatService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "chatUuid", key = "#chatUuid")
     public Long getChatIdByUuid(UUID chatUuid) {
-        if (uuidToIdCache.containsKey(chatUuid)) {
-            return uuidToIdCache.get(chatUuid);
-        }
-
         var chat = chatRepository.findByChatUuid(chatUuid)
                 .orElseThrow(() -> new NotFoundException("Chat not found with uuid: " + chatUuid));
-
-        uuidToIdCache.put(chatUuid, chat.getChatId());
         return chat.getChatId();
     }
 

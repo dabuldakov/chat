@@ -16,8 +16,10 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.after;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -34,7 +36,7 @@ class FcmServiceIT extends AbstractIntegrationTest {
         fcmService.sendMessageNotification("token-1", 10L, "hello");
 
         ArgumentCaptor<Message> captor = ArgumentCaptor.forClass(Message.class);
-        verify(firebaseMessaging).send(captor.capture());
+        verify(firebaseMessaging, timeout(2000)).send(captor.capture());
 
         Message sent = captor.getValue();
         assertThat(MessageAccessors.tokenOf(sent)).isEqualTo("token-1");
@@ -46,7 +48,7 @@ class FcmServiceIT extends AbstractIntegrationTest {
     void shouldNotSendWithEmptyToken() throws com.google.firebase.messaging.FirebaseMessagingException {
         fcmService.sendMessageNotification("", 1L, "hello");
 
-        verify(firebaseMessaging, never()).send(any());
+        verify(firebaseMessaging, after(500).never()).send(any());
     }
 
     @Test
@@ -54,7 +56,7 @@ class FcmServiceIT extends AbstractIntegrationTest {
         fcmService.sendTypingNotification("token-1", 5L, 3L);
 
         ArgumentCaptor<Message> captor = ArgumentCaptor.forClass(Message.class);
-        verify(firebaseMessaging).send(captor.capture());
+        verify(firebaseMessaging, timeout(2000)).send(captor.capture());
 
         assertThat(MessageAccessors.dataOf(captor.getValue()).get("type")).isEqualTo("TYPING");
         assertThat(MessageAccessors.dataOf(captor.getValue()).get("chatId")).isEqualTo("5");
@@ -65,7 +67,7 @@ class FcmServiceIT extends AbstractIntegrationTest {
         fcmService.sendCallNotification("token-1", 5L, 3L, "VIDEO");
 
         ArgumentCaptor<Message> captor = ArgumentCaptor.forClass(Message.class);
-        verify(firebaseMessaging).send(captor.capture());
+        verify(firebaseMessaging, timeout(2000)).send(captor.capture());
 
         assertThat(MessageAccessors.dataOf(captor.getValue()).get("type")).isEqualTo("CALL");
         assertThat(MessageAccessors.dataOf(captor.getValue()).get("callType")).isEqualTo("VIDEO");
@@ -76,7 +78,7 @@ class FcmServiceIT extends AbstractIntegrationTest {
         fcmService.sendReadReceiptNotification("token-1", 5L, 3L, 9L);
 
         ArgumentCaptor<Message> captor = ArgumentCaptor.forClass(Message.class);
-        verify(firebaseMessaging).send(captor.capture());
+        verify(firebaseMessaging, timeout(2000)).send(captor.capture());
 
         assertThat(MessageAccessors.dataOf(captor.getValue()).get("type")).isEqualTo("READ_RECEIPT");
         assertThat(MessageAccessors.dataOf(captor.getValue()).get("messageId")).isEqualTo("9");
@@ -87,7 +89,7 @@ class FcmServiceIT extends AbstractIntegrationTest {
         fcmService.sendNewContactNotification("token-1", "Alice", 9L);
 
         ArgumentCaptor<Message> captor = ArgumentCaptor.forClass(Message.class);
-        verify(firebaseMessaging).send(captor.capture());
+        verify(firebaseMessaging, timeout(2000)).send(captor.capture());
 
         assertThat(MessageAccessors.dataOf(captor.getValue()).get("type")).isEqualTo("NEW_CONTACT");
         assertThat(MessageAccessors.dataOf(captor.getValue()).get("contactName")).isEqualTo("Alice");
@@ -98,7 +100,7 @@ class FcmServiceIT extends AbstractIntegrationTest {
         fcmService.sendGroupInviteNotification("token-1", "Team", 5L, "Bob");
 
         ArgumentCaptor<Message> captor = ArgumentCaptor.forClass(Message.class);
-        verify(firebaseMessaging).send(captor.capture());
+        verify(firebaseMessaging, timeout(2000)).send(captor.capture());
 
         assertThat(MessageAccessors.dataOf(captor.getValue()).get("type")).isEqualTo("GROUP_INVITE");
         assertThat(MessageAccessors.dataOf(captor.getValue()).get("groupName")).isEqualTo("Team");
@@ -109,7 +111,7 @@ class FcmServiceIT extends AbstractIntegrationTest {
         fcmService.sendMessageDeletedNotification("token-1", 5L, 9L);
 
         ArgumentCaptor<Message> captor = ArgumentCaptor.forClass(Message.class);
-        verify(firebaseMessaging).send(captor.capture());
+        verify(firebaseMessaging, timeout(2000)).send(captor.capture());
 
         assertThat(MessageAccessors.dataOf(captor.getValue()).get("type")).isEqualTo("MESSAGE_DELETED");
         assertThat(MessageAccessors.dataOf(captor.getValue()).get("chatId")).isEqualTo("5");
@@ -124,13 +126,13 @@ class FcmServiceIT extends AbstractIntegrationTest {
 
         fcmService.sendMulticastMessage(List.of("t1", "t2"), "Title", "Body", Map.of("key", "value"));
 
-        verify(firebaseMessaging).sendEachForMulticast(any(MulticastMessage.class));
+        verify(firebaseMessaging, timeout(2000)).sendEachForMulticast(any(MulticastMessage.class));
     }
 
     @Test
     void shouldNotSendMulticastWithEmptyTokens() throws com.google.firebase.messaging.FirebaseMessagingException {
         fcmService.sendMulticastMessage(List.of(), "Title", "Body", Map.of());
 
-        verify(firebaseMessaging, never()).sendEachForMulticast(any());
+        verify(firebaseMessaging, after(500).never()).sendEachForMulticast(any());
     }
 }

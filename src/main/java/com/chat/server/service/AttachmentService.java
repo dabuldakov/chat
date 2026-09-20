@@ -8,7 +8,6 @@ import com.chat.server.repository.AttachmentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
-import org.springframework.core.io.UrlResource;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -16,9 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -32,8 +28,6 @@ public class AttachmentService {
     private final MessageService messageService;
     private final ChatService chatService;
     private final FileUploadService fileUploadService;
-
-    private final Path storageLocation = Paths.get("/var/chat-app/uploads");
 
     @Transactional
     public Attachment uploadAttachment(MultipartFile file, Long chatId, Long userId) {
@@ -101,14 +95,7 @@ public class AttachmentService {
 
     @Transactional(readOnly = true)
     public Resource downloadAttachment(Attachment attachment) throws IOException {
-        Path filePath = storageLocation.resolve(attachment.getFileUrl());
-        Resource resource = new UrlResource(filePath.toUri());
-
-        if (!resource.exists()) {
-            throw new NotFoundException("File not found");
-        }
-
-        return resource;
+        return fileUploadService.load(attachment.getFileUrl());
     }
 
     @Transactional(readOnly = true)
@@ -119,8 +106,7 @@ public class AttachmentService {
 
         // Для видео/документов возвращаем превью если есть
         if (attachment.getThumbnailUrl() != null) {
-            Path thumbPath = storageLocation.resolve(attachment.getThumbnailUrl());
-            return new UrlResource(thumbPath.toUri());
+            return fileUploadService.load(attachment.getThumbnailUrl());
         }
 
         throw new NotFoundException("Preview not available");
@@ -147,13 +133,9 @@ public class AttachmentService {
         Long messageId = attachment.getMessageId();
 
         // Удаляем файл
-        try {
-            Files.deleteIfExists(storageLocation.resolve(attachment.getFileUrl()));
-            if (attachment.getThumbnailUrl() != null) {
-                Files.deleteIfExists(storageLocation.resolve(attachment.getThumbnailUrl()));
-            }
-        } catch (IOException e) {
-            log.warn("Failed to delete file for attachment: {}", attachmentUuid, e);
+        fileUploadService.delete(attachment.getFileUrl());
+        if (attachment.getThumbnailUrl() != null) {
+            fileUploadService.delete(attachment.getThumbnailUrl());
         }
 
         attachmentRepository.delete(attachment);
@@ -173,13 +155,9 @@ public class AttachmentService {
     public void deleteAllAttachmentsByMessageId(Long messageId) {
         List<Attachment> attachments = attachmentRepository.findByMessageId(messageId);
         for (Attachment attachment : attachments) {
-            try {
-                Files.deleteIfExists(storageLocation.resolve(attachment.getFileUrl()));
-                if (attachment.getThumbnailUrl() != null) {
-                    Files.deleteIfExists(storageLocation.resolve(attachment.getThumbnailUrl()));
-                }
-            } catch (IOException e) {
-                log.warn("Failed to delete file for attachment: {}", attachment.getAttachmentUuid(), e);
+            fileUploadService.delete(attachment.getFileUrl());
+            if (attachment.getThumbnailUrl() != null) {
+                fileUploadService.delete(attachment.getThumbnailUrl());
             }
         }
         attachmentRepository.deleteByMessageId(messageId);

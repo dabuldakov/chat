@@ -8,6 +8,7 @@ import com.chat.server.dto.response.AuthResponseDto;
 import com.chat.server.dto.response.UserDto;
 import com.chat.server.entity.User;
 import com.chat.server.entity.UserSession;
+import com.chat.server.exception.UnauthorizedException;
 import com.chat.server.service.AuthService;
 import com.chat.server.service.UserService;
 import com.chat.server.service.UserSessionService;
@@ -105,21 +106,32 @@ public class AuthController {
     public ResponseEntity<AuthResponseDto> refreshToken(@Valid @RequestBody RefreshTokenRequestDto request) {
         log.info("Refreshing token");
 
+        if (!jwtUtil.isRefreshToken(request.getRefreshToken())) {
+            throw new UnauthorizedException("Provided token is not a refresh token");
+        }
+
         UserSession session = userSessionService.refreshSession(request.getRefreshToken());
         UUID userIdFromToken = jwtUtil.getUserIdFromToken(request.getRefreshToken());
         User user = userService.getUserById(session.getUserId());
         String newToken = jwtUtil.generateToken(userIdFromToken, user.getUsername());
+        String newRefreshToken = jwtUtil.generateRefreshToken(userIdFromToken);
+        userSessionService.rotateRefreshToken(session.getSessionId(), newRefreshToken);
 
-        return getResponse(newToken, session.getRefreshToken(), user);
+        return getResponse(newToken, newRefreshToken, user);
     }
 
     @PostMapping("/logout")
     @Operation(summary = "Выход из системы")
-    public ResponseEntity<Void> logout(Authentication authentication) {
+    public ResponseEntity<Void> logout(Authentication authentication, HttpServletRequest httpRequest) {
         Long userId = Long.parseLong(authentication.getName());
         log.info("User logout: {}", userId);
 
-        userSessionService.invalidateAllSessions(userId);
+        String token = extractBearerToken(httpRequest);
+        if (token != null) {
+            userSessionService.invalidateSession(token);
+        } else {
+            userSessionService.invalidateAllSessions(userId);
+        }
         userService.updateOnlineStatus(userId, false);
 
         return ResponseEntity.ok().build();
@@ -198,6 +210,14 @@ public class AuthController {
         log.info("Verifying email with token");
         authService.verifyEmail(token);
         return ResponseEntity.ok().build();
+    }
+
+    private static String extractBearerToken(HttpServletRequest request) {
+        String header = request.getHeader("Authorization");
+        if (header != null && header.startsWith("Bearer ")) {
+            return header.substring(7);
+        }
+        return null;
     }
 
     private static ResponseEntity<AuthResponseDto> getResponse(String token, String refreshToken, User user) {

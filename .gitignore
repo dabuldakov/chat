@@ -26,3 +26,7 @@ replay_pid*
 .gradle
 .idea
 build
+
+### Local env / secrets
+.env
+src/main/resources/firebase-service-account.json

@@ -5,6 +5,7 @@ import com.chat.server.entity.UserSession;
 import com.chat.server.exception.UnauthorizedException;
 import com.chat.server.repository.UserRepository;
 import com.chat.server.repository.UserSessionRepository;
+import com.chat.server.service.TokenHasher;
 import com.chat.server.service.UserSessionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,6 +24,8 @@ class UserSessionServiceIT extends AbstractIntegrationTest {
     private UserSessionRepository userSessionRepository;
     @Autowired
     private UserSessionService userSessionService;
+    @Autowired
+    private TokenHasher tokenHasher;
 
     private User user;
 
@@ -138,7 +141,7 @@ class UserSessionServiceIT extends AbstractIntegrationTest {
 
         userSessionService.updateFcmToken(session.getSessionId(), "fcm-token-123");
 
-        UserSession reloaded = userSessionRepository.findByToken("token-1").orElseThrow();
+        UserSession reloaded = reload("token-1");
         assertThat(reloaded.getFcmToken()).isEqualTo("fcm-token-123");
         assertThat(userSessionService.getActiveFcmTokens(user.getUserId()))
                 .containsExactly("fcm-token-123");
@@ -151,8 +154,8 @@ class UserSessionServiceIT extends AbstractIntegrationTest {
 
         userSessionService.registerFcmToken(user.getUserId(), "device-2", "fcm-device-2");
 
-        assertThat(userSessionRepository.findByToken("token-1").orElseThrow().getFcmToken()).isNull();
-        assertThat(userSessionRepository.findByToken("token-2").orElseThrow().getFcmToken())
+        assertThat(reload("token-1").getFcmToken()).isNull();
+        assertThat(reload("token-2").getFcmToken())
                 .isEqualTo("fcm-device-2");
     }
 
@@ -219,6 +222,10 @@ class UserSessionServiceIT extends AbstractIntegrationTest {
 
         userSessionService.cleanupExpiredSessions();
 
-        assertThat(userSessionRepository.findByToken("token-1")).isEmpty();
+        assertThat(userSessionRepository.findByToken(tokenHasher.hash("token-1"))).isEmpty();
+    }
+
+    private UserSession reload(String token) {
+        return userSessionRepository.findByToken(tokenHasher.hash(token)).orElseThrow();
     }
 }

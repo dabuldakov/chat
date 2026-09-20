@@ -22,6 +22,7 @@ import java.util.stream.Collectors;
 public class UserSessionService {
 
     private final UserSessionRepository userSessionRepository;
+    private final TokenHasher tokenHasher;
 
     @Transactional
     public UserSession createSession(Long userId, String token, String refreshToken,
@@ -36,8 +37,8 @@ public class UserSessionService {
 
         UserSession session = UserSession.builder()
                 .userId(userId)
-                .token(token)
-                .refreshToken(refreshToken)
+                .token(tokenHasher.hash(token))
+                .refreshToken(tokenHasher.hash(refreshToken))
                 .deviceId(deviceId)
                 .deviceName(deviceName)
                 .deviceType(deviceType)
@@ -55,7 +56,7 @@ public class UserSessionService {
     public UserSession refreshSession(String refreshToken) {
         log.info("Refreshing session with token");
 
-        UserSession session = userSessionRepository.findByRefreshToken(refreshToken)
+        UserSession session = userSessionRepository.findByRefreshToken(tokenHasher.hash(refreshToken))
                 .orElseThrow(() -> new UnauthorizedException("Invalid refresh token"));
 
         if (!session.getIsActive() || session.getExpiresAt().isBefore(LocalDateTime.now())) {
@@ -69,8 +70,17 @@ public class UserSessionService {
     }
 
     @Transactional
+    public void rotateRefreshToken(Long sessionId, String newRefreshToken) {
+        userSessionRepository.findById(sessionId).ifPresent(session -> {
+            session.setRefreshToken(tokenHasher.hash(newRefreshToken));
+            session.setUpdatedAt(LocalDateTime.now());
+            userSessionRepository.save(session);
+        });
+    }
+
+    @Transactional
     public void invalidateSession(String token) {
-        userSessionRepository.findByToken(token)
+        userSessionRepository.findByToken(tokenHasher.hash(token))
                 .ifPresent(session -> {
                     session.setIsActive(false);
                     session.setUpdatedAt(LocalDateTime.now());
@@ -99,7 +109,7 @@ public class UserSessionService {
 
     @Transactional
     public void updateActivity(String token) {
-        userSessionRepository.updateLastActivity(token, LocalDateTime.now());
+        userSessionRepository.updateLastActivity(tokenHasher.hash(token), LocalDateTime.now());
     }
 
     @Transactional
@@ -129,14 +139,14 @@ public class UserSessionService {
 
     @Transactional(readOnly = true)
     public boolean isSessionValid(String token) {
-        return userSessionRepository.findByToken(token)
+        return userSessionRepository.findByToken(tokenHasher.hash(token))
                 .map(session -> session.getIsActive() && session.getExpiresAt().isAfter(LocalDateTime.now()))
                 .orElse(false);
     }
 
     @Transactional(readOnly = true)
     public UserSession getSessionByToken(String token) {
-        return userSessionRepository.findByToken(token)
+        return userSessionRepository.findByToken(tokenHasher.hash(token))
                 .orElseThrow(() -> new UnauthorizedException("Session not found"));
     }
 
@@ -155,9 +165,10 @@ public class UserSessionService {
     @Transactional(readOnly = true)
     public List<UserSessionDto> getUserSessions(Long userId, String currentToken) {
         List<UserSession> sessions = userSessionRepository.findActiveSessionsByUserId(userId);
+        String currentHash = tokenHasher.hash(currentToken);
 
         return sessions.stream()
-                .map(s -> UserSessionDto.fromEntity(s, s.getToken().equals(currentToken)))
+                .map(s -> UserSessionDto.fromEntity(s, s.getToken().equals(currentHash)))
                 .collect(Collectors.toList());
     }
 

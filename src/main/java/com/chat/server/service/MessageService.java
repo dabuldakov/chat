@@ -9,6 +9,7 @@ import com.chat.server.repository.MessageStatusRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,11 +23,14 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class MessageService {
 
+    private static final int DEFAULT_SYNC_LIMIT = 500;
+
     private final MessageRepository messageRepository;
     private final MessageStatusRepository messageStatusRepository;
     private final ChatService chatService;
     private final ParticipantService participantService;
     private final PushNotificationService pushNotificationService;
+    private final BlockedUserService blockedUserService;
 
     @Transactional
     public Message sendMessage(Long chatId, Long senderId, String text,
@@ -34,6 +38,8 @@ public class MessageService {
         log.info("Sending message to chat: {} from user: {}", chatId, senderId);
 
         chatService.validateUserAccessToChat(chatId, senderId);
+
+        enforceBlockingForPrivateChat(chatId, senderId);
 
         Long replyToId = null;
         if (replyToMessageUuid != null) {
@@ -97,16 +103,23 @@ public class MessageService {
         chatService.validateUserAccessToChat(chatId, userId);
 
         Message beforeMessage = getMessageByUuid(beforeMessageUuid);
-        return messageRepository.findMessagesBefore(chatId, beforeMessage.getCreatedAt(), limit);
+        return messageRepository.findMessagesBefore(chatId, beforeMessage.getCreatedAt(),
+                PageRequest.of(0, Math.max(1, limit)));
     }
 
     @Transactional(readOnly = true)
     public List<Message> getMessagesAfter(Long chatId, Long userId, LocalDateTime afterTime) {
+        return getMessagesAfter(chatId, userId, afterTime, DEFAULT_SYNC_LIMIT);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Message> getMessagesAfter(Long chatId, Long userId, LocalDateTime afterTime, int limit) {
         log.debug("Fetching messages after: {} in chat: {}", afterTime, chatId);
 
         chatService.validateUserAccessToChat(chatId, userId);
 
-        return messageRepository.findMessagesAfter(chatId, afterTime);
+        return messageRepository.findMessagesAfter(chatId, afterTime,
+                PageRequest.of(0, Math.max(1, limit)));
     }
 
     @Transactional(readOnly = true)
@@ -216,6 +229,20 @@ public class MessageService {
     }
 
     // ==================== Методы для работы с флагами сообщений ====================
+
+    private void enforceBlockingForPrivateChat(Long chatId, Long senderId) {
+        if (chatService.getChatById(chatId).getChatType() != com.chat.server.entity.Chat.ChatType.PRIVATE) {
+            return;
+        }
+        chatService.getChatParticipants(chatId).stream()
+                .filter(participantId -> !participantId.equals(senderId))
+                .findFirst()
+                .ifPresent(otherUserId -> {
+                    if (!blockedUserService.canSendMessage(senderId, otherUserId)) {
+                        throw new AccessDeniedException("Cannot send message to this user");
+                    }
+                });
+    }
 
     @Transactional
     public void updateMessageAttachmentsFlag(Long messageId, boolean hasAttachments) {

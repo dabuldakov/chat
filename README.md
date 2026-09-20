@@ -1,6 +1,6 @@
 # chat
 
-Бэкенд чата: Java 21, Spring Boot 4.0.5, PostgreSQL, JWT, WebSocket, Firebase Cloud Messaging.
+Бэкенд чата: Java 21, Spring Boot 4.0.5, PostgreSQL, JWT, Firebase Cloud Messaging.
 
 ## Требования
 
@@ -54,6 +54,23 @@ docker compose exec app wget -qO- http://minio:9000/minio/health/ready && echo "
 При запуске вне Docker задайте `MINIO_URL=http://localhost:9000` и те же ключи.
 `AvatarFlowIT` использует собственные PostgreSQL и MinIO в Testcontainers,
 проверяя загрузку, замену, удаление, публичное чтение и выдачу в контактах/чате.
+
+## Вложения
+
+Вложения сообщений хранятся в MinIO (bucket `MINIO_ATTACHMENT_BUCKET`, по умолчанию
+`attachments`), а не на локальном диске контейнера. Аватары чатов — там же. Для доступа
+к файлам используется API (`/api/attachments/...`), bucket остаётся закрытым.
+
+## Конфигурация
+
+| Переменная | Назначение | По умолчанию |
+|-----------|-----------|--------------|
+| `JWT_SECRET` | ключ подписи JWT | dev-заглушка (в prod обязателен) |
+| `DATABASE_PASSWORD` | пароль БД | нет (обязателен) |
+| `APP_CORS_ALLOWED_ORIGINS` | origin-паттерны через запятую | `http://localhost:*` |
+| `MINIO_ATTACHMENT_BUCKET` | bucket вложений | `attachments` |
+
+Токены сессий хранятся в БД только в виде SHA-256 хэша; refresh-токен ротируется при обновлении.
 
 ## Виды тестов
 

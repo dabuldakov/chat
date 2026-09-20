@@ -43,6 +43,9 @@ dependencies {
     implementation 'org.postgresql:postgresql:42.7.1'
     implementation 'org.flywaydb:flyway-core:9.22.3'
 
+    // Caching
+    implementation 'com.github.ben-manes.caffeine:caffeine'
+
     // Utilities
     implementation 'io.minio:minio:8.5.9'
     implementation 'org.projectlombok:lombok:1.18.30'

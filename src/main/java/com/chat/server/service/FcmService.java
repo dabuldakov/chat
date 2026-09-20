@@ -4,6 +4,7 @@ import com.google.firebase.messaging.*;
 import com.google.gson.Gson;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
@@ -21,6 +22,7 @@ public class FcmService {
     /**
      * Отправка уведомления о новом сообщении
      */
+    @Async
     public void sendMessageNotification(String fcmToken, Long senderId, String messageText) {
         if (fcmToken == null || fcmToken.isEmpty()) {
             log.warn("Cannot send notification: FCM token is null or empty");
@@ -80,6 +82,7 @@ public class FcmService {
     /**
      * Отправка уведомления о том, что пользователь печатает
      */
+    @Async
     public void sendTypingNotification(String fcmToken, Long chatId, Long userId) {
         if (fcmToken == null || fcmToken.isEmpty()) {
             return;
@@ -110,6 +113,7 @@ public class FcmService {
     /**
      * Отправка уведомления о звонке
      */
+    @Async
     public void sendCallNotification(String fcmToken, Long chatId, Long callerId, String callType) {
         if (fcmToken == null || fcmToken.isEmpty()) {
             return;
@@ -147,6 +151,7 @@ public class FcmService {
     /**
      * Отправка уведомления о прочтении сообщения
      */
+    @Async
     public void sendReadReceiptNotification(String fcmToken, Long chatId, Long userId, Long messageId) {
         if (fcmToken == null || fcmToken.isEmpty()) {
             return;
@@ -178,6 +183,7 @@ public class FcmService {
     /**
      * Отправка массовых уведомлений
      */
+    @Async
     public void sendMulticastMessage(List<String> fcmTokens, String title, String body, Map<String, String> data) {
         if (fcmTokens == null || fcmTokens.isEmpty()) {
             log.warn("Cannot send multicast: FCM tokens list is empty");
@@ -215,6 +221,7 @@ public class FcmService {
     /**
      * Отправка уведомления о новом контакте
      */
+    @Async
     public void sendNewContactNotification(String fcmToken, String contactName, Long contactId) {
         if (fcmToken == null || fcmToken.isEmpty()) {
             return;
@@ -248,6 +255,7 @@ public class FcmService {
     /**
      * Отправка уведомления о добавлении в группу
      */
+    @Async
     public void sendGroupInviteNotification(String fcmToken, String groupName, Long chatId, String inviterName) {
         if (fcmToken == null || fcmToken.isEmpty()) {
             return;
@@ -282,6 +290,7 @@ public class FcmService {
     /**
      * Отправка уведомления об удалении сообщения
      */
+    @Async
     public void sendMessageDeletedNotification(String fcmToken, Long chatId, Long messageId) {
         if (fcmToken == null || fcmToken.isEmpty()) {
             return;

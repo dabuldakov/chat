@@ -10,11 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.wait.strategy.Wait;
 import tools.jackson.databind.ObjectMapper;
 
 import javax.imageio.ImageIO;
@@ -28,18 +24,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @AutoConfigureMockMvc
 class AvatarFlowIT extends AbstractIntegrationTest {
-    static final GenericContainer<?> MINIO = new GenericContainer<>("quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z")
-            .withEnv("MINIO_ROOT_USER", "minioadmin").withEnv("MINIO_ROOT_PASSWORD", "minioadmin")
-            .withCommand("server", "/data").withExposedPorts(9000)
-            .waitingFor(Wait.forHttp("/minio/health/ready").forPort(9000));
-    static { MINIO.start(); }
-
-    @DynamicPropertySource
-    static void minioProperties(DynamicPropertyRegistry registry) {
-        registry.add("minio.url", () -> "http://" + MINIO.getHost() + ":" + MINIO.getMappedPort(9000));
-        registry.add("minio.access-key", () -> "minioadmin");
-        registry.add("minio.secret-key", () -> "minioadmin");
-    }
 
     @Autowired MockMvc mvc;
     @Autowired UserService users;

@@ -14,6 +14,7 @@ public class MinioConfig {
     private String accessKey;
     private String secretKey;
     private String avatarBucket;
+    private String attachmentBucket;
 
     @Bean
     public MinioClient minioClient() {
