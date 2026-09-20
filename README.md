@@ -134,3 +134,37 @@ src/integrationTest/java/com/chat/server/integration/
 └── *IT.java                                      # интеграционные тесты
 src/integrationTest/resources/application-integration-test.yaml
 ```
+
+## Автодеплой
+
+При push в `main` GitHub Actions по SSH заходит на VPS, обновляет чекаут и пересобирает
+только сервис `app` чата (PostgreSQL и MinIO не трогаются):
+
+```bash
+cd "$DEPLOY_PATH"                      # например, /opt/chat
+git fetch --prune origin main && git reset --hard origin/main
+docker compose up -d --build app
+```
+
+Workflow — `.github/workflows/deploy.yml` (можно запустить вручную: Actions → deploy → Run workflow).
+
+Секреты репозитория (Settings → Secrets and variables → Actions):
+
+| Секрет | Назначение |
+|--------|-----------|
+| `DEPLOY_HOST` | адрес VPS |
+| `DEPLOY_USER` | SSH-пользователь |
+| `DEPLOY_SSH_KEY` | приватный SSH-ключ без пароля |
+| `DEPLOY_PATH` | каталог чекаута на сервере, например `/opt/chat` |
+
+Первичная настройка сервера:
+
+```bash
+git clone git@github.com:dabuldakov/chat.git /opt/chat
+cd /opt/chat
+# создать .env (см. раздел про MinIO выше; в git не коммитится)
+docker compose up -d
+```
+
+Важно: chat использует внешнюю Docker-сеть MinIO из makeup, поэтому на сервере
+makeup должен быть поднят раньше. Дальнейшие деплои идут автоматически при push в `main`.

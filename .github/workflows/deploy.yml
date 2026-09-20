@@ -1,0 +1,29 @@
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.repository }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy on VPS
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pull master and rebuild app service
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script_stop: true
+          script: |
+            cd "${{ secrets.DEPLOY_PATH }}"
+            git fetch --prune origin main
+            git reset --hard origin/main
+            docker compose up -d --build app
+            docker image prune -f
