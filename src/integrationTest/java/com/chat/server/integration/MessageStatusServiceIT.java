@@ -6,6 +6,7 @@ import com.chat.server.entity.Message;
 import com.chat.server.entity.MessageStatus;
 import com.chat.server.entity.Participant;
 import com.chat.server.entity.User;
+import com.chat.server.exception.BadRequestException;
 import com.chat.server.repository.ChatRepository;
 import com.chat.server.repository.MessageRepository;
 import com.chat.server.repository.MessageStatusRepository;
@@ -21,6 +22,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class MessageStatusServiceIT extends AbstractIntegrationTest {
 
@@ -157,11 +159,35 @@ class MessageStatusServiceIT extends AbstractIntegrationTest {
     void shouldGetMessageStatuses() {
         createStatuses();
 
-        List<MessageStatusDto> dtos = messageStatusService.getMessageStatuses(message.getMessageUuid());
+        List<MessageStatusDto> dtos = messageStatusService.getMessageStatuses(
+                message.getMessageUuid(), chat.getChatId(), user1.getUserId());
 
         assertThat(dtos).hasSize(2);
         assertThat(dtos).extracting(MessageStatusDto::getUserId)
                 .containsExactlyInAnyOrder(user1.getUserId(), user2.getUserId());
+    }
+
+    @Test
+    void shouldRejectStatusesForMessageFromAnotherChat() {
+        createStatuses();
+        var third = createUser("u3");
+        var other = chatService.createPrivateChat(user1.getUserId(), third.getUserUuid());
+        Long otherChatId = chatRepository.findByChatUuid(other.getChatUuid()).orElseThrow().getChatId();
+
+        assertThatThrownBy(() -> messageStatusService.getMessageStatuses(
+                message.getMessageUuid(), otherChatId, user1.getUserId()))
+                .isInstanceOf(BadRequestException.class);
+    }
+
+    @Test
+    void shouldRejectMarkingReadWithMessageFromAnotherChat() {
+        var third = createUser("u4");
+        var other = chatService.createPrivateChat(user1.getUserId(), third.getUserUuid());
+        Long otherChatId = chatRepository.findByChatUuid(other.getChatUuid()).orElseThrow().getChatId();
+
+        assertThatThrownBy(() -> messageStatusService.markMessagesAsRead(
+                otherChatId, user1.getUserId(), message.getMessageUuid()))
+                .isInstanceOf(BadRequestException.class);
     }
 
     @Test

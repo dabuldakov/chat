@@ -189,7 +189,7 @@ public class MessageController {
 
         chatService.validateUserAccessToChat(chatId, userId);
 
-        List<MessageStatusDto> statuses = messageStatusService.getMessageStatuses(messageUuid);
+        List<MessageStatusDto> statuses = messageStatusService.getMessageStatuses(messageUuid, chatId, userId);
         return ResponseEntity.ok(statuses);
     }
 

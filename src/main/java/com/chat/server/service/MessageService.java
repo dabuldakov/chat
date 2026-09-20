@@ -49,6 +49,9 @@ public class MessageService {
         Long replyToId = null;
         if (replyToMessageUuid != null) {
             Message replyTo = getMessageByUuid(replyToMessageUuid);
+            if (!replyTo.getChatId().equals(chatId)) {
+                throw new BadRequestException("Reply message does not belong to this chat");
+            }
             replyToId = replyTo.getMessageId();
         }
 
@@ -109,6 +112,9 @@ public class MessageService {
         chatService.validateUserAccessToChat(chatId, userId);
 
         Message beforeMessage = getMessageByUuid(beforeMessageUuid);
+        if (!beforeMessage.getChatId().equals(chatId)) {
+            throw new BadRequestException("Message does not belong to this chat");
+        }
         return messageRepository.findMessagesBefore(chatId, beforeMessage.getCreatedAt(),
                 PageRequest.of(0, Math.max(1, Math.min(limit, DEFAULT_SYNC_LIMIT))));
     }

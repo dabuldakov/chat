@@ -4,6 +4,8 @@ import com.chat.server.dto.response.DeliveryStatusDto;
 import com.chat.server.dto.response.MessageStatusDto;
 import com.chat.server.entity.Message;
 import com.chat.server.entity.MessageStatus;
+import com.chat.server.exception.BadRequestException;
+import com.chat.server.exception.NotFoundException;
 import com.chat.server.repository.MessageRepository;
 import com.chat.server.repository.MessageStatusRepository;
 import com.chat.server.repository.ParticipantRepository;
@@ -87,6 +89,10 @@ public class MessageStatusService {
         Message upToMessage = messageRepository.findByMessageUuid(upToMessageUuid)
                 .orElseThrow(() -> new RuntimeException("Message not found"));
 
+        if (!upToMessage.getChatId().equals(chatId)) {
+            throw new BadRequestException("Message does not belong to this chat");
+        }
+
         // ⭐ Оптимизированная версия - один запрос к БД вместо цикла
         int updatedCount = messageStatusRepository.markMessagesAsReadInChat(
                 chatId,
@@ -112,11 +118,17 @@ public class MessageStatusService {
     }
 
     @Transactional(readOnly = true)
-    public List<MessageStatusDto> getMessageStatuses(UUID messageUuid) {
-        log.debug("Getting statuses for message: {}", messageUuid);
+    public List<MessageStatusDto> getMessageStatuses(UUID messageUuid, Long chatId, Long userId) {
+        log.debug("Getting statuses for message: {} in chat: {}", messageUuid, chatId);
+
+        chatService.validateUserAccessToChat(chatId, userId);
 
         Message message = messageRepository.findByMessageUuid(messageUuid)
-                .orElseThrow(() -> new RuntimeException("Message not found"));
+                .orElseThrow(() -> new NotFoundException("Message not found"));
+
+        if (!message.getChatId().equals(chatId)) {
+            throw new BadRequestException("Message does not belong to this chat");
+        }
 
         List<MessageStatus> statuses = messageStatusRepository.findByMessageId(message.getMessageId());
 

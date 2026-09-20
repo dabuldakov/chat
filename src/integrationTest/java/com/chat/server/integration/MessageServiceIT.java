@@ -225,6 +225,32 @@ class MessageServiceIT extends AbstractIntegrationTest {
     }
 
     @Test
+    void shouldRejectBeforeMessageFromAnotherChat() {
+        Message inChat = messageService.sendMessage(chat.getChatId(), user1.getUserId(),
+                "in chat", Message.MessageType.TEXT, null, null);
+
+        var otherResponse = chatService.createPrivateChat(user1.getUserId(), outsider.getUserUuid());
+        Chat otherChat = chatRepository.findByChatUuid(otherResponse.getChatUuid()).orElseThrow();
+
+        assertThatThrownBy(() -> messageService.getMessagesBeforeMessage(
+                otherChat.getChatId(), user1.getUserId(), inChat.getMessageUuid(), 10))
+                .isInstanceOf(BadRequestException.class);
+    }
+
+    @Test
+    void shouldRejectReplyToMessageFromAnotherChat() {
+        Message inChat = messageService.sendMessage(chat.getChatId(), user1.getUserId(),
+                "in chat", Message.MessageType.TEXT, null, null);
+
+        var otherResponse = chatService.createPrivateChat(user1.getUserId(), outsider.getUserUuid());
+        Chat otherChat = chatRepository.findByChatUuid(otherResponse.getChatUuid()).orElseThrow();
+
+        assertThatThrownBy(() -> messageService.sendMessage(otherChat.getChatId(), user1.getUserId(),
+                "reply", Message.MessageType.TEXT, inChat.getMessageUuid(), null))
+                .isInstanceOf(BadRequestException.class);
+    }
+
+    @Test
     void shouldRejectForwardingMessageFromForeignChat() {
         Message original = messageService.sendMessage(chat.getChatId(), user1.getUserId(),
                 "secret", Message.MessageType.TEXT, null, null);
