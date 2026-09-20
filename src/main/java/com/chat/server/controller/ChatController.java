@@ -5,8 +5,8 @@ import com.chat.server.dto.request.CreatePrivateChatRequestDto;
 import com.chat.server.dto.request.UpdateChatRequestDto;
 import com.chat.server.dto.response.ChatDetailsResponseDto;
 import com.chat.server.dto.response.ChatResponseDto;
+import com.chat.server.service.ChatAvatarService;
 import com.chat.server.service.ChatService;
-import com.chat.server.service.FileUploadService;
 import com.chat.server.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -37,8 +37,8 @@ import java.util.UUID;
 public class ChatController {
 
     private final ChatService chatService;
-    private final FileUploadService fileUploadService;
     private final UserService userService;
+    private final ChatAvatarService chatAvatarService;
 
     @GetMapping
     @Operation(summary = "Получение всех чатов пользователя")
@@ -102,8 +102,7 @@ public class ChatController {
 
         chatService.validateUserAccessToChat(chatId, userId);
 
-        var avatarUrl = fileUploadService.uploadChatAvatar(chatId, file);
-        chatService.updateAvatar(chatId, avatarUrl);
+        var avatarUrl = chatAvatarService.upload(chatId, chatUuid, file);
 
         return ResponseEntity.ok(avatarUrl);
     }

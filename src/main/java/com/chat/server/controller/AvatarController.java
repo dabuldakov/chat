@@ -1,5 +1,6 @@
 package com.chat.server.controller;
 
+import com.chat.server.service.ChatAvatarService;
 import com.chat.server.service.UserAvatarService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.CacheControl;
@@ -14,10 +15,17 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class AvatarController {
     private final UserAvatarService avatars;
+    private final ChatAvatarService chatAvatars;
 
     @GetMapping(value = "/{userUuid}/{version}.png", produces = MediaType.IMAGE_PNG_VALUE)
     public ResponseEntity<byte[]> get(@PathVariable UUID userUuid, @PathVariable UUID version) {
         return ResponseEntity.ok().contentType(MediaType.IMAGE_PNG)
                 .cacheControl(CacheControl.noCache()).body(avatars.get(userUuid, version));
+    }
+
+    @GetMapping(value = "/chat/{chatUuid}/{version}.png", produces = MediaType.IMAGE_PNG_VALUE)
+    public ResponseEntity<byte[]> getChat(@PathVariable UUID chatUuid, @PathVariable UUID version) {
+        return ResponseEntity.ok().contentType(MediaType.IMAGE_PNG)
+                .cacheControl(CacheControl.noCache()).body(chatAvatars.get(chatUuid, version));
     }
 }
