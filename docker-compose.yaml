@@ -27,7 +27,6 @@ services:
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
       MINIO_AVATAR_BUCKET: ${MINIO_AVATAR_BUCKET:-avatars}
-      SPRING_JPA_HIBERNATE_DDL_AUTO: update
     env_file:
       - .env
     depends_on:

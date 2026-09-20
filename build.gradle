@@ -41,7 +41,8 @@ dependencies {
 
     // Database
     implementation 'org.postgresql:postgresql:42.7.1'
-    implementation 'org.flywaydb:flyway-core:9.22.3'
+    implementation 'org.flywaydb:flyway-core'
+    implementation 'org.flywaydb:flyway-database-postgresql'
 
     // Caching
     implementation 'com.github.ben-manes.caffeine:caffeine'

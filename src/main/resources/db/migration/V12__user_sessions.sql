@@ -1,16 +1,7 @@
 -- =====================================================
--- Функция для автоматического обновления updated_at
--- =====================================================
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = CURRENT_TIMESTAMP;
-RETURN NEW;
-END;
-$$ language 'plpgsql';
-
--- =====================================================
 -- ТАБЛИЦА user_sessions (сессии пользователей)
+-- Отдельная миграция (после users), т.к. ссылается
+-- на users(user_id), создаваемый в V3.
 -- =====================================================
 CREATE TABLE IF NOT EXISTS user_sessions (
                                              session_id BIGSERIAL PRIMARY KEY,

@@ -1,8 +1,9 @@
 spring:
-  # Миграции не применяем в тестах: схему создаёт Hibernate (ddl-auto=update),
-  # как в текущем рантайм-окружении приложения.
+  # Схему создают Flyway-миграции (ddl-auto=none), как в продакшене
+  # (V1–V12: партиционированные messages, GIN-индексы FTS), а не
+  # автогенерация Hibernate.
   flyway:
-    enabled: false
+    enabled: true
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: none

@@ -19,9 +19,9 @@ CREATE TABLE IF NOT EXISTS messages (
     is_pinned BOOLEAN DEFAULT FALSE,
     deleted_at TIMESTAMP,
     deleted_by BIGINT,
-    mentioned_users JSONB DEFAULT '[]'::jsonb,
+    mentioned_users TEXT DEFAULT '[]',
     has_attachments BOOLEAN DEFAULT FALSE,
-    metadata JSONB DEFAULT '{}'::jsonb,
+    metadata TEXT DEFAULT '{}',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     version BIGINT DEFAULT 0,
@@ -61,10 +61,6 @@ CREATE INDEX IF NOT EXISTS idx_messages_message_type ON messages(message_type);
 -- Составные индексы
 CREATE INDEX IF NOT EXISTS idx_messages_chat_deleted ON messages(chat_id, is_deleted, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_messages_chat_pinned ON messages(chat_id, is_pinned, created_at DESC);
-
--- GIN индексы для JSON полей
-CREATE INDEX IF NOT EXISTS idx_messages_mentioned_users ON messages USING GIN (mentioned_users);
-CREATE INDEX IF NOT EXISTS idx_messages_metadata ON messages USING GIN (metadata);
 
 -- =====================================================
 -- ТРИГГЕРЫ

@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS participants (
     nickname VARCHAR(100),
     muted_until TIMESTAMP,
     is_pinned BOOLEAN DEFAULT FALSE,
-    notification_settings JSONB DEFAULT '{}'::jsonb,
+    notification_settings TEXT DEFAULT '{}',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     version BIGINT DEFAULT 0,
@@ -66,9 +66,6 @@ CREATE INDEX IF NOT EXISTS idx_participants_pinned ON participants(user_id, is_p
 
 -- Индекс для последнего прочитанного сообщения
 CREATE INDEX IF NOT EXISTS idx_participants_last_read ON participants(chat_id, last_read_message_id);
-
--- Индекс для JSON поля notification_settings
-CREATE INDEX IF NOT EXISTS idx_participants_notification_settings ON participants USING GIN (notification_settings);
 
 -- =====================================================
 -- ОГРАНИЧЕНИЯ (CHECK)

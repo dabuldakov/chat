@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS attachments (
     duration INTEGER,
     type VARCHAR(20) DEFAULT 'OTHER',
     is_compressed BOOLEAN DEFAULT FALSE,
-    metadata JSONB DEFAULT '{}'::jsonb,
+    metadata TEXT DEFAULT '{}',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     version BIGINT DEFAULT 0
