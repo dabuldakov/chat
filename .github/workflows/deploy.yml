@@ -14,6 +14,23 @@ jobs:
     name: Deploy on VPS
     runs-on: ubuntu-latest
     steps:
+      - name: Verify deploy secrets
+        env:
+          S_HOST: ${{ secrets.DEPLOY_HOST }}
+          S_USER: ${{ secrets.DEPLOY_USER }}
+          S_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          S_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          missing=""
+          [ -n "$S_HOST" ] || missing="$missing DEPLOY_HOST"
+          [ -n "$S_USER" ] || missing="$missing DEPLOY_USER"
+          [ -n "$S_KEY" ]  || missing="$missing DEPLOY_SSH_KEY"
+          [ -n "$S_PATH" ] || missing="$missing DEPLOY_PATH"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secrets:$missing (must be in Settings > Secrets and variables > Actions > Secrets, not Variables)"
+            exit 1
+          fi
+          echo "All deploy secrets are present"
       - name: Pull master and rebuild app service
         uses: appleboy/ssh-action@v1
         with:
