@@ -3,14 +3,17 @@ package com.chat.server.service;
 import com.chat.server.dto.request.UpdateChatRequestDto;
 import com.chat.server.dto.response.ChatDetailsResponseDto;
 import com.chat.server.dto.response.ChatResponseDto;
+import com.chat.server.entity.Attachment;
 import com.chat.server.entity.Chat;
 import com.chat.server.entity.Participant;
 import com.chat.server.entity.User;
 import com.chat.server.exception.AccessDeniedException;
 import com.chat.server.exception.ConflictException;
 import com.chat.server.exception.NotFoundException;
+import com.chat.server.repository.AttachmentRepository;
 import com.chat.server.repository.ChatRepository;
 import com.chat.server.repository.MessageRepository;
+import com.chat.server.repository.MessageStatusRepository;
 import com.chat.server.repository.ParticipantRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,6 +37,9 @@ public class ChatService {
     private final ChatRepository chatRepository;
     private final ParticipantRepository participantRepository;
     private final MessageRepository messageRepository;
+    private final MessageStatusRepository messageStatusRepository;
+    private final AttachmentRepository attachmentRepository;
+    private final FileUploadService fileUploadService;
     private final UserService userService;
     private final ChatResponseAssembler chatResponseAssembler;
 
@@ -316,8 +322,26 @@ public class ChatService {
             throw new AccessDeniedException("Only chat creator can delete the chat");
         }
 
+        // Файлы вложений в MinIO (строки вложений удалит каскад, но объекты — нет).
+        List<Attachment> attachments = attachmentRepository.findByChatId(chatId);
+        for (Attachment attachment : attachments) {
+            fileUploadService.delete(attachment.getFileUrl());
+            if (attachment.getThumbnailUrl() != null) {
+                fileUploadService.delete(attachment.getThumbnailUrl());
+            }
+        }
+        attachmentRepository.deleteByChatId(chatId);
+
+        // На messages/message_statuses нет FK на chats, поэтому чистим вручную.
+        List<Long> messageIds = messageRepository.findAllMessageIdsByChatId(chatId);
+        if (!messageIds.isEmpty()) {
+            messageStatusRepository.deleteByMessageIds(messageIds);
+        }
+        messageRepository.hardDeleteAllMessagesInChat(chatId);
+
         participantRepository.deleteAll(participantRepository.findAllByChatId(chatId));
         chatRepository.delete(chat);
-        log.info("Chat deleted: {}", chatId);
+        log.info("Chat deleted: {} (attachments: {}, messages: {})",
+                chatId, attachments.size(), messageIds.size());
     }
 }

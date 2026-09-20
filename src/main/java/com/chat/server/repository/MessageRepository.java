@@ -237,6 +237,9 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
     @Query("DELETE FROM Message m WHERE m.chatId = :chatId")
     void hardDeleteAllMessagesInChat(@Param("chatId") Long chatId);
 
+    @Query("SELECT m.messageId FROM Message m WHERE m.chatId = :chatId")
+    List<Long> findAllMessageIdsByChatId(@Param("chatId") Long chatId);
+
     // ==================== Поиск по типу ====================
 
     @Query("SELECT m FROM Message m WHERE m.chatId = :chatId AND m.messageType = :type AND m.isDeleted = false ORDER BY m.createdAt DESC")

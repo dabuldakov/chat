@@ -1,18 +1,30 @@
 package com.chat.server.integration;
 
+import com.chat.server.entity.Attachment;
+import com.chat.server.entity.Message;
 import com.chat.server.entity.Participant;
 import com.chat.server.entity.User;
+import com.chat.server.exception.NotFoundException;
+import com.chat.server.repository.AttachmentRepository;
 import com.chat.server.repository.ChatRepository;
+import com.chat.server.repository.MessageRepository;
+import com.chat.server.repository.MessageStatusRepository;
 import com.chat.server.repository.ParticipantRepository;
 import com.chat.server.repository.UserRepository;
+import com.chat.server.service.AttachmentService;
 import com.chat.server.service.ChatService;
+import com.chat.server.service.FileUploadService;
+import com.chat.server.service.MessageService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.mock.web.MockMultipartFile;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ChatServiceIT extends AbstractIntegrationTest {
 
@@ -23,7 +35,19 @@ class ChatServiceIT extends AbstractIntegrationTest {
     @Autowired
     private ParticipantRepository participantRepository;
     @Autowired
+    private MessageRepository messageRepository;
+    @Autowired
+    private MessageStatusRepository messageStatusRepository;
+    @Autowired
+    private AttachmentRepository attachmentRepository;
+    @Autowired
     private ChatService chatService;
+    @Autowired
+    private MessageService messageService;
+    @Autowired
+    private AttachmentService attachmentService;
+    @Autowired
+    private FileUploadService fileUploadService;
 
     private User user1;
     private User user2;
@@ -93,5 +117,30 @@ class ChatServiceIT extends AbstractIntegrationTest {
                 .singleElement()
                 .extracting(Participant::getUserId)
                 .isEqualTo(user1.getUserId());
+    }
+
+    @Test
+    void shouldDeleteChatWithMessagesStatusesAndAttachments() {
+        var response = chatService.createGroupChat(
+                "Deletable group", user1.getUserId(), List.of(user2.getUserUuid()));
+        Long chatId = chatRepository.findByChatUuid(response.getChatUuid()).orElseThrow().getChatId();
+
+        Message message = messageService.sendMessage(
+                chatId, user1.getUserId(), "hi", Message.MessageType.TEXT, null, null);
+        assertThat(messageStatusRepository.findByMessageId(message.getMessageId())).isNotEmpty();
+
+        var file = new MockMultipartFile("file", "secret.txt", "text/plain",
+                "data".getBytes(StandardCharsets.UTF_8));
+        Attachment attachment = attachmentService.uploadAttachment(file, chatId, user1.getUserId());
+        String fileUrl = attachment.getFileUrl();
+
+        chatService.deleteChat(chatId, user1.getUserId());
+
+        assertThat(chatRepository.findByChatUuid(response.getChatUuid())).isEmpty();
+        assertThat(participantRepository.findAllByChatId(chatId)).isEmpty();
+        assertThat(messageRepository.findAllMessageIdsByChatId(chatId)).isEmpty();
+        assertThat(messageStatusRepository.findByMessageId(message.getMessageId())).isEmpty();
+        assertThat(attachmentRepository.findByAttachmentUuid(attachment.getAttachmentUuid())).isEmpty();
+        assertThatThrownBy(() -> fileUploadService.load(fileUrl)).isInstanceOf(NotFoundException.class);
     }
 }
