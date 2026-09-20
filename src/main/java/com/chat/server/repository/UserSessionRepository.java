@@ -116,6 +116,9 @@ public interface UserSessionRepository extends JpaRepository<UserSession, Long> 
     @Query("SELECT s.fcmToken FROM UserSession s WHERE s.userId = :userId AND s.isActive = true AND s.fcmToken IS NOT NULL")
     List<String> findActiveFcmTokensByUserId(@Param("userId") Long userId);
 
+    @Query("SELECT s.fcmToken FROM UserSession s WHERE s.userId IN :userIds AND s.isActive = true AND s.fcmToken IS NOT NULL")
+    List<String> findActiveFcmTokensByUserIds(@Param("userIds") List<Long> userIds);
+
     // ==================== Поиск по device ====================
 
     @Query("SELECT s FROM UserSession s WHERE s.deviceId = :deviceId AND s.isActive = true")

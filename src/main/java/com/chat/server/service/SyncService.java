@@ -3,13 +3,16 @@ package com.chat.server.service;
 import com.chat.server.dto.response.SyncResponseDto;
 import com.chat.server.entity.Chat;
 import com.chat.server.entity.Message;
+import com.chat.server.repository.MessageRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -18,9 +21,11 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class SyncService {
 
+    private static final int DEFAULT_SYNC_LIMIT = 500;
+
     private final ChatService chatService;
-    private final MessageService messageService;
     private final ParticipantService participantService;
+    private final MessageRepository messageRepository;
 
     @Transactional(readOnly = true)
     public SyncResponseDto syncUserData(Long userId, LocalDateTime lastSyncTime) {
@@ -42,22 +47,11 @@ public class SyncService {
                 .toList();
         response.setUpdatedChats(updatedChats);
 
-        // Получаем новые сообщения
-        Map<Long, List<Message>> newMessages = new HashMap<>();
-        for (Long chatId : userChatIds) {
-            List<Message> messages = messageService.getMessagesAfter(chatId, userId, lastSyncTime);
-            if (!messages.isEmpty()) {
-                newMessages.put(chatId, messages);
-            }
-        }
-        response.setNewMessages(newMessages);
-
-        // Получаем изменения в участниках
-        Map<Long, List<Long>> newParticipants = new HashMap<>();
-        // ... логика получения новых участников
+        // Получаем новые сообщения одним пакетным запросом по всем чатам
+        response.setNewMessages(newMessagesForChats(userChatIds, lastSyncTime));
 
         log.info("Sync completed for user: {}, found {} chats with new messages",
-                userId, newMessages.size());
+                userId, response.getNewMessages() == null ? 0 : response.getNewMessages().size());
 
         return response;
     }
@@ -69,14 +63,7 @@ public class SyncService {
 
         List<Long> userChatIds = participantService.getUserChatIds(userId);
 
-        Map<Long, List<Message>> newMessages = new HashMap<>();
-        for (Long chatId : userChatIds) {
-            List<Message> messages = messageService.getMessagesAfter(chatId, userId, lastSyncTime);
-            if (!messages.isEmpty()) {
-                newMessages.put(chatId, messages);
-            }
-        }
-        response.setNewMessages(newMessages);
+        response.setNewMessages(newMessagesForChats(userChatIds, lastSyncTime));
 
         return response;
     }
@@ -101,8 +88,11 @@ public class SyncService {
         List<Long> chatIds = participantService.getUserChatIds(userId);
 
         long totalMessages = 0;
-        for (Long chatId : chatIds) {
-            totalMessages += messageService.getTotalMessagesCount(chatId, userId);
+        if (!chatIds.isEmpty()) {
+            List<Object[]> counts = messageRepository.countMessagesInChats(chatIds);
+            for (Object[] row : counts) {
+                totalMessages += ((Number) row[1]).longValue();
+            }
         }
 
         return new SyncStatusResponse(
@@ -112,6 +102,25 @@ public class SyncService {
                 totalMessages,
                 0 // pendingUploads
         );
+    }
+
+    /**
+     * Сообщения после :lastSyncTime для всех чатов одним запросом
+     * (ROW_NUMBER + PARTITION BY chat_id, лимит на каждый чат).
+     */
+    private Map<Long, List<Message>> newMessagesForChats(List<Long> chatIds, LocalDateTime lastSyncTime) {
+        if (chatIds.isEmpty()) {
+            return new HashMap<>();
+        }
+
+        List<Message> messages = messageRepository.findMessagesAfterForChats(
+                chatIds, lastSyncTime, DEFAULT_SYNC_LIMIT);
+
+        Map<Long, List<Message>> result = new LinkedHashMap<>();
+        for (Message message : messages) {
+            result.computeIfAbsent(message.getChatId(), k -> new ArrayList<>()).add(message);
+        }
+        return result;
     }
 
 }

@@ -70,6 +70,32 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
             @Param("since") LocalDateTime since
     );
 
+    /**
+     * Пакетная выгрузка сообщений после времени :since сразу для нескольких чатов
+     * с ограничением :limit сообщений на каждый чат (ROW_NUMBER по партиции чата).
+     * Заменяет цикл из N отдельных SELECT (N = число чатов пользователя).
+     */
+    @Query(value = """
+        SELECT sub.* FROM (
+            SELECT m.*,
+                   ROW_NUMBER() OVER (
+                       PARTITION BY m.chat_id
+                       ORDER BY m.created_at DESC
+                   ) AS rn
+            FROM messages m
+            WHERE m.chat_id IN :chatIds
+              AND m.created_at > :since
+              AND m.is_deleted = false
+        ) sub
+        WHERE sub.rn <= :limit
+        ORDER BY sub.created_at ASC
+        """, nativeQuery = true)
+    List<Message> findMessagesAfterForChats(
+            @Param("chatIds") List<Long> chatIds,
+            @Param("since") LocalDateTime since,
+            @Param("limit") int limit
+    );
+
     // ==================== Подсчет сообщений ====================
 
     @Query("SELECT COUNT(m) FROM Message m WHERE m.chatId = :chatId AND m.isDeleted = false")
@@ -80,6 +106,37 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
             @Param("chatId") Long chatId,
             @Param("afterMessageId") Long afterMessageId
     );
+
+    /**
+     * Суммарное количество не удалённых сообщений по всем чатам за один запрос
+     * (GROUP BY) — заменяет цикл из N запросов COUNT в SyncService.getSyncStatus.
+     */
+    @Query("SELECT m.chatId, COUNT(m) FROM Message m WHERE m.chatId IN :chatIds AND m.isDeleted = false GROUP BY m.chatId")
+    List<Object[]> countMessagesInChats(@Param("chatIds") List<Long> chatIds);
+
+    /**
+     * Непрочитанные сообщения для пользователя сразу по всем его чатам (один запрос
+     * вместо цикла из N × 2 SELECT в getUserChatsWithDetails/getTotalUnreadCount).
+     * Учитывает per-chat last_read_message_id: если NULL — считаются все не удалённые
+     * сообщения чата, иначе только с message_id > last_read_message_id. Значение
+     * идентично сумме countMessagesInChat + countMessagesAfterId по каждому чату.
+     * LEFT JOIN позволяет корректно вернуть 0 для чатов без сообщений.
+     */
+    @Query(value = """
+        SELECT p.chat_id, COUNT(m.message_id)
+        FROM participants p
+        LEFT JOIN messages m
+               ON m.chat_id = p.chat_id
+              AND m.is_deleted = FALSE
+              AND (p.last_read_message_id IS NULL
+                   OR m.message_id > p.last_read_message_id)
+        WHERE p.user_id = :userId
+          AND p.chat_id IN :chatIds
+        GROUP BY p.chat_id
+        """, nativeQuery = true)
+    List<Object[]> countUnreadMessagesByChatIds(
+            @Param("userId") Long userId,
+            @Param("chatIds") List<Long> chatIds);
 
     // ==================== Поиск по ID сообщения ====================
 
@@ -99,14 +156,50 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
 
     // ==================== Поиск ====================
 
-    @Query("SELECT m FROM Message m WHERE m.chatId = :chatId AND LOWER(m.messageText) LIKE LOWER(CONCAT('%', :keyword, '%')) AND m.isDeleted = false ORDER BY m.createdAt DESC")
+    /**
+     * Полнотекстовый поиск сообщений в чате. Использует GIN-индекс
+     * idx_messages_text_gin (V0011) — без seq scan по партициям.
+     */
+    @Query(value = """
+        SELECT m.* FROM messages m
+        WHERE m.chat_id = :chatId
+          AND m.is_deleted = false
+          AND to_tsvector('russian', COALESCE(m.message_text, '')) @@
+              (SELECT to_tsquery('russian',
+                       string_agg(regexp_replace(trim(word), '[^\\w]', '', 'g') || ':*', ' & '))
+               FROM regexp_split_to_table(:keyword, '\\s+') AS word)
+        ORDER BY m.created_at DESC
+        LIMIT :limit
+        """, nativeQuery = true)
     List<Message> searchMessagesInChat(
             @Param("chatId") Long chatId,
             @Param("keyword") String keyword,
             @Param("limit") int limit
     );
 
-    @Query("SELECT m FROM Message m WHERE m.chatId IN :chatIds AND LOWER(m.messageText) LIKE LOWER(CONCAT('%', :keyword, '%')) AND m.isDeleted = false ORDER BY m.createdAt DESC")
+    /**
+     * Полнотекстовый поиск сообщений по нескольким чатам.
+     */
+    @Query(value = """
+        SELECT m.* FROM messages m
+        WHERE m.chat_id IN :chatIds
+          AND m.is_deleted = false
+          AND to_tsvector('russian', COALESCE(m.message_text, '')) @@
+              (SELECT to_tsquery('russian',
+                       string_agg(regexp_replace(trim(word), '[^\\w]', '', 'g') || ':*', ' & '))
+               FROM regexp_split_to_table(:keyword, '\\s+') AS word)
+        ORDER BY m.created_at DESC
+        """,
+            countQuery = """
+        SELECT COUNT(*) FROM messages m
+        WHERE m.chat_id IN :chatIds
+          AND m.is_deleted = false
+          AND to_tsvector('russian', COALESCE(m.message_text, '')) @@
+              (SELECT to_tsquery('russian',
+                       string_agg(regexp_replace(trim(word), '[^\\w]', '', 'g') || ':*', ' & '))
+               FROM regexp_split_to_table(:keyword, '\\s+') AS word)
+        """,
+            nativeQuery = true)
     Page<Message> searchMessagesInChats(
             @Param("chatIds") List<Long> chatIds,
             @Param("keyword") String keyword,

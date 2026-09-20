@@ -30,15 +30,23 @@ public class PushNotificationService {
     }
 
     public void sendMessageNotification(Message message, List<Long> recipientIds) {
-        // Отправляем уведомление всем участникам кроме отправителя
+        // Отправляем уведомление всем участникам кроме отправителя.
+        // Токены получаем одним GROUP-запросом, а не SELECT-ом на каждого получателя.
         List<Long> targetIds = recipientIds.stream()
                 .filter(id -> !id.equals(message.getSenderId()))
                 .toList();
 
-        for (Long userId : targetIds) {
-            for (String token : distinctTokens(userId)) {
-                fcmService.sendMessageNotification(token, message.getSenderId(), message.getMessageText());
-            }
+        if (targetIds.isEmpty()) {
+            return;
+        }
+
+        List<String> tokens = userSessionRepository.findActiveFcmTokensByUserIds(targetIds).stream()
+                .filter(token -> token != null && !token.isEmpty())
+                .distinct()
+                .toList();
+
+        for (String token : tokens) {
+            fcmService.sendMessageNotification(token, message.getSenderId(), message.getMessageText());
         }
     }
 

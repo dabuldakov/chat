@@ -29,7 +29,10 @@ public class AttachmentService {
     private final ChatService chatService;
     private final FileUploadService fileUploadService;
 
-    @Transactional
+    /**
+     * Без @Transactional: на время загрузки файла в MinIO не удерживается
+     * соединение из пула (долгий сетевой ввод-вывод вне транзакции).
+     */
     public Attachment uploadAttachment(MultipartFile file, Long chatId, Long userId) {
         log.info("Uploading attachment for chat: {} by user: {}", chatId, userId);
 

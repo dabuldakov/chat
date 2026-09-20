@@ -23,6 +23,10 @@ public interface ParticipantRepository extends JpaRepository<Participant, Long> 
 
     List<Participant> findAllByChatId(Long chatId);
 
+    // Пакетная выборка участников сразу по всем чатам пользователя
+    // (1 запрос вместо N отдельных findAllByChatId в списке чатов).
+    List<Participant> findAllByChatIdIn(List<Long> chatIds);
+
     @Query("SELECT p.userUUID FROM Participant p WHERE p.chatId = :chatId")
     List<UUID> findUserIdsByChatId(@Param("chatId") Long chatId);
 

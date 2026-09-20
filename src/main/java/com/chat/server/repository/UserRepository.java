@@ -29,7 +29,22 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     boolean existsByEmail(String email);
 
-    @Query("SELECT u FROM User u WHERE u.username LIKE %:query% OR u.email LIKE %:query%")
+    /**
+     * Полнотекстовый поиск по username/first_name/last_name с префиксным
+     * совпадением (как поиск "на лету" в клиенте). Использует существующий
+     * GIN-индекс idx_users_search_gin (V0009) — выражение индекса должно
+     * совпадать с выражением в запросе.
+     */
+    @Query(value = """
+        SELECT u.* FROM users u
+        WHERE u.is_deleted = false
+          AND to_tsvector('russian',
+                 COALESCE(u.username, '') || ' ' || COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, ''))
+              @@ (SELECT to_tsquery('russian',
+                        string_agg(regexp_replace(trim(word), '[^\\w]', '', 'g') || ':*', ' & '))
+                  FROM regexp_split_to_table(:query, '\\s+') AS word)
+        ORDER BY u.username ASC
+        """, nativeQuery = true)
     Page<User> searchByUsernameOrEmail(@Param("query") String query, Pageable pageable);
 
     @Query("SELECT u FROM User u WHERE u.userId IN :userIds")

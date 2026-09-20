@@ -39,7 +39,11 @@ public class MessageService {
 
         chatService.validateUserAccessToChat(chatId, senderId);
 
-        enforceBlockingForPrivateChat(chatId, senderId);
+        // Получаем участников один раз — используем их и в проверке блокировки,
+        // и для статусов доставки (раньше было два отдельных SELECT).
+        List<Long> participantIds = chatService.getChatParticipants(chatId);
+
+        enforceBlockingForPrivateChat(chatId, senderId, participantIds);
 
         Long replyToId = null;
         if (replyToMessageUuid != null) {
@@ -61,25 +65,26 @@ public class MessageService {
         // Обновляем последнее сообщение в чате
         chatService.updateLastMessage(chatId, savedMessage.getMessageId(), text, senderId);
 
-        // Создаем статусы для всех участников
-        List<Long> participantIds = chatService.getChatParticipants(chatId);
-        for (Long participantId : participantIds) {
-            MessageStatus.DeliveryStatus status = participantId.equals(senderId)
-                    ? MessageStatus.DeliveryStatus.READ
-                    : MessageStatus.DeliveryStatus.SENT;
+        // Создаем статусы для всех участников одним batch-insert
+        List<MessageStatus> statuses = participantIds.stream()
+                .map(participantId -> {
+                    MessageStatus.DeliveryStatus status = participantId.equals(senderId)
+                            ? MessageStatus.DeliveryStatus.READ
+                            : MessageStatus.DeliveryStatus.SENT;
 
-            MessageStatus messageStatus = MessageStatus.builder()
-                    .messageId(savedMessage.getMessageId())
-                    .userId(participantId)
-                    .status(status)
-                    .build();
+                    MessageStatus messageStatus = MessageStatus.builder()
+                            .messageId(savedMessage.getMessageId())
+                            .userId(participantId)
+                            .status(status)
+                            .build();
 
-            if (status == MessageStatus.DeliveryStatus.READ) {
-                messageStatus.markAsRead();
-            }
-
-            messageStatusRepository.save(messageStatus);
-        }
+                    if (status == MessageStatus.DeliveryStatus.READ) {
+                        messageStatus.markAsRead();
+                    }
+                    return messageStatus;
+                })
+                .toList();
+        messageStatusRepository.saveAll(statuses);
 
         // Отправляем push уведомления
         pushNotificationService.sendMessageNotification(savedMessage, participantIds);
@@ -104,7 +109,7 @@ public class MessageService {
 
         Message beforeMessage = getMessageByUuid(beforeMessageUuid);
         return messageRepository.findMessagesBefore(chatId, beforeMessage.getCreatedAt(),
-                PageRequest.of(0, Math.max(1, limit)));
+                PageRequest.of(0, Math.max(1, Math.min(limit, DEFAULT_SYNC_LIMIT))));
     }
 
     @Transactional(readOnly = true)
@@ -118,8 +123,9 @@ public class MessageService {
 
         chatService.validateUserAccessToChat(chatId, userId);
 
+        int safeLimit = Math.max(1, Math.min(limit, DEFAULT_SYNC_LIMIT));
         return messageRepository.findMessagesAfter(chatId, afterTime,
-                PageRequest.of(0, Math.max(1, limit)));
+                PageRequest.of(0, safeLimit));
     }
 
     @Transactional(readOnly = true)
@@ -224,17 +230,24 @@ public class MessageService {
     public Page<Message> searchMessages(Long userId, String query, Pageable pageable) {
         log.debug("Searching messages for user: {} with query: {}", userId, query);
 
+        if (query == null || query.isBlank()) {
+            return Page.empty(pageable);
+        }
+
         List<Long> chatIds = participantService.getUserChatIds(userId);
+        if (chatIds.isEmpty()) {
+            return Page.empty(pageable);
+        }
         return messageRepository.searchMessagesInChats(chatIds, query, pageable);
     }
 
     // ==================== Методы для работы с флагами сообщений ====================
 
-    private void enforceBlockingForPrivateChat(Long chatId, Long senderId) {
+    private void enforceBlockingForPrivateChat(Long chatId, Long senderId, List<Long> participantIds) {
         if (chatService.getChatById(chatId).getChatType() != com.chat.server.entity.Chat.ChatType.PRIVATE) {
             return;
         }
-        chatService.getChatParticipants(chatId).stream()
+        participantIds.stream()
                 .filter(participantId -> !participantId.equals(senderId))
                 .findFirst()
                 .ifPresent(otherUserId -> {
@@ -259,7 +272,11 @@ public class MessageService {
 
         chatService.validateUserAccessToChat(chatId, userId);
 
-        return messageRepository.searchMessagesInChat(chatId, keyword, limit);
+        if (keyword == null || keyword.isBlank()) {
+            return List.of();
+        }
+
+        return messageRepository.searchMessagesInChat(chatId, keyword, Math.min(limit, DEFAULT_SYNC_LIMIT));
     }
 
     @Transactional

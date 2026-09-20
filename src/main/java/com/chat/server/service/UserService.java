@@ -7,7 +7,6 @@ import com.chat.server.entity.User;
 import com.chat.server.exception.ConflictException;
 import com.chat.server.exception.NotFoundException;
 import com.chat.server.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -29,11 +28,24 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class UserService implements UserDetailsService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+
+    /**
+     * Самоссылка через прокси, чтобы loadUserByUsername (JWT-фильтр) попадал
+     * в @Cacheable(getUserByUuid) — без этого кэш обходился self-invocation'ом
+     * и каждый запрос выполнял SELECT по users.
+     */
+    private final UserService self;
+
+    public UserService(@org.springframework.context.annotation.Lazy UserService self,
+                       UserRepository userRepository, PasswordEncoder passwordEncoder) {
+        this.self = self;
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+    }
 
     // ==================== Вспомогательные методы ====================
 
@@ -50,7 +62,7 @@ public class UserService implements UserDetailsService {
     @Override
     public UserDetails loadUserByUsername(String userId) throws UsernameNotFoundException {
         try {
-            User user = getUserByUuid(UUID.fromString(userId));
+            User user = self.getUserByUuid(UUID.fromString(userId));
 
             if ((user.getStatus() != null && user.getStatus() != User.UserStatus.ACTIVE)
                     || Boolean.TRUE.equals(user.getIsDeleted())) {

@@ -31,6 +31,12 @@ public class FileUploadService {
     private final MinioClient minioClient;
     private final MinioConfig minioConfig;
 
+    /**
+     * Проверку существования бакета делаем один раз на процесс —
+     * MinIO не разрешает сменить бакет в рантайме.
+     */
+    private volatile boolean bucketVerified;
+
     public String store(MultipartFile file, String subdir, String fileName) {
         String key = subdir + "/" + fileName;
         try (InputStream input = file.getInputStream()) {
@@ -90,6 +96,9 @@ public class FileUploadService {
     }
 
     private void ensureBucket() throws Exception {
+        if (bucketVerified) {
+            return;
+        }
         String bucket = minioConfig.getAttachmentBucket();
         if (!minioClient.bucketExists(BucketExistsArgs.builder().bucket(bucket).build())) {
             try {
@@ -100,6 +109,7 @@ public class FileUploadService {
                 }
             }
         }
+        bucketVerified = true;
     }
 
     private String getFileExtension(String fileName) {

@@ -5,7 +5,6 @@ import com.chat.server.dto.response.MessagePreviewDto;
 import com.chat.server.entity.Chat;
 import com.chat.server.entity.Participant;
 import com.chat.server.entity.User;
-import com.chat.server.repository.ParticipantRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -23,16 +22,15 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ChatResponseAssembler {
 
-    private final ParticipantRepository participantRepository;
-    private final UserService userService;
-
-    public ChatResponseDto toChatResponse(Chat chat, Long userId, long unreadCount) {
-        List<Participant> participants = participantRepository.findAllByChatId(chat.getChatId());
+    /**
+     * @param participants предзагруженные участники чата (без БД-запроса),
+     * @param usersById    предзагруженная карта юзеров всех участников.
+     */
+    public ChatResponseDto toChatResponse(Chat chat, Long userId, List<Participant> participants,
+                                          Map<Long, User> usersById, long unreadCount) {
         List<UUID> participantIds = participants.stream()
                 .map(Participant::getUserUUID)
                 .collect(Collectors.toList());
-
-        Map<Long, User> usersById = usersById(participants);
 
         String title = chat.getTitle();
         String avatarUrl = chat.getAvatarUrl();
@@ -63,15 +61,6 @@ public class ChatResponseAssembler {
                 .unreadCount(unreadCount)
                 .isArchived(chat.getIsArchived() != null && chat.getIsArchived())
                 .build();
-    }
-
-    private Map<Long, User> usersById(List<Participant> participants) {
-        List<Long> userIds = participants.stream()
-                .map(Participant::getUserId)
-                .distinct()
-                .toList();
-        return userService.getUsersByIds(userIds).stream()
-                .collect(Collectors.toMap(User::getUserId, u -> u));
     }
 
     private MessagePreviewDto lastMessagePreview(Chat chat, Map<Long, User> usersById) {

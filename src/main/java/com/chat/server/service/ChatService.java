@@ -5,6 +5,7 @@ import com.chat.server.dto.response.ChatDetailsResponseDto;
 import com.chat.server.dto.response.ChatResponseDto;
 import com.chat.server.entity.Chat;
 import com.chat.server.entity.Participant;
+import com.chat.server.entity.User;
 import com.chat.server.exception.AccessDeniedException;
 import com.chat.server.exception.ConflictException;
 import com.chat.server.exception.NotFoundException;
@@ -20,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -45,12 +47,40 @@ public class ChatService {
     public List<ChatResponseDto> getUserChatsWithDetails(Long userId) {
         log.debug("Fetching chats with details for user: {}", userId);
         List<Chat> chats = getUserChats(userId);
+        if (chats.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> chatIds = chats.stream()
+                .map(Chat::getChatId)
+                .collect(Collectors.toList());
+
+        // Участники сразу по всем чатам (1 запрос) вместо N отдельных findAllByChatId.
+        List<Participant> allParticipants = participantRepository.findAllByChatIdIn(chatIds);
+        Map<Long, List<Participant>> participantsByChat = allParticipants.stream()
+                .collect(Collectors.groupingBy(Participant::getChatId));
+
+        // Непрочитанные по всем чатам (1 запрос, с учётом last_read_message_id)
+        // вместо цикла из N × 2 SELECT в getUnreadMessagesCount.
+        Map<Long, Long> unreadByChat = messageRepository.countUnreadMessagesByChatIds(userId, chatIds)
+                .stream()
+                .collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
+
+        // Юзеры всех участников (1 запрос) вместо N обращений за каждым чатом.
+        List<Long> allUserIds = allParticipants.stream()
+                .map(Participant::getUserId)
+                .distinct()
+                .collect(Collectors.toList());
+        Map<Long, User> usersById = userService.getUsersByIds(allUserIds).stream()
+                .collect(Collectors.toMap(User::getUserId, user -> user));
 
         return chats.stream()
                 .map(chat -> chatResponseAssembler.toChatResponse(
                         chat,
                         userId,
-                        getUnreadMessagesCount(chat.getChatId(), userId)))
+                        participantsByChat.getOrDefault(chat.getChatId(), List.of()),
+                        usersById,
+                        unreadByChat.getOrDefault(chat.getChatId(), 0L)))
                 .collect(Collectors.toList());
     }
 
@@ -250,15 +280,14 @@ public class ChatService {
 
     @Transactional(readOnly = true)
     public long getTotalUnreadCount(Long userId) {
-        var chatIds = participantRepository.findAllByUserId(userId).stream()
-                .map(Participant::getChatId).toList();
-        long totalUnread = 0;
-
-        for (Long chatId : chatIds) {
-            totalUnread += getUnreadMessagesCount(chatId, userId);
+        var chatIds = participantRepository.findChatIdsByUserId(userId);
+        if (chatIds.isEmpty()) {
+            return 0;
         }
-
-        return totalUnread;
+        // Один агрегатный запрос вместо цикла из N × 2 SELECT по каждому чату.
+        return messageRepository.countUnreadMessagesByChatIds(userId, chatIds).stream()
+                .mapToLong(row -> (Long) row[1])
+                .sum();
     }
 
     @Transactional(readOnly = true)
