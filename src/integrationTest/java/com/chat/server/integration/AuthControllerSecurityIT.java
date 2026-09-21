@@ -51,7 +51,7 @@ class AuthControllerSecurityIT extends AbstractIntegrationTest {
 
     @Test
     void currentUserRejectsAnonymous() throws Exception {
-        mvc.perform(get("/api/auth/me")).andExpect(status().isForbidden());
+        mvc.perform(get("/api/auth/me")).andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -64,7 +64,7 @@ class AuthControllerSecurityIT extends AbstractIntegrationTest {
 
     @Test
     void logoutRejectsAnonymous() throws Exception {
-        mvc.perform(post("/api/auth/logout")).andExpect(status().isForbidden());
+        mvc.perform(post("/api/auth/logout")).andExpect(status().isUnauthorized());
     }
 
     @Test

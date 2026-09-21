@@ -96,8 +96,8 @@ class AvatarFlowIT extends AbstractIntegrationTest {
 
     @Test
     void rejectsAnonymousMutationAndInvalidImages() throws Exception {
-        mvc.perform(multipart("/api/users/me/avatar").file(image())).andExpect(status().isForbidden());
-        mvc.perform(delete("/api/users/me/avatar")).andExpect(status().isForbidden());
+        mvc.perform(multipart("/api/users/me/avatar").file(image())).andExpect(status().isUnauthorized());
+        mvc.perform(delete("/api/users/me/avatar")).andExpect(status().isUnauthorized());
         var owner = users.createUser("invalidavatar", "invalidavatar@example.com", "password123");
         mvc.perform(multipart("/api/users/me/avatar")
                         .file(new MockMultipartFile("file", "fake.png", "image/png", "not an image".getBytes()))
