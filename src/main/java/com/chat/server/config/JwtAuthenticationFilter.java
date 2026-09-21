@@ -88,8 +88,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private boolean isPublicEndpoint(String path) {
-        return path.startsWith("/api/auth/")
-                || path.startsWith("/api/avatars/")
+        // ВАЖНО: /api/auth/** сюда не входит. Часть эндпоинтов (/api/auth/me,
+        // /api/auth/logout*, /api/auth/change-password) требует Authentication,
+        // поэтому JWT-фильтр обязан их обрабатывать. Публичность конкретных
+        // auth-эндпоинтов (login/register/refresh/...) задаётся в SecurityConfig.
+        return path.startsWith("/api/avatars/")
                 || path.startsWith("/swagger-ui/")
                 || path.startsWith("/v3/api-docs/")
                 || path.startsWith("/api-docs/")

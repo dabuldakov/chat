@@ -48,12 +48,22 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/avatars/**").permitAll()
                         // Публичные эндпоинты
                         .requestMatchers(
-                                "/api/auth/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
                                 "/v3/api-docs/**",
                                 "/api-docs/**",
                                 "/actuator/health"
+                        ).permitAll()
+                        // Публичные auth-эндпоинты: регистрация, вход, обновление токена,
+                        // сброс пароля и подтверждение email. Остальные (/api/auth/me,
+                        // /api/auth/logout*, /api/auth/change-password) требуют аутентификации.
+                        .requestMatchers(org.springframework.http.HttpMethod.POST,
+                                "/api/auth/register",
+                                "/api/auth/login",
+                                "/api/auth/refresh",
+                                "/api/auth/forgot-password",
+                                "/api/auth/reset-password",
+                                "/api/auth/verify-email"
                         ).permitAll()
                         // Все остальное требует аутентификации
                         .anyRequest().authenticated()
