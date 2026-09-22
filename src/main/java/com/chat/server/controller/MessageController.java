@@ -11,6 +11,7 @@ import com.chat.server.service.ChatService;
 import com.chat.server.service.MessageService;
 import com.chat.server.service.MessageStatusService;
 import com.chat.server.service.UserService;
+import com.chat.server.util.IsoUtc;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -106,7 +107,7 @@ public class MessageController {
         Long userId = Long.parseLong(authentication.getName());
         Long chatId = chatService.getChatIdByUuid(chatUuid);
 
-        LocalDateTime since = LocalDateTime.parse(timestamp);
+        LocalDateTime since = IsoUtc.parse(timestamp);
         List<Message> messages = messageService.getMessagesAfter(chatId, userId, since);
         Map<Long, User> senderMap = senderMap(messages);
         List<MessageDto> messageDtos = messages.stream()

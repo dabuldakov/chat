@@ -24,6 +24,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -325,7 +326,7 @@ class MessageServiceIT extends AbstractIntegrationTest {
                 "recent", Message.MessageType.TEXT, null, null);
 
         var result = messageService.getMessagesAfter(chat.getChatId(), user1.getUserId(),
-                LocalDateTime.now().minusHours(1));
+                LocalDateTime.now(ZoneOffset.UTC).minusHours(1));
 
         assertThat(result).extracting(Message::getMessageId).containsExactly(message.getMessageId());
     }
@@ -366,9 +367,10 @@ class MessageServiceIT extends AbstractIntegrationTest {
     }
 
     private void shiftCreatedAt(Message message, int minutes) {
+        LocalDateTime target = LocalDateTime.now(ZoneOffset.UTC).plusMinutes(minutes);
         try (var connection = dataSource.getConnection();
              var statement = connection.createStatement()) {
-            statement.executeUpdate("UPDATE messages SET created_at = now() + interval '" + minutes + " minutes' " +
+            statement.executeUpdate("UPDATE messages SET created_at = '" + target + "' " +
                     "WHERE message_id = " + message.getMessageId());
         } catch (Exception e) {
             throw new RuntimeException(e);

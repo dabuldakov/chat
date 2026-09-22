@@ -3,6 +3,7 @@ package com.chat.server.controller;
 import com.chat.server.dto.response.SyncResponseDto;
 import com.chat.server.service.SyncService;
 import com.chat.server.service.SyncStatusResponse;
+import com.chat.server.util.IsoUtc;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +13,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 @Slf4j
 @RestController
@@ -30,8 +32,8 @@ public class SyncController {
         Long userId = Long.parseLong(authentication.getName());
 
         LocalDateTime since = lastSyncTime != null
-                ? LocalDateTime.parse(lastSyncTime)
-                : LocalDateTime.now().minusDays(7);
+                ? IsoUtc.parse(lastSyncTime)
+                : LocalDateTime.now(ZoneOffset.UTC).minusDays(7);
 
         SyncResponseDto syncData = syncService.syncUserData(userId, since);
         return ResponseEntity.ok(syncData);
@@ -44,7 +46,7 @@ public class SyncController {
             Authentication authentication) {
         Long userId = Long.parseLong(authentication.getName());
 
-        LocalDateTime since = LocalDateTime.parse(lastSyncTime);
+        LocalDateTime since = IsoUtc.parse(lastSyncTime);
         SyncResponseDto syncData = syncService.syncMessagesOnly(userId, since);
 
         return ResponseEntity.ok(syncData);
@@ -58,8 +60,8 @@ public class SyncController {
         Long userId = Long.parseLong(authentication.getName());
 
         LocalDateTime since = lastSyncTime != null
-                ? LocalDateTime.parse(lastSyncTime)
-                : LocalDateTime.now().minusDays(30);
+                ? IsoUtc.parse(lastSyncTime)
+                : LocalDateTime.now(ZoneOffset.UTC).minusDays(30);
 
         SyncResponseDto syncData = syncService.syncChatsOnly(userId, since);
         return ResponseEntity.ok(syncData);

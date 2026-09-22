@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -63,7 +64,7 @@ class SyncServiceIT extends AbstractIntegrationTest {
     }
 
     private LocalDateTime oneHourAgo() {
-        return LocalDateTime.now().minusHours(1);
+        return LocalDateTime.now(ZoneOffset.UTC).minusHours(1);
     }
 
     @Test
@@ -85,7 +86,7 @@ class SyncServiceIT extends AbstractIntegrationTest {
     void shouldExcludeChatsNotUpdatedSinceLastSync() {
         createMessage(user1.getUserId(), "old");
 
-        var response = syncService.syncUserData(user1.getUserId(), LocalDateTime.now().plusMinutes(5));
+        var response = syncService.syncUserData(user1.getUserId(), LocalDateTime.now(ZoneOffset.UTC).plusMinutes(5));
 
         assertThat(response.getUpdatedChats()).isEmpty();
         assertThat(response.getNewMessages()).isEmpty();
