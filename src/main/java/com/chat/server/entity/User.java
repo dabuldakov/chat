@@ -11,6 +11,7 @@ import lombok.Builder;
 import org.hibernate.annotations.SQLRestriction;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Getter
@@ -114,7 +115,7 @@ public class User extends BaseEntity {
     protected void onUpdate() {
         super.onUpdate();
         if (isDeleted != null && isDeleted && deletedAt == null) {
-            deletedAt = LocalDateTime.now();
+            deletedAt = LocalDateTime.now(ZoneOffset.UTC);
         }
     }
 }

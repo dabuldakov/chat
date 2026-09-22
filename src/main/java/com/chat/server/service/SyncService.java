@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -32,7 +33,7 @@ public class SyncService {
         log.info("Syncing data for user: {}, since: {}", userId, lastSyncTime);
 
         SyncResponseDto response = new SyncResponseDto();
-        response.setSyncTime(LocalDateTime.now());
+        response.setSyncTime(LocalDateTime.now(ZoneOffset.UTC));
 
         // Получаем все чаты пользователя
         List<Chat> userChats = chatService.getUserChats(userId);
@@ -59,7 +60,7 @@ public class SyncService {
     @Transactional(readOnly = true)
     public SyncResponseDto syncMessagesOnly(Long userId, LocalDateTime lastSyncTime) {
         SyncResponseDto response = new SyncResponseDto();
-        response.setSyncTime(LocalDateTime.now());
+        response.setSyncTime(LocalDateTime.now(ZoneOffset.UTC));
 
         List<Long> userChatIds = participantService.getUserChatIds(userId);
 
@@ -71,7 +72,7 @@ public class SyncService {
     @Transactional(readOnly = true)
     public SyncResponseDto syncChatsOnly(Long userId, LocalDateTime lastSyncTime) {
         SyncResponseDto response = new SyncResponseDto();
-        response.setSyncTime(LocalDateTime.now());
+        response.setSyncTime(LocalDateTime.now(ZoneOffset.UTC));
 
         List<Chat> userChats = chatService.getUserChats(userId);
 
@@ -96,8 +97,8 @@ public class SyncService {
         }
 
         return new SyncStatusResponse(
-                LocalDateTime.now().minusMinutes(5), // lastFullSync
-                LocalDateTime.now().minusSeconds(30), // lastMessagesSync
+                LocalDateTime.now(ZoneOffset.UTC).minusMinutes(5), // lastFullSync
+                LocalDateTime.now(ZoneOffset.UTC).minusSeconds(30), // lastMessagesSync
                 (long) chatIds.size(),
                 totalMessages,
                 0 // pendingUploads

@@ -10,6 +10,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Getter
@@ -78,11 +79,11 @@ public class Participant extends BaseEntity {
     @PrePersist
     protected void onCreate() {
         super.onCreate();
-        joinedAt = LocalDateTime.now();
+        joinedAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 
     public boolean isMuted() {
-        return mutedUntil != null && mutedUntil.isAfter(LocalDateTime.now());
+        return mutedUntil != null && mutedUntil.isAfter(LocalDateTime.now(ZoneOffset.UTC));
     }
 
     public boolean isOwner() {

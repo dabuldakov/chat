@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -158,7 +159,7 @@ public class ChatService {
                     .userId(userId)
                     .userUUID(userUuid)
                     .role(role)
-                    .joinedAt(LocalDateTime.now())
+                    .joinedAt(LocalDateTime.now(ZoneOffset.UTC))
                     .build();
             participantRepository.save(participant);
             log.info("User {} added to chat {} as {}", userId, chatId, role);
@@ -229,7 +230,7 @@ public class ChatService {
     @CacheEvict(value = "chats", key = "#chatId")
     public void updateChatTimestamp(Long chatId) {
         Chat chat = getChatById(chatId);
-        chat.setUpdatedAt(LocalDateTime.now());
+        chat.setUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
         chatRepository.save(chat);
     }
 

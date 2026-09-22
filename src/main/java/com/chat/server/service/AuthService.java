@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Slf4j
@@ -62,7 +63,7 @@ public class AuthService {
         userRepository.save(user);
 
         // ⭐ Инвалидируем все сессии (используем правильный метод)
-        userSessionRepository.invalidateAllSessions(userId, LocalDateTime.now());
+        userSessionRepository.invalidateAllSessions(userId, LocalDateTime.now(ZoneOffset.UTC));
 
         log.info("Password changed for user: {}", userId);
     }
@@ -76,7 +77,7 @@ public class AuthService {
 
         String resetToken = UUID.randomUUID().toString();
         user.setResetToken(resetToken);
-        user.setResetTokenExpiry(LocalDateTime.now().plusHours(1));
+        user.setResetTokenExpiry(LocalDateTime.now(ZoneOffset.UTC).plusHours(1));
         userRepository.save(user);
 
         emailService.sendPasswordResetEmail(email, resetToken);
@@ -89,7 +90,7 @@ public class AuthService {
         User user = userRepository.findByResetToken(token)
                 .orElseThrow(() -> new BadRequestException("Invalid or expired token"));
 
-        if (user.getResetTokenExpiry().isBefore(LocalDateTime.now())) {
+        if (user.getResetTokenExpiry().isBefore(LocalDateTime.now(ZoneOffset.UTC))) {
             throw new BadRequestException("Token has expired");
         }
 
@@ -99,7 +100,7 @@ public class AuthService {
         userRepository.save(user);
 
         // Инвалидируем все сессии
-        userSessionRepository.invalidateAllSessions(user.getUserId(), LocalDateTime.now());
+        userSessionRepository.invalidateAllSessions(user.getUserId(), LocalDateTime.now(ZoneOffset.UTC));
 
         log.info("Password reset successfully for user: {}", user.getUserId());
     }

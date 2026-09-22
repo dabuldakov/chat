@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -74,7 +75,7 @@ public class ParticipantService {
                         .userId(userId)
                         .userUUID(userService.getUserById(userId).getUserUuid())
                         .role(Participant.ParticipantRole.MEMBER)
-                        .joinedAt(LocalDateTime.now())
+                        .joinedAt(LocalDateTime.now(ZoneOffset.UTC))
                         .build();
                 participantRepository.save(participant);
                 log.info("User {} added to chat {}", userId, chatId);
@@ -166,9 +167,9 @@ public class ParticipantService {
                 .orElseThrow(() -> new NotFoundException("Participant not found"));
 
         if (durationHours != null && durationHours > 0) {
-            participant.setMutedUntil(LocalDateTime.now().plusHours(durationHours));
+            participant.setMutedUntil(LocalDateTime.now(ZoneOffset.UTC).plusHours(durationHours));
         } else {
-            participant.setMutedUntil(LocalDateTime.now().plusYears(100)); // Навсегда
+            participant.setMutedUntil(LocalDateTime.now(ZoneOffset.UTC).plusYears(100)); // Навсегда
         }
 
         participantRepository.save(participant);

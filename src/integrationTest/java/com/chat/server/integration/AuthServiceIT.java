@@ -16,6 +16,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -121,7 +122,7 @@ class AuthServiceIT extends AbstractIntegrationTest {
 
         User reloaded = userRepository.findById(user.getUserId()).orElseThrow();
         assertThat(reloaded.getResetToken()).isNotBlank();
-        assertThat(reloaded.getResetTokenExpiry()).isAfter(LocalDateTime.now());
+        assertThat(reloaded.getResetTokenExpiry()).isAfter(LocalDateTime.now(ZoneOffset.UTC));
         verify(emailService).sendPasswordResetEmail(Mockito.eq(user.getEmail()), Mockito.anyString());
     }
 
@@ -134,7 +135,7 @@ class AuthServiceIT extends AbstractIntegrationTest {
     @Test
     void shouldResetPasswordWithValidToken() {
         user.setResetToken("reset-token-123");
-        user.setResetTokenExpiry(LocalDateTime.now().plusHours(1));
+        user.setResetTokenExpiry(LocalDateTime.now(ZoneOffset.UTC).plusHours(1));
         userRepository.save(user);
 
         authService.resetPassword("reset-token-123", "brandNewPass");
@@ -148,7 +149,7 @@ class AuthServiceIT extends AbstractIntegrationTest {
     @Test
     void shouldRejectExpiredResetToken() {
         user.setResetToken("expired-token");
-        user.setResetTokenExpiry(LocalDateTime.now().minusMinutes(5));
+        user.setResetTokenExpiry(LocalDateTime.now(ZoneOffset.UTC).minusMinutes(5));
         userRepository.save(user);
 
         assertThatThrownBy(() -> authService.resetPassword("expired-token", "new"))

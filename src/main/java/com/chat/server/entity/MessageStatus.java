@@ -10,6 +10,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Getter
@@ -70,32 +71,32 @@ public class MessageStatus extends BaseEntity {
             statusUuid = UUID.randomUUID();
         }
         if (status == DeliveryStatus.DELIVERED && deliveredAt == null) {
-            deliveredAt = LocalDateTime.now();
+            deliveredAt = LocalDateTime.now(ZoneOffset.UTC);
         }
         if (status == DeliveryStatus.READ && readAt == null) {
-            readAt = LocalDateTime.now();
+            readAt = LocalDateTime.now(ZoneOffset.UTC);
             deliveredAt = readAt;
         }
     }
 
     public void markAsDelivered() {
         this.status = DeliveryStatus.DELIVERED;
-        this.deliveredAt = LocalDateTime.now();
-        this.setUpdatedAt(LocalDateTime.now());
+        this.deliveredAt = LocalDateTime.now(ZoneOffset.UTC);
+        this.setUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
     }
 
     public void markAsRead() {
         this.status = DeliveryStatus.READ;
-        this.readAt = LocalDateTime.now();
+        this.readAt = LocalDateTime.now(ZoneOffset.UTC);
         if (this.deliveredAt == null) {
             this.deliveredAt = this.readAt;
         }
-        this.setUpdatedAt(LocalDateTime.now());
+        this.setUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
     }
 
     public void markAsFailed() {
         this.status = DeliveryStatus.FAILED;
-        this.setUpdatedAt(LocalDateTime.now());
+        this.setUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
     }
 
     public boolean isDelivered() {

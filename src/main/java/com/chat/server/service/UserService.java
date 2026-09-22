@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -227,7 +228,7 @@ public class UserService implements UserDetailsService {
     public void updateOnlineStatus(Long userId, boolean isOnline) {
         User user = getUserById(userId);
         user.setIsOnline(isOnline);
-        user.setLastSeenAt(LocalDateTime.now());
+        user.setLastSeenAt(LocalDateTime.now(ZoneOffset.UTC));
         userRepository.save(user);
     }
 
@@ -245,7 +246,7 @@ public class UserService implements UserDetailsService {
         log.warn("Deleting user with id: {}", userId);
         User user = getUserById(userId);
         user.setIsDeleted(true);
-        user.setDeletedAt(LocalDateTime.now());
+        user.setDeletedAt(LocalDateTime.now(ZoneOffset.UTC));
         user.setStatus(User.UserStatus.INACTIVE);
         userRepository.save(user);
         log.info("User soft deleted: {}", userId);

@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -32,7 +33,7 @@ public class UserSessionService {
 
         // Инвалидируем старую сессию для этого устройства
         if (deviceId != null && !deviceId.isEmpty()) {
-            userSessionRepository.invalidateSessionByDeviceId(userId, deviceId, LocalDateTime.now());
+            userSessionRepository.invalidateSessionByDeviceId(userId, deviceId, LocalDateTime.now(ZoneOffset.UTC));
         }
 
         UserSession session = UserSession.builder()
@@ -44,8 +45,8 @@ public class UserSessionService {
                 .deviceType(deviceType)
                 .ipAddress(ipAddress)
                 .userAgent(userAgent)
-                .lastActivity(LocalDateTime.now())
-                .expiresAt(LocalDateTime.now().plusDays(30))
+                .lastActivity(LocalDateTime.now(ZoneOffset.UTC))
+                .expiresAt(LocalDateTime.now(ZoneOffset.UTC).plusDays(30))
                 .isActive(true)
                 .build();
 
@@ -59,12 +60,12 @@ public class UserSessionService {
         UserSession session = userSessionRepository.findByRefreshToken(tokenHasher.hash(refreshToken))
                 .orElseThrow(() -> new UnauthorizedException("Invalid refresh token"));
 
-        if (!session.getIsActive() || session.getExpiresAt().isBefore(LocalDateTime.now())) {
+        if (!session.getIsActive() || session.getExpiresAt().isBefore(LocalDateTime.now(ZoneOffset.UTC))) {
             throw new UnauthorizedException("Session expired");
         }
 
-        session.setLastActivity(LocalDateTime.now());
-        session.setExpiresAt(LocalDateTime.now().plusDays(30));
+        session.setLastActivity(LocalDateTime.now(ZoneOffset.UTC));
+        session.setExpiresAt(LocalDateTime.now(ZoneOffset.UTC).plusDays(30));
 
         return userSessionRepository.save(session);
     }
@@ -73,7 +74,7 @@ public class UserSessionService {
     public void rotateRefreshToken(Long sessionId, String newRefreshToken) {
         userSessionRepository.findById(sessionId).ifPresent(session -> {
             session.setRefreshToken(tokenHasher.hash(newRefreshToken));
-            session.setUpdatedAt(LocalDateTime.now());
+            session.setUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
             userSessionRepository.save(session);
         });
     }
@@ -83,7 +84,7 @@ public class UserSessionService {
         userSessionRepository.findByToken(tokenHasher.hash(token))
                 .ifPresent(session -> {
                     session.setIsActive(false);
-                    session.setUpdatedAt(LocalDateTime.now());
+                    session.setUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
                     userSessionRepository.save(session);
                     log.info("Session invalidated for user: {}", session.getUserId());
                 });
@@ -91,25 +92,25 @@ public class UserSessionService {
 
     @Transactional
     public void invalidateAllSessions(Long userId) {
-        userSessionRepository.invalidateAllSessions(userId, LocalDateTime.now());
+        userSessionRepository.invalidateAllSessions(userId, LocalDateTime.now(ZoneOffset.UTC));
         log.info("All sessions invalidated for user: {}", userId);
     }
 
     @Transactional
     public void invalidateAllSessionsExceptCurrent(Long userId, Long currentSessionId) {
-        userSessionRepository.invalidateAllSessionsExceptCurrent(userId, currentSessionId, LocalDateTime.now());
+        userSessionRepository.invalidateAllSessionsExceptCurrent(userId, currentSessionId, LocalDateTime.now(ZoneOffset.UTC));
         log.info("All sessions except current invalidated for user: {}", userId);
     }
 
     @Transactional
     public void invalidateSessionByDeviceId(Long userId, String deviceId) {
-        userSessionRepository.invalidateSessionByDeviceId(userId, deviceId, LocalDateTime.now());
+        userSessionRepository.invalidateSessionByDeviceId(userId, deviceId, LocalDateTime.now(ZoneOffset.UTC));
         log.info("Session invalidated for user: {}, device: {}", userId, deviceId);
     }
 
     @Transactional
     public void updateActivity(String token) {
-        userSessionRepository.updateLastActivity(tokenHasher.hash(token), LocalDateTime.now());
+        userSessionRepository.updateLastActivity(tokenHasher.hash(token), LocalDateTime.now(ZoneOffset.UTC));
     }
 
     @Transactional
@@ -140,7 +141,7 @@ public class UserSessionService {
     @Transactional(readOnly = true)
     public boolean isSessionValid(String token) {
         return userSessionRepository.findByToken(tokenHasher.hash(token))
-                .map(session -> session.getIsActive() && session.getExpiresAt().isAfter(LocalDateTime.now()))
+                .map(session -> session.getIsActive() && session.getExpiresAt().isAfter(LocalDateTime.now(ZoneOffset.UTC)))
                 .orElse(false);
     }
 
@@ -185,9 +186,9 @@ public class UserSessionService {
     @Transactional
     public void logoutFromAllDevices(Long userId, Long exceptSessionId) {
         if (exceptSessionId != null) {
-            userSessionRepository.invalidateAllSessionsExceptCurrent(userId, exceptSessionId, LocalDateTime.now());
+            userSessionRepository.invalidateAllSessionsExceptCurrent(userId, exceptSessionId, LocalDateTime.now(ZoneOffset.UTC));
         } else {
-            userSessionRepository.invalidateAllSessions(userId, LocalDateTime.now());
+            userSessionRepository.invalidateAllSessions(userId, LocalDateTime.now(ZoneOffset.UTC));
         }
         log.info("Logged out from all devices for user: {}", userId);
     }
@@ -197,7 +198,7 @@ public class UserSessionService {
     @Scheduled(cron = "0 0 2 * * ?") // Каждый день в 2 часа ночи
     @Transactional
     public void cleanupExpiredSessions() {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         int expiredCount = userSessionRepository.invalidateExpiredSessions(now);
         int deletedCount = userSessionRepository.deleteExpiredSessions(now);
         int oldInactiveCount = userSessionRepository.deleteInactiveSessionsOlderThan(now.minusMonths(3));

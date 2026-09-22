@@ -10,6 +10,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Getter
@@ -83,10 +84,10 @@ public class UserSession extends BaseEntity {
             sessionUuid = UUID.randomUUID();
         }
         if (lastActivity == null) {
-            lastActivity = LocalDateTime.now();
+            lastActivity = LocalDateTime.now(ZoneOffset.UTC);
         }
         if (expiresAt == null) {
-            expiresAt = LocalDateTime.now().plusDays(30);
+            expiresAt = LocalDateTime.now(ZoneOffset.UTC).plusDays(30);
         }
         if (isActive == null) {
             isActive = true;
@@ -100,12 +101,12 @@ public class UserSession extends BaseEntity {
     }
 
     public void updateActivity() {
-        this.lastActivity = LocalDateTime.now();
-        this.setUpdatedAt(LocalDateTime.now());
+        this.lastActivity = LocalDateTime.now(ZoneOffset.UTC);
+        this.setUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
     }
 
     public boolean isExpired() {
-        return expiresAt != null && expiresAt.isBefore(LocalDateTime.now());
+        return expiresAt != null && expiresAt.isBefore(LocalDateTime.now(ZoneOffset.UTC));
     }
 
     public boolean isValid() {
@@ -114,13 +115,13 @@ public class UserSession extends BaseEntity {
 
     public void invalidate() {
         this.isActive = false;
-        this.setUpdatedAt(LocalDateTime.now());
+        this.setUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
     }
 
     public void extendExpiry(int days) {
         if (days > 0) {
-            this.expiresAt = LocalDateTime.now().plusDays(days);
-            this.setUpdatedAt(LocalDateTime.now());
+            this.expiresAt = LocalDateTime.now(ZoneOffset.UTC).plusDays(days);
+            this.setUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
         }
     }
 

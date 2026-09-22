@@ -16,6 +16,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 
@@ -169,7 +170,7 @@ public class AttachmentService {
 
     @Transactional
     public void cleanupOrphanedAttachments() {
-        LocalDateTime cutoffDate = LocalDateTime.now().minusHours(24);
+        LocalDateTime cutoffDate = LocalDateTime.now(ZoneOffset.UTC).minusHours(24);
         int deletedCount = attachmentRepository.deleteOrphanedAttachments(cutoffDate);
         log.info("Cleaned up {} orphaned attachments", deletedCount);
     }

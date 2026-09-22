@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -62,7 +63,7 @@ public class MessageStatusService {
         messageStatusRepository.markAsDelivered(
                 message.getMessageId(),
                 userId,
-                LocalDateTime.now()
+                LocalDateTime.now(ZoneOffset.UTC)
         );
     }
 
@@ -76,7 +77,7 @@ public class MessageStatusService {
         messageStatusRepository.markAsRead(
                 message.getMessageId(),
                 userId,
-                LocalDateTime.now()
+                LocalDateTime.now(ZoneOffset.UTC)
         );
     }
 
@@ -98,7 +99,7 @@ public class MessageStatusService {
                 chatId,
                 userId,
                 upToMessage.getMessageId(),
-                LocalDateTime.now()
+                LocalDateTime.now(ZoneOffset.UTC)
         );
 
         log.debug("Marked {} messages as read for user {} in chat {}", updatedCount, userId, chatId);
@@ -114,7 +115,7 @@ public class MessageStatusService {
         chatService.validateUserAccessToChat(chatId, userId);
 
         // ⭐ Теперь это работает - метод есть в ParticipantRepository
-        participantRepository.updateLastReadMessage(chatId, userId, messageId, LocalDateTime.now());
+        participantRepository.updateLastReadMessage(chatId, userId, messageId, LocalDateTime.now(ZoneOffset.UTC));
     }
 
     @Transactional(readOnly = true)

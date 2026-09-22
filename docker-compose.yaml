@@ -5,6 +5,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USERNAME}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      TZ: UTC
+      PGTZ: UTC
     env_file:
       - .env
     ports:
@@ -22,6 +24,7 @@ services:
       DATABASE_URL: ${POSTGRES_URL}
       DATABASE_USERNAME: ${POSTGRES_USERNAME}
       DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
+      TZ: UTC
       JWT_SECRET: ${JWT_SECRET}
       MINIO_URL: ${MINIO_URL:-http://minio:9000}
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}

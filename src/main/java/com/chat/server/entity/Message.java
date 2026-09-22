@@ -10,6 +10,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Getter
@@ -106,7 +107,7 @@ public class Message extends BaseEntity {
     protected void onUpdate() {
         super.onUpdate();
         if (isDeleted != null && isDeleted && deletedAt == null) {
-            deletedAt = LocalDateTime.now();
+            deletedAt = LocalDateTime.now(ZoneOffset.UTC);
         }
     }
 

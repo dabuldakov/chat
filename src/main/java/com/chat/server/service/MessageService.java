@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 
@@ -170,7 +171,7 @@ public class MessageService {
         // Сохраняем историю редактирования
         String editHistory = message.getEditHistory();
         String newEditEntry = String.format("{\"timestamp\":\"%s\",\"text\":\"%s\"}",
-                LocalDateTime.now(), message.getMessageText());
+                LocalDateTime.now(ZoneOffset.UTC), message.getMessageText());
         message.setEditHistory(editHistory == null ? newEditEntry : editHistory + "|" + newEditEntry);
 
         message.setMessageText(newText);
@@ -200,7 +201,7 @@ public class MessageService {
             log.info("Message hard deleted: {}", messageUuid);
         } else {
             message.setIsDeleted(true);
-            message.setDeletedAt(LocalDateTime.now());
+            message.setDeletedAt(LocalDateTime.now(ZoneOffset.UTC));
             message.setDeletedBy(userId);
             message.setMessageText("[Message deleted]");
             messageRepository.save(message);

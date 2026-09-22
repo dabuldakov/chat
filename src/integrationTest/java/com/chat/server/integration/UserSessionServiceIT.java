@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -52,7 +53,7 @@ class UserSessionServiceIT extends AbstractIntegrationTest {
 
         assertThat(session.getSessionId()).isNotNull();
         assertThat(session.isValid()).isTrue();
-        assertThat(session.getExpiresAt()).isAfter(LocalDateTime.now());
+        assertThat(session.getExpiresAt()).isAfter(LocalDateTime.now(ZoneOffset.UTC));
         assertThat(userSessionService.isSessionValid("token-1")).isTrue();
     }
 
@@ -73,7 +74,7 @@ class UserSessionServiceIT extends AbstractIntegrationTest {
         UserSession refreshed = userSessionService.refreshSession("refresh-token-1");
 
         assertThat(refreshed.isValid()).isTrue();
-        assertThat(refreshed.getExpiresAt()).isAfter(LocalDateTime.now().plusDays(29));
+        assertThat(refreshed.getExpiresAt()).isAfter(LocalDateTime.now(ZoneOffset.UTC).plusDays(29));
     }
 
     @Test
@@ -86,7 +87,7 @@ class UserSessionServiceIT extends AbstractIntegrationTest {
     @Test
     void shouldRejectExpiredSessionRefresh() {
         UserSession session = createSession("token-1", "device-1");
-        session.setExpiresAt(LocalDateTime.now().minusMinutes(5));
+        session.setExpiresAt(LocalDateTime.now(ZoneOffset.UTC).minusMinutes(5));
         userSessionRepository.save(session);
 
         assertThatThrownBy(() -> userSessionService.refreshSession("refresh-token-1"))
@@ -217,7 +218,7 @@ class UserSessionServiceIT extends AbstractIntegrationTest {
     @Test
     void shouldCleanupExpiredSessions() {
         UserSession session = createSession("token-1", "device-1");
-        session.setExpiresAt(LocalDateTime.now().minusDays(1));
+        session.setExpiresAt(LocalDateTime.now(ZoneOffset.UTC).minusDays(1));
         userSessionRepository.save(session);
 
         userSessionService.cleanupExpiredSessions();
