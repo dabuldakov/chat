@@ -104,3 +104,19 @@ logging:
   structured:
     format:
       console: logstash
+
+# Actuator: отдаём только health (и info). Health используется мониторингом
+# (blackbox_exporter) для проверки доступности приложения и БД.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+  health:
+    mail:
+      enabled: false
