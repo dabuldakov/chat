@@ -45,6 +45,7 @@ public class AuthService {
             throw new UnauthorizedException("Account has been deleted");
         }
 
+        log.info("User logged in: {}", user.getUserId());
         return user;
     }
 

@@ -26,6 +26,7 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final RequestLoggingFilter requestLoggingFilter;
     private final PasswordEncoder passwordEncoder;
 
     @Value("${app.cors.allowed-origins:http://localhost:*}")
@@ -79,7 +80,10 @@ public class SecurityConfig {
                 )
 
                 // Добавляем JWT фильтр
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+
+                // Логируем каждый запрос после того, как JWT-фильтр положил юзера в контекст
+                .addFilterAfter(requestLoggingFilter, JwtAuthenticationFilter.class);
 
         return http.build();
     }

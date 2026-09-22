@@ -101,3 +101,6 @@ fcm:
 logging:
   level:
     org.flywaydb: INFO
+  structured:
+    format:
+      console: logstash
