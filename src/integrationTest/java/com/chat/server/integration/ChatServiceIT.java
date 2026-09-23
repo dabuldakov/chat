@@ -8,7 +8,6 @@ import com.chat.server.exception.NotFoundException;
 import com.chat.server.repository.AttachmentRepository;
 import com.chat.server.repository.ChatRepository;
 import com.chat.server.repository.MessageRepository;
-import com.chat.server.repository.MessageStatusRepository;
 import com.chat.server.repository.ParticipantRepository;
 import com.chat.server.repository.UserRepository;
 import com.chat.server.service.AttachmentService;
@@ -36,8 +35,6 @@ class ChatServiceIT extends AbstractIntegrationTest {
     private ParticipantRepository participantRepository;
     @Autowired
     private MessageRepository messageRepository;
-    @Autowired
-    private MessageStatusRepository messageStatusRepository;
     @Autowired
     private AttachmentRepository attachmentRepository;
     @Autowired
@@ -120,14 +117,13 @@ class ChatServiceIT extends AbstractIntegrationTest {
     }
 
     @Test
-    void shouldDeleteChatWithMessagesStatusesAndAttachments() {
+    void shouldDeleteChatWithMessagesAndAttachments() {
         var response = chatService.createGroupChat(
                 "Deletable group", user1.getUserId(), List.of(user2.getUserUuid()));
         Long chatId = chatRepository.findByChatUuid(response.getChatUuid()).orElseThrow().getChatId();
 
         Message message = messageService.sendMessage(
                 chatId, user1.getUserId(), "hi", Message.MessageType.TEXT, null, null);
-        assertThat(messageStatusRepository.findByMessageId(message.getMessageId())).isNotEmpty();
 
         var file = new MockMultipartFile("file", "secret.txt", "text/plain",
                 "data".getBytes(StandardCharsets.UTF_8));
@@ -139,7 +135,6 @@ class ChatServiceIT extends AbstractIntegrationTest {
         assertThat(chatRepository.findByChatUuid(response.getChatUuid())).isEmpty();
         assertThat(participantRepository.findAllByChatId(chatId)).isEmpty();
         assertThat(messageRepository.findAllMessageIdsByChatId(chatId)).isEmpty();
-        assertThat(messageStatusRepository.findByMessageId(message.getMessageId())).isEmpty();
         assertThat(attachmentRepository.findByAttachmentUuid(attachment.getAttachmentUuid())).isEmpty();
         assertThatThrownBy(() -> fileUploadService.load(fileUrl)).isInstanceOf(NotFoundException.class);
     }

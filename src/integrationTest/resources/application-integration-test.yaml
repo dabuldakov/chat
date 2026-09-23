@@ -1,6 +1,6 @@
 spring:
   # Схему создают Flyway-миграции (ddl-auto=none), как в продакшене
-  # (V1–V12: партиционированные messages, GIN-индексы FTS), а не
+  # (V1–V10: партиционированные messages, GIN-индексы FTS), а не
   # автогенерация Hibernate.
   flyway:
     enabled: true

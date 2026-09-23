@@ -1,16 +1,15 @@
 package com.chat.server.integration;
 
+import com.chat.server.dto.response.ChatResponseDto;
+import com.chat.server.dto.response.DeliveryStatusDto;
 import com.chat.server.entity.Chat;
 import com.chat.server.entity.Message;
-import com.chat.server.entity.MessageStatus;
-import com.chat.server.dto.response.ChatResponseDto;
 import com.chat.server.entity.User;
 import com.chat.server.exception.AccessDeniedException;
 import com.chat.server.exception.BadRequestException;
 import com.chat.server.exception.NotFoundException;
 import com.chat.server.repository.ChatRepository;
 import com.chat.server.repository.MessageRepository;
-import com.chat.server.repository.MessageStatusRepository;
 import com.chat.server.repository.UserRepository;
 import com.chat.server.service.ChatService;
 import com.chat.server.service.MessageService;
@@ -38,8 +37,6 @@ class MessageServiceIT extends AbstractIntegrationTest {
     private ChatRepository chatRepository;
     @Autowired
     private MessageRepository messageRepository;
-    @Autowired
-    private MessageStatusRepository messageStatusRepository;
     @Autowired
     private MessageService messageService;
     @Autowired
@@ -100,7 +97,23 @@ class MessageServiceIT extends AbstractIntegrationTest {
     }
 
     @Test
-    void shouldSendMessageAndCreateStatusesAndUpdateChat() {
+    void ownMessagesAreNotCountedAsUnread() {
+        messageService.sendMessage(chat.getChatId(), user1.getUserId(),
+                "mine", Message.MessageType.TEXT, null, null);
+
+        assertThat(chatService.getUserChatsWithDetails(user1.getUserId()))
+                .filteredOn(c -> c.getChatUuid().equals(chat.getChatUuid()))
+                .singleElement()
+                .extracting(ChatResponseDto::getUnreadCount)
+                .isEqualTo(0L);
+        assertThat(chatService.getTotalUnreadCount(user1.getUserId())).isZero();
+
+        // Для собеседника это сообщение — непрочитанное.
+        assertThat(chatService.getTotalUnreadCount(user2.getUserId())).isEqualTo(1L);
+    }
+
+    @Test
+    void shouldSendMessageAndUpdateChat() {
         Message message = messageService.sendMessage(chat.getChatId(), user1.getUserId(),
                 "Hello world", Message.MessageType.TEXT, null, null);
 
@@ -114,16 +127,9 @@ class MessageServiceIT extends AbstractIntegrationTest {
         assertThat(reloaded.getLastMessageText()).isEqualTo("Hello world");
         assertThat(reloaded.getLastMessageSenderId()).isEqualTo(user1.getUserId());
 
-        var statuses = messageStatusRepository.findByMessageId(message.getMessageId());
-        assertThat(statuses).hasSize(2);
-        assertThat(statuses).filteredOn(s -> s.getUserId().equals(user1.getUserId()))
-                .singleElement()
-                .extracting(MessageStatus::getStatus)
-                .isEqualTo(MessageStatus.DeliveryStatus.READ);
-        assertThat(statuses).filteredOn(s -> s.getUserId().equals(user2.getUserId()))
-                .singleElement()
-                .extracting(MessageStatus::getStatus)
-                .isEqualTo(MessageStatus.DeliveryStatus.SENT);
+        // Статусов построчно больше нет — они выводятся из watermark-ов.
+        assertThat(messageStatusService.getMessageStatusForUser(message.getMessageUuid(), user2.getUserId()))
+                .isEqualTo(DeliveryStatusDto.SENT);
 
         verify(pushNotificationService).sendMessageNotification(Mockito.eq(message), Mockito.anyList());
     }
@@ -210,7 +216,6 @@ class MessageServiceIT extends AbstractIntegrationTest {
 
         assertThatThrownBy(() -> messageService.getMessageById(message.getMessageId()))
                 .isInstanceOf(NotFoundException.class);
-        assertThat(messageStatusRepository.findByMessageId(message.getMessageId())).isEmpty();
     }
 
     @Test
@@ -353,11 +358,11 @@ class MessageServiceIT extends AbstractIntegrationTest {
 
         messageStatusService.markMessageAsDelivered(message.getMessageUuid(), user2.getUserId());
         assertThat(messageStatusService.getMessageStatusForUser(message.getMessageUuid(), user2.getUserId()))
-                .isEqualTo(MessageStatus.DeliveryStatus.DELIVERED);
+                .isEqualTo(DeliveryStatusDto.DELIVERED);
 
         messageStatusService.markMessageAsRead(message.getMessageUuid(), user2.getUserId());
         assertThat(messageStatusService.getMessageStatusForUser(message.getMessageUuid(), user2.getUserId()))
-                .isEqualTo(MessageStatus.DeliveryStatus.READ);
+                .isEqualTo(DeliveryStatusDto.READ);
     }
 
     @Test

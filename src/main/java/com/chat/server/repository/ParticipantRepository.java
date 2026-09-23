@@ -38,27 +38,53 @@ public interface ParticipantRepository extends JpaRepository<Participant, Long> 
     @Query("SELECT count(p.participantId) FROM Participant p WHERE p.chatId = :chatId")
     Long countByChatId(@Param("chatId") Long chatId);
 
-    // ⭐ Обновление last_read_message_id
+    // Продвижение watermark прочтения. Только вперёд: если пользователь уже
+    // прочитал дальше, повторный вызов ничего не меняет. Прочтение подразумевает
+    // и доставку, поэтому last_delivered тоже продвигается.
     @Modifying
-    @Query("UPDATE Participant p SET p.lastReadMessageId = :messageId, p.lastReadAt = :readAt WHERE p.chatId = :chatId AND p.userId = :userId")
-    void updateLastReadMessage(
+    @Query("""
+        UPDATE Participant p
+           SET p.lastReadMessageId = :messageId,
+               p.lastReadAt = :at,
+               p.lastDeliveredMessageId = :messageId,
+               p.lastDeliveredAt = :at
+         WHERE p.chatId = :chatId AND p.userId = :userId
+           AND (p.lastReadMessageId IS NULL OR p.lastReadMessageId < :messageId)
+    """)
+    void advanceReadWatermark(
             @Param("chatId") Long chatId,
             @Param("userId") Long userId,
             @Param("messageId") Long messageId,
-            @Param("readAt") LocalDateTime readAt
+            @Param("at") LocalDateTime at
     );
 
-    // Альтернативный метод через Native Query
+    // Продвижение watermark доставки (серые галочки).
     @Modifying
-    @Query(value = """
-        UPDATE participants 
-        SET last_read_message_id = :messageId, last_read_at = :readAt 
-        WHERE chat_id = :chatId AND user_id = :userId
-    """, nativeQuery = true)
-    void updateLastReadMessageNative(
+    @Query("""
+        UPDATE Participant p
+           SET p.lastDeliveredMessageId = :messageId,
+               p.lastDeliveredAt = :at
+         WHERE p.chatId = :chatId AND p.userId = :userId
+           AND (p.lastDeliveredMessageId IS NULL OR p.lastDeliveredMessageId < :messageId)
+    """)
+    void advanceDeliveredWatermark(
             @Param("chatId") Long chatId,
             @Param("userId") Long userId,
             @Param("messageId") Long messageId,
-            @Param("readAt") LocalDateTime readAt
+            @Param("at") LocalDateTime at
+    );
+
+    // Сколько участников прочитали сообщение messageId. Отправитель
+    // считается прочитавшим своё сообщение.
+    @Query("""
+        SELECT COUNT(p) FROM Participant p
+         WHERE p.chatId = :chatId
+           AND (p.userId = :senderId
+                OR (p.lastReadMessageId IS NOT NULL AND p.lastReadMessageId >= :messageId))
+    """)
+    long countReaders(
+            @Param("chatId") Long chatId,
+            @Param("messageId") Long messageId,
+            @Param("senderId") Long senderId
     );
 }

@@ -14,6 +14,7 @@ import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -34,7 +35,7 @@ public class ChatAvatarService {
 
     public String upload(Long chatId, UUID chatUuid, Long userId, MultipartFile file) {
         Chat chat = chats.getChatById(chatId);
-        if (!chat.getCreatedBy().equals(userId)) {
+        if (!Objects.equals(chat.getCreatedBy(), userId)) {
             throw new AccessDeniedException("Only group creator can change the avatar");
         }
         byte[] image = normalize(file);

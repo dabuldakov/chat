@@ -13,7 +13,6 @@ import com.chat.server.exception.NotFoundException;
 import com.chat.server.repository.AttachmentRepository;
 import com.chat.server.repository.ChatRepository;
 import com.chat.server.repository.MessageRepository;
-import com.chat.server.repository.MessageStatusRepository;
 import com.chat.server.repository.ParticipantRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +25,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -38,7 +38,6 @@ public class ChatService {
     private final ChatRepository chatRepository;
     private final ParticipantRepository participantRepository;
     private final MessageRepository messageRepository;
-    private final MessageStatusRepository messageStatusRepository;
     private final AttachmentRepository attachmentRepository;
     private final FileUploadService fileUploadService;
     private final UserService userService;
@@ -176,7 +175,7 @@ public class ChatService {
             throw new ConflictException("Only group chats can be updated");
         }
 
-        if (!chat.getCreatedBy().equals(userId)) {
+        if (!Objects.equals(chat.getCreatedBy(), userId)) {
             throw new AccessDeniedException("Only group creator can update the chat");
         }
 
@@ -207,7 +206,7 @@ public class ChatService {
     public void archiveChat(Long chatId, Long userId) {
         validateUserAccessToChat(chatId, userId);
         var chat = getChatById(chatId);
-        if (!chat.getCreatedBy().equals(userId)) {
+        if (!Objects.equals(chat.getCreatedBy(), userId)) {
             throw new AccessDeniedException("Only group creator can archive the chat");
         }
         chat.setIsArchived(true);
@@ -219,7 +218,7 @@ public class ChatService {
     public void unarchiveChat(Long chatId, Long userId) {
         validateUserAccessToChat(chatId, userId);
         Chat chat = getChatById(chatId);
-        if (!chat.getCreatedBy().equals(userId)) {
+        if (!Objects.equals(chat.getCreatedBy(), userId)) {
             throw new AccessDeniedException("Only group creator can unarchive the chat");
         }
         chat.setIsArchived(false);
@@ -319,7 +318,7 @@ public class ChatService {
 
         Chat chat = getChatById(chatId);
 
-        if (!chat.getCreatedBy().equals(userId)) {
+        if (!Objects.equals(chat.getCreatedBy(), userId)) {
             throw new AccessDeniedException("Only chat creator can delete the chat");
         }
 
@@ -333,11 +332,9 @@ public class ChatService {
         }
         attachmentRepository.deleteByChatId(chatId);
 
-        // На messages/message_statuses нет FK на chats, поэтому чистим вручную.
+        // Сообщения удаляем явно (FK messages -> chats ON DELETE CASCADE
+        // удалил бы их и так, но так прозрачнее и не зависит от каскада).
         List<Long> messageIds = messageRepository.findAllMessageIdsByChatId(chatId);
-        if (!messageIds.isEmpty()) {
-            messageStatusRepository.deleteByMessageIds(messageIds);
-        }
         messageRepository.hardDeleteAllMessagesInChat(chatId);
 
         participantRepository.deleteAll(participantRepository.findAllByChatId(chatId));

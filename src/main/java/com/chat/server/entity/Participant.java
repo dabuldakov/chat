@@ -56,6 +56,12 @@ public class Participant extends BaseEntity {
     @Column(name = "last_read_at")
     private LocalDateTime lastReadAt;
 
+    @Column(name = "last_delivered_message_id")
+    private Long lastDeliveredMessageId;
+
+    @Column(name = "last_delivered_at")
+    private LocalDateTime lastDeliveredAt;
+
     @Column(name = "role", length = 20)
     @Enumerated(EnumType.STRING)
     private ParticipantRole role = ParticipantRole.MEMBER;

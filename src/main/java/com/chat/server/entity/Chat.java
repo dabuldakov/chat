@@ -50,7 +50,7 @@ public class Chat extends BaseEntity {
     @Column(name = "avatar_url", length = 500)
     private String avatarUrl;
 
-    @Column(name = "created_by", nullable = false)
+    @Column(name = "created_by")
     private Long createdBy;
 
     @Column(name = "is_private")

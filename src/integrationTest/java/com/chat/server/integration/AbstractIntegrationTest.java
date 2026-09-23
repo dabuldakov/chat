@@ -27,7 +27,7 @@ import java.util.List;
 public abstract class AbstractIntegrationTest {
 
     private static final List<String> CLEANUP_TABLES = List.of(
-            "message_statuses", "messages", "attachments", "participants",
+            "messages", "attachments", "participants",
             "blocked_users", "contacts", "chats", "user_sessions", "users");
 
     @Autowired

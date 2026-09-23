@@ -3,11 +3,10 @@ package com.chat.server.service;
 import com.chat.server.dto.response.DeliveryStatusDto;
 import com.chat.server.dto.response.MessageStatusDto;
 import com.chat.server.entity.Message;
-import com.chat.server.entity.MessageStatus;
+import com.chat.server.entity.Participant;
 import com.chat.server.exception.BadRequestException;
 import com.chat.server.exception.NotFoundException;
 import com.chat.server.repository.MessageRepository;
-import com.chat.server.repository.MessageStatusRepository;
 import com.chat.server.repository.ParticipantRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,68 +17,21 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
+/**
+ * Статусы доставки/прочтения на основе watermark-ов участника
+ * ({@code participants.last_read_message_id}, {@code last_delivered_message_id}),
+ * а не построчных записей на получателя. Это исключает fan-out на запись:
+ * отправка в группу на 1000 человек не создаёт 1000 строк статусов.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class MessageStatusService {
 
-    private final MessageStatusRepository messageStatusRepository;
-    private final MessageRepository messageRepository;
     private final ParticipantRepository participantRepository;
+    private final MessageRepository messageRepository;
     private final ChatService chatService;
-
-    @Transactional
-    public void createStatusesForMessage(Long messageId, List<Long> participantIds, Long senderId) {
-        log.debug("Creating statuses for message: {} for {} participants", messageId, participantIds.size());
-
-        for (Long userId : participantIds) {
-            MessageStatus.DeliveryStatus status = userId.equals(senderId)
-                    ? MessageStatus.DeliveryStatus.READ
-                    : MessageStatus.DeliveryStatus.SENT;
-
-            MessageStatus messageStatus = MessageStatus.builder()
-                    .messageId(messageId)
-                    .userId(userId)
-                    .status(status)
-                    .build();
-
-            if (status == MessageStatus.DeliveryStatus.READ) {
-                messageStatus.markAsRead();
-            }
-
-            messageStatusRepository.save(messageStatus);
-        }
-    }
-
-    @Transactional
-    public void markMessageAsDelivered(UUID messageUuid, Long userId) {
-        log.debug("Marking message as delivered: {} for user: {}", messageUuid, userId);
-
-        Message message = messageRepository.findByMessageUuid(messageUuid)
-                .orElseThrow(() -> new RuntimeException("Message not found"));
-
-        messageStatusRepository.markAsDelivered(
-                message.getMessageId(),
-                userId,
-                LocalDateTime.now(ZoneOffset.UTC)
-        );
-    }
-
-    @Transactional
-    public void markMessageAsRead(UUID messageUuid, Long userId) {
-        log.debug("Marking message as read: {} for user: {}", messageUuid, userId);
-
-        Message message = messageRepository.findByMessageUuid(messageUuid)
-                .orElseThrow(() -> new RuntimeException("Message not found"));
-
-        messageStatusRepository.markAsRead(
-                message.getMessageId(),
-                userId,
-                LocalDateTime.now(ZoneOffset.UTC)
-        );
-    }
 
     @Transactional
     public void markMessagesAsRead(Long chatId, Long userId, UUID upToMessageUuid) {
@@ -88,34 +40,31 @@ public class MessageStatusService {
         chatService.validateUserAccessToChat(chatId, userId);
 
         Message upToMessage = messageRepository.findByMessageUuid(upToMessageUuid)
-                .orElseThrow(() -> new RuntimeException("Message not found"));
-
+                .orElseThrow(() -> new NotFoundException("Message not found"));
         if (!upToMessage.getChatId().equals(chatId)) {
             throw new BadRequestException("Message does not belong to this chat");
         }
 
-        // ⭐ Оптимизированная версия - один запрос к БД вместо цикла
-        int updatedCount = messageStatusRepository.markMessagesAsReadInChat(
-                chatId,
-                userId,
-                upToMessage.getMessageId(),
-                LocalDateTime.now(ZoneOffset.UTC)
-        );
+        advanceRead(chatId, userId, upToMessage.getMessageId());
+    }
 
-        log.debug("Marked {} messages as read for user {} in chat {}", updatedCount, userId, chatId);
+    @Transactional
+    public void markMessageAsRead(UUID messageUuid, Long userId) {
+        Message message = getMessageByUuid(messageUuid);
+        advanceRead(message.getChatId(), userId, message.getMessageId());
+    }
 
-        // Обновляем last_read_message_id в Participant
-        updateLastReadMessage(chatId, userId, upToMessage.getMessageId());
+    @Transactional
+    public void markMessageAsDelivered(UUID messageUuid, Long userId) {
+        Message message = getMessageByUuid(messageUuid);
+        participantRepository.advanceDeliveredWatermark(
+                message.getChatId(), userId, message.getMessageId(), now());
     }
 
     @Transactional
     public void updateLastReadMessage(Long chatId, Long userId, Long messageId) {
-        log.debug("Updating last read message for user: {} in chat: {} to message: {}", userId, chatId, messageId);
-
         chatService.validateUserAccessToChat(chatId, userId);
-
-        // ⭐ Теперь это работает - метод есть в ParticipantRepository
-        participantRepository.updateLastReadMessage(chatId, userId, messageId, LocalDateTime.now(ZoneOffset.UTC));
+        advanceRead(chatId, userId, messageId);
     }
 
     @Transactional(readOnly = true)
@@ -126,44 +75,86 @@ public class MessageStatusService {
 
         Message message = messageRepository.findByMessageUuid(messageUuid)
                 .orElseThrow(() -> new NotFoundException("Message not found"));
-
         if (!message.getChatId().equals(chatId)) {
             throw new BadRequestException("Message does not belong to this chat");
         }
 
-        List<MessageStatus> statuses = messageStatusRepository.findByMessageId(message.getMessageId());
-
-        return statuses.stream()
-                .map(s -> MessageStatusDto.builder()
-                        .userId(s.getUserId())
-                        .status(DeliveryStatusDto.valueOf(s.getStatus().name()))
-                        .deliveredAt(s.getDeliveredAt())
-                        .readAt(s.getReadAt())
-                        .build())
-                .collect(Collectors.toList());
+        return participantRepository.findAllByChatId(chatId).stream()
+                .map(p -> toDto(p, message))
+                .toList();
     }
 
     @Transactional(readOnly = true)
-    public MessageStatus.DeliveryStatus getMessageStatusForUser(UUID messageUuid, Long userId) {
-        Message message = messageRepository.findByMessageUuid(messageUuid)
-                .orElseThrow(() -> new RuntimeException("Message not found"));
-
-        return messageStatusRepository.findByMessageIdAndUserId(message.getMessageId(), userId)
-                .map(MessageStatus::getStatus)
-                .orElse(MessageStatus.DeliveryStatus.SENT);
+    public DeliveryStatusDto getMessageStatusForUser(UUID messageUuid, Long userId) {
+        Message message = getMessageByUuid(messageUuid);
+        Participant participant = participantRepository
+                .findByChatIdAndUserId(message.getChatId(), userId)
+                .orElse(null);
+        return deriveStatus(participant, message, userId);
     }
 
     @Transactional(readOnly = true)
     public boolean isMessageReadByAll(UUID messageUuid, Long chatId) {
-        Message message = messageRepository.findByMessageUuid(messageUuid)
-                .orElseThrow(() -> new RuntimeException("Message not found"));
-
-        return messageStatusRepository.isMessageReadByAll(message.getMessageId(), chatId);
+        Message message = getMessageByUuid(messageUuid);
+        long total = participantRepository.countByChatId(chatId);
+        if (total == 0) {
+            return false;
+        }
+        long readers = participantRepository.countReaders(chatId, message.getMessageId(), message.getSenderId());
+        return readers == total;
     }
 
     @Transactional(readOnly = true)
     public long getUnreadCountForUser(Long chatId, Long userId) {
-        List<MessageStatus> unreadStatuses = messageStatusRepository.findUnreadMessagesInChat(chatId, userId);
-        return unreadStatuses.size();
+        Long lastRead = participantRepository.findByChatIdAndUserId(chatId, userId)
+                .map(Participant::getLastReadMessageId)
+                .orElse(null);
+        return messageRepository.countUnreadMessagesForUser(chatId, userId, lastRead);
+    }
+
+    private void advanceRead(Long chatId, Long userId, Long messageId) {
+        if (!participantRepository.existsByChatIdAndUserId(chatId, userId)) {
+            throw new NotFoundException("User is not a participant of this chat");
+        }
+        participantRepository.advanceReadWatermark(chatId, userId, messageId, now());
+    }
+
+    private Message getMessageByUuid(UUID messageUuid) {
+        return messageRepository.findByMessageUuid(messageUuid)
+                .orElseThrow(() -> new NotFoundException("Message not found"));
+    }
+
+    private MessageStatusDto toDto(Participant participant, Message message) {
+        DeliveryStatusDto status = deriveStatus(participant, message, participant.getUserId());
+        boolean delivered = status == DeliveryStatusDto.DELIVERED || status == DeliveryStatusDto.READ;
+        return MessageStatusDto.builder()
+                .userId(participant.getUserId())
+                .status(status)
+                .deliveredAt(delivered ? participant.getLastDeliveredAt() : null)
+                .readAt(status == DeliveryStatusDto.READ ? participant.getLastReadAt() : null)
+                .build();
+    }
+
+    private DeliveryStatusDto deriveStatus(Participant participant, Message message, Long userId) {
+        if (participant == null) {
+            return DeliveryStatusDto.SENT;
+        }
+        // Отправитель считается прочитавшим собственное сообщение.
+        if (userId.equals(message.getSenderId())) {
+            return DeliveryStatusDto.READ;
+        }
+        if (participant.getLastReadMessageId() != null
+                && participant.getLastReadMessageId() >= message.getMessageId()) {
+            return DeliveryStatusDto.READ;
+        }
+        if (participant.getLastDeliveredMessageId() != null
+                && participant.getLastDeliveredMessageId() >= message.getMessageId()) {
+            return DeliveryStatusDto.DELIVERED;
+        }
+        return DeliveryStatusDto.SENT;
+    }
+
+    private LocalDateTime now() {
+        return LocalDateTime.now(ZoneOffset.UTC);
     }
 }

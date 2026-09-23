@@ -1,12 +1,10 @@
 package com.chat.server.service;
 
 import com.chat.server.entity.Message;
-import com.chat.server.entity.MessageStatus;
 import com.chat.server.exception.AccessDeniedException;
 import com.chat.server.exception.BadRequestException;
 import com.chat.server.exception.NotFoundException;
 import com.chat.server.repository.MessageRepository;
-import com.chat.server.repository.MessageStatusRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -28,7 +26,6 @@ public class MessageService {
     private static final int DEFAULT_SYNC_LIMIT = 500;
 
     private final MessageRepository messageRepository;
-    private final MessageStatusRepository messageStatusRepository;
     private final ChatService chatService;
     private final ParticipantService participantService;
     private final PushNotificationService pushNotificationService;
@@ -70,26 +67,8 @@ public class MessageService {
         // Обновляем последнее сообщение в чате
         chatService.updateLastMessage(chatId, savedMessage.getMessageId(), text, senderId);
 
-        // Создаем статусы для всех участников одним batch-insert
-        List<MessageStatus> statuses = participantIds.stream()
-                .map(participantId -> {
-                    MessageStatus.DeliveryStatus status = participantId.equals(senderId)
-                            ? MessageStatus.DeliveryStatus.READ
-                            : MessageStatus.DeliveryStatus.SENT;
-
-                    MessageStatus messageStatus = MessageStatus.builder()
-                            .messageId(savedMessage.getMessageId())
-                            .userId(participantId)
-                            .status(status)
-                            .build();
-
-                    if (status == MessageStatus.DeliveryStatus.READ) {
-                        messageStatus.markAsRead();
-                    }
-                    return messageStatus;
-                })
-                .toList();
-        messageStatusRepository.saveAll(statuses);
+        // Статусы доставки/прочтения не создаются: они выводятся из watermark-ов
+        // участников (participants.last_read_message_id / last_delivered_message_id).
 
         // Отправляем push уведомления
         pushNotificationService.sendMessageNotification(savedMessage, participantIds);
@@ -196,7 +175,6 @@ public class MessageService {
         chatService.validateUserAccessToChat(message.getChatId(), userId);
 
         if (hardDelete) {
-            messageStatusRepository.deleteByMessageId(message.getMessageId());
             messageRepository.deleteById(message.getMessageId());
             log.info("Message hard deleted: {}", messageUuid);
         } else {

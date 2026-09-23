@@ -118,8 +118,8 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
      * Непрочитанные сообщения для пользователя сразу по всем его чатам (один запрос
      * вместо цикла из N × 2 SELECT в getUserChatsWithDetails/getTotalUnreadCount).
      * Учитывает per-chat last_read_message_id: если NULL — считаются все не удалённые
-     * сообщения чата, иначе только с message_id > last_read_message_id. Значение
-     * идентично сумме countMessagesInChat + countMessagesAfterId по каждому чату.
+     * сообщения чата от других пользователей, иначе только с message_id > last_read_message_id.
+     * Собственные сообщения пользователя никогда не считаются непрочитанными.
      * LEFT JOIN позволяет корректно вернуть 0 для чатов без сообщений.
      */
     @Query(value = """
@@ -128,6 +128,7 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
         LEFT JOIN messages m
                ON m.chat_id = p.chat_id
               AND m.is_deleted = FALSE
+              AND m.sender_id <> p.user_id
               AND (p.last_read_message_id IS NULL
                    OR m.message_id > p.last_read_message_id)
         WHERE p.user_id = :userId
@@ -158,7 +159,7 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
 
     /**
      * Полнотекстовый поиск сообщений в чате. Использует GIN-индекс
-     * idx_messages_text_gin (V0011) — без seq scan по партициям.
+     * idx_messages_text_gin (V8) — без seq scan по партициям.
      */
     @Query(value = """
         SELECT m.* FROM messages m
@@ -273,6 +274,24 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
         AND m.isDeleted = false
     """)
     long countUnreadMessages(
+            @Param("chatId") Long chatId,
+            @Param("userId") Long userId,
+            @Param("lastReadMessageId") Long lastReadMessageId
+    );
+
+    /**
+     * Непрочитанные сообщения пользователя в чате на основе watermark-а
+     * (participants.last_read_message_id). Если watermark NULL — непрочитанными
+     * считаются все не удалённые сообщения от других пользователей.
+     */
+    @Query("""
+        SELECT COUNT(m) FROM Message m
+         WHERE m.chatId = :chatId
+           AND m.senderId <> :userId
+           AND m.isDeleted = false
+           AND (:lastReadMessageId IS NULL OR m.messageId > :lastReadMessageId)
+    """)
+    long countUnreadMessagesForUser(
             @Param("chatId") Long chatId,
             @Param("userId") Long userId,
             @Param("lastReadMessageId") Long lastReadMessageId

@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -64,7 +65,7 @@ public class ParticipantService {
 
         chatService.validateUserAccessToChat(chatId, requesterId);
 
-        if (!chat.getCreatedBy().equals(requesterId)) {
+        if (!Objects.equals(chat.getCreatedBy(), requesterId)) {
             throw new AccessDeniedException("Only group creator can add participants");
         }
 
@@ -93,11 +94,11 @@ public class ParticipantService {
             throw new ConflictException("Can only remove participants from group chats");
         }
 
-        if (!chat.getCreatedBy().equals(requesterId)) {
+        if (!Objects.equals(chat.getCreatedBy(), requesterId)) {
             throw new AccessDeniedException("Only group creator can remove participants");
         }
 
-        if (chat.getCreatedBy().equals(userId)) {
+        if (Objects.equals(chat.getCreatedBy(), userId)) {
             throw new ConflictException("Cannot remove group creator");
         }
 
@@ -119,7 +120,7 @@ public class ParticipantService {
             throw new ConflictException("Cannot leave private chat");
         }
 
-        if (chat.getCreatedBy().equals(userId)) {
+        if (Objects.equals(chat.getCreatedBy(), userId)) {
             throw new ConflictException("Group creator cannot leave, consider deleting the chat instead");
         }
 
@@ -141,11 +142,11 @@ public class ParticipantService {
             throw new ConflictException("Only group chats have roles");
         }
 
-        if (!chat.getCreatedBy().equals(requesterId)) {
+        if (!Objects.equals(chat.getCreatedBy(), requesterId)) {
             throw new AccessDeniedException("Only group creator can change roles");
         }
 
-        if (chat.getCreatedBy().equals(targetUserId)) {
+        if (Objects.equals(chat.getCreatedBy(), targetUserId)) {
             throw new ConflictException("Cannot change role of group creator");
         }
 

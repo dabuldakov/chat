@@ -32,7 +32,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     /**
      * Полнотекстовый поиск по username/first_name/last_name с префиксным
      * совпадением (как поиск "на лету" в клиенте). Использует существующий
-     * GIN-индекс idx_users_search_gin (V0009) — выражение индекса должно
+     * GIN-индекс idx_users_search_gin (V2) — выражение индекса должно
      * совпадать с выражением в запросе.
      */
     @Query(value = """

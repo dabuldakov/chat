@@ -1,15 +1,14 @@
 package com.chat.server.integration;
 
+import com.chat.server.dto.response.DeliveryStatusDto;
 import com.chat.server.dto.response.MessageStatusDto;
 import com.chat.server.entity.Chat;
 import com.chat.server.entity.Message;
-import com.chat.server.entity.MessageStatus;
 import com.chat.server.entity.Participant;
 import com.chat.server.entity.User;
 import com.chat.server.exception.BadRequestException;
 import com.chat.server.repository.ChatRepository;
 import com.chat.server.repository.MessageRepository;
-import com.chat.server.repository.MessageStatusRepository;
 import com.chat.server.repository.ParticipantRepository;
 import com.chat.server.repository.UserRepository;
 import com.chat.server.service.ChatService;
@@ -19,11 +18,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.List;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+/**
+ * Статусы доставки/прочтения теперь выводятся из watermark-ов участника,
+ * а не из таблицы message_statuses.
+ */
 class MessageStatusServiceIT extends AbstractIntegrationTest {
 
     @Autowired
@@ -32,8 +34,6 @@ class MessageStatusServiceIT extends AbstractIntegrationTest {
     private ChatRepository chatRepository;
     @Autowired
     private MessageRepository messageRepository;
-    @Autowired
-    private MessageStatusRepository messageStatusRepository;
     @Autowired
     private ParticipantRepository participantRepository;
     @Autowired
@@ -73,55 +73,40 @@ class MessageStatusServiceIT extends AbstractIntegrationTest {
                 .build());
     }
 
-    private void createStatuses() {
-        messageStatusService.createStatusesForMessage(message.getMessageId(),
-                List.of(user1.getUserId(), user2.getUserId()), user1.getUserId());
-    }
-
     @Test
-    void shouldCreateStatusesForMessage() {
-        createStatuses();
-
-        List<MessageStatus> statuses = messageStatusRepository.findByMessageId(message.getMessageId());
+    void shouldDeriveStatusesFromWatermarks() {
+        List<MessageStatusDto> statuses = messageStatusService.getMessageStatuses(
+                message.getMessageUuid(), chat.getChatId(), user1.getUserId());
 
         assertThat(statuses).hasSize(2);
         assertThat(statuses).filteredOn(s -> s.getUserId().equals(user1.getUserId()))
                 .singleElement()
-                .extracting(MessageStatus::getStatus)
-                .isEqualTo(MessageStatus.DeliveryStatus.READ);
+                .extracting(MessageStatusDto::getStatus)
+                .isEqualTo(DeliveryStatusDto.READ);
         assertThat(statuses).filteredOn(s -> s.getUserId().equals(user2.getUserId()))
                 .singleElement()
-                .extracting(MessageStatus::getStatus)
-                .isEqualTo(MessageStatus.DeliveryStatus.SENT);
+                .extracting(MessageStatusDto::getStatus)
+                .isEqualTo(DeliveryStatusDto.SENT);
     }
 
     @Test
     void shouldMarkMessageAsDelivered() {
-        createStatuses();
-
         messageStatusService.markMessageAsDelivered(message.getMessageUuid(), user2.getUserId());
 
-        MessageStatus status = messageStatusRepository.findByMessageIdAndUserId(
-                message.getMessageId(), user2.getUserId()).orElseThrow();
-        assertThat(status.getStatus()).isEqualTo(MessageStatus.DeliveryStatus.DELIVERED);
-        assertThat(status.getDeliveredAt()).isNotNull();
+        assertThat(messageStatusService.getMessageStatusForUser(message.getMessageUuid(), user2.getUserId()))
+                .isEqualTo(DeliveryStatusDto.DELIVERED);
     }
 
     @Test
     void shouldMarkMessageAsRead() {
-        createStatuses();
-
         messageStatusService.markMessageAsRead(message.getMessageUuid(), user2.getUserId());
 
-        MessageStatus status = messageStatusRepository.findByMessageIdAndUserId(
-                message.getMessageId(), user2.getUserId()).orElseThrow();
-        assertThat(status.getStatus()).isEqualTo(MessageStatus.DeliveryStatus.READ);
-        assertThat(status.getReadAt()).isNotNull();
+        assertThat(messageStatusService.getMessageStatusForUser(message.getMessageUuid(), user2.getUserId()))
+                .isEqualTo(DeliveryStatusDto.READ);
     }
 
     @Test
     void shouldMarkMessagesAsReadInChatAndUpdateLastRead() {
-        createStatuses();
         Message second = messageRepository.save(Message.builder()
                 .chatId(chat.getChatId())
                 .senderId(user2.getUserId())
@@ -129,15 +114,13 @@ class MessageStatusServiceIT extends AbstractIntegrationTest {
                 .messageType(Message.MessageType.TEXT)
                 .isDeleted(false)
                 .build());
-        messageStatusService.createStatusesForMessage(second.getMessageId(),
-                List.of(user1.getUserId(), user2.getUserId()), user2.getUserId());
 
         messageStatusService.markMessagesAsRead(chat.getChatId(), user2.getUserId(), second.getMessageUuid());
 
         assertThat(messageStatusService.getMessageStatusForUser(message.getMessageUuid(), user2.getUserId()))
-                .isEqualTo(MessageStatus.DeliveryStatus.READ);
+                .isEqualTo(DeliveryStatusDto.READ);
         assertThat(messageStatusService.getMessageStatusForUser(second.getMessageUuid(), user2.getUserId()))
-                .isEqualTo(MessageStatus.DeliveryStatus.READ);
+                .isEqualTo(DeliveryStatusDto.READ);
 
         Participant participant = participantRepository.findByChatIdAndUserId(chat.getChatId(), user2.getUserId())
                 .orElseThrow();
@@ -156,9 +139,24 @@ class MessageStatusServiceIT extends AbstractIntegrationTest {
     }
 
     @Test
-    void shouldGetMessageStatuses() {
-        createStatuses();
+    void shouldNotMoveReadWatermarkBackwards() {
+        Message second = messageRepository.save(Message.builder()
+                .chatId(chat.getChatId())
+                .senderId(user1.getUserId())
+                .messageText("second")
+                .messageType(Message.MessageType.TEXT)
+                .isDeleted(false)
+                .build());
 
+        messageStatusService.updateLastReadMessage(chat.getChatId(), user2.getUserId(), second.getMessageId());
+        messageStatusService.updateLastReadMessage(chat.getChatId(), user2.getUserId(), message.getMessageId());
+
+        assertThat(participantRepository.findByChatIdAndUserId(chat.getChatId(), user2.getUserId())
+                .orElseThrow().getLastReadMessageId()).isEqualTo(second.getMessageId());
+    }
+
+    @Test
+    void shouldGetMessageStatuses() {
         List<MessageStatusDto> dtos = messageStatusService.getMessageStatuses(
                 message.getMessageUuid(), chat.getChatId(), user1.getUserId());
 
@@ -169,7 +167,6 @@ class MessageStatusServiceIT extends AbstractIntegrationTest {
 
     @Test
     void shouldRejectStatusesForMessageFromAnotherChat() {
-        createStatuses();
         var third = createUser("u3");
         var other = chatService.createPrivateChat(user1.getUserId(), third.getUserUuid());
         Long otherChatId = chatRepository.findByChatUuid(other.getChatUuid()).orElseThrow().getChatId();
@@ -193,12 +190,11 @@ class MessageStatusServiceIT extends AbstractIntegrationTest {
     @Test
     void shouldReturnSentAsDefaultForUserWithoutStatus() {
         assertThat(messageStatusService.getMessageStatusForUser(message.getMessageUuid(), user2.getUserId()))
-                .isEqualTo(MessageStatus.DeliveryStatus.SENT);
+                .isEqualTo(DeliveryStatusDto.SENT);
     }
 
     @Test
     void shouldCheckIsMessageReadByAll() {
-        createStatuses();
         assertThat(messageStatusService.isMessageReadByAll(message.getMessageUuid(), chat.getChatId())).isFalse();
 
         messageStatusService.markMessageAsRead(message.getMessageUuid(), user2.getUserId());
@@ -208,7 +204,6 @@ class MessageStatusServiceIT extends AbstractIntegrationTest {
 
     @Test
     void shouldCountUnreadMessagesForUser() {
-        createStatuses();
         assertThat(messageStatusService.getUnreadCountForUser(chat.getChatId(), user2.getUserId())).isEqualTo(1);
         assertThat(messageStatusService.getUnreadCountForUser(chat.getChatId(), user1.getUserId())).isZero();
     }
