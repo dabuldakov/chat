@@ -1,7 +1,7 @@
 package com.chat.server.integration;
 
 import com.chat.server.exception.NotFoundException;
-import com.chat.server.service.FileUploadService;
+import com.chat.server.attachment.FileUploadService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mock.web.MockMultipartFile;

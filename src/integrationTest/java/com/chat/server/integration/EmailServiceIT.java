@@ -1,6 +1,6 @@
 package com.chat.server.integration;
 
-import com.chat.server.service.EmailService;
+import com.chat.server.auth.EmailService;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;

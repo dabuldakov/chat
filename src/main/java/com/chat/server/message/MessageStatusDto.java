@@ -1,0 +1,16 @@
+package com.chat.server.message;
+
+import lombok.Builder;
+import lombok.Data;
+
+import java.time.LocalDateTime;
+
+@Data
+@Builder
+public class MessageStatusDto {
+
+    private Long userId;
+    private DeliveryStatusDto status; // SENT, DELIVERED, READ, FAILED
+    private LocalDateTime deliveredAt;
+    private LocalDateTime readAt;
+}

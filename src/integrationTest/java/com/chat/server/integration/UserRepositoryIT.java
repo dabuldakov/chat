@@ -1,7 +1,7 @@
 package com.chat.server.integration;
 
-import com.chat.server.entity.User;
-import com.chat.server.repository.UserRepository;
+import com.chat.server.user.User;
+import com.chat.server.user.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;

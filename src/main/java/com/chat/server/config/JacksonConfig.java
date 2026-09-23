@@ -14,6 +14,7 @@ import tools.jackson.databind.module.SimpleModule;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
+import com.chat.server.common.BaseEntity;
 /**
  * Единый формат времени в ответах API: все {@link LocalDateTime} отдаются
  * как UTC-строка с суффиксом {@code Z} (например {@code 2026-09-22T12:00:00Z}).

@@ -89,7 +89,7 @@ springdoc:
     display-request-duration: true
     doc-expansion: none
   show-activator: false
-  packages-to-scan: com.chat.server.controller
+  packages-to-scan: com.chat.server
   paths-to-match: /api/**
   cache:
     disabled: true

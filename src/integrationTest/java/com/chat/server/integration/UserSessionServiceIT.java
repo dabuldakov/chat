@@ -1,12 +1,12 @@
 package com.chat.server.integration;
 
-import com.chat.server.entity.User;
-import com.chat.server.entity.UserSession;
+import com.chat.server.user.User;
+import com.chat.server.auth.UserSession;
 import com.chat.server.exception.UnauthorizedException;
-import com.chat.server.repository.UserRepository;
-import com.chat.server.repository.UserSessionRepository;
-import com.chat.server.service.TokenHasher;
-import com.chat.server.service.UserSessionService;
+import com.chat.server.user.UserRepository;
+import com.chat.server.auth.UserSessionRepository;
+import com.chat.server.auth.TokenHasher;
+import com.chat.server.auth.UserSessionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

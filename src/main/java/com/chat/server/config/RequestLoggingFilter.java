@@ -14,6 +14,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.UUID;
 
+import com.chat.server.auth.JwtAuthenticationFilter;
+import com.chat.server.user.User;
 /**
  * Логирует каждый HTTP-запрос: метод, путь, статус, длительность, пользователя
  * и request_id. Проставляет userId и request_id в MDC, чтобы они были отдельными

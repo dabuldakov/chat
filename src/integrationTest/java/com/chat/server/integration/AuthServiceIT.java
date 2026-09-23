@@ -1,13 +1,13 @@
 package com.chat.server.integration;
 
-import com.chat.server.entity.User;
+import com.chat.server.user.User;
 import com.chat.server.exception.BadRequestException;
 import com.chat.server.exception.NotFoundException;
 import com.chat.server.exception.UnauthorizedException;
-import com.chat.server.repository.UserRepository;
-import com.chat.server.service.AuthService;
-import com.chat.server.service.EmailService;
-import com.chat.server.service.UserSessionService;
+import com.chat.server.user.UserRepository;
+import com.chat.server.auth.AuthService;
+import com.chat.server.auth.EmailService;
+import com.chat.server.auth.UserSessionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;

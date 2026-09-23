@@ -1,11 +1,10 @@
 package com.chat.server.integration;
 
-import com.chat.server.config.JwtUtil;
-import com.chat.server.dto.request.AddContactRequestDto;
-import com.chat.server.entity.Message;
-import com.chat.server.entity.User;
-import com.chat.server.repository.MessageRepository;
-import com.chat.server.service.*;
+import com.chat.server.auth.JwtUtil;
+import com.chat.server.contacts.AddContactRequestDto;
+import com.chat.server.message.Message;
+import com.chat.server.user.User;
+import com.chat.server.message.MessageRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -22,6 +21,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import com.chat.server.attachment.MinioAvatarStorage;
+import com.chat.server.chat.ChatService;
+import com.chat.server.contacts.ContactService;
+import com.chat.server.user.UserService;
 @AutoConfigureMockMvc
 class AvatarFlowIT extends AbstractIntegrationTest {
 

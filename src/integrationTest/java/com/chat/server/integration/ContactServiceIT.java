@@ -1,11 +1,11 @@
 package com.chat.server.integration;
 
-import com.chat.server.dto.request.AddContactRequestDto;
-import com.chat.server.dto.response.ContactDto;
-import com.chat.server.entity.User;
+import com.chat.server.contacts.AddContactRequestDto;
+import com.chat.server.contacts.ContactDto;
+import com.chat.server.user.User;
 import com.chat.server.exception.ConflictException;
-import com.chat.server.repository.UserRepository;
-import com.chat.server.service.ContactService;
+import com.chat.server.user.UserRepository;
+import com.chat.server.contacts.ContactService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

@@ -1,6 +1,6 @@
 package com.chat.server.integration;
 
-import com.chat.server.service.FcmService;
+import com.chat.server.notification.FcmService;
 import com.google.firebase.messaging.BatchResponse;
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.Message;

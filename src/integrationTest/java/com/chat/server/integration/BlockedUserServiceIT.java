@@ -1,15 +1,15 @@
 package com.chat.server.integration;
 
-import com.chat.server.dto.request.AddContactRequestDto;
-import com.chat.server.dto.request.BlockUserRequestDto;
-import com.chat.server.entity.BlockedUser;
-import com.chat.server.entity.User;
+import com.chat.server.contacts.AddContactRequestDto;
+import com.chat.server.block.BlockUserRequestDto;
+import com.chat.server.block.BlockedUser;
+import com.chat.server.user.User;
 import com.chat.server.exception.ConflictException;
 import com.chat.server.exception.NotFoundException;
-import com.chat.server.repository.BlockedUserRepository;
-import com.chat.server.repository.UserRepository;
-import com.chat.server.service.BlockedUserService;
-import com.chat.server.service.ContactService;
+import com.chat.server.block.BlockedUserRepository;
+import com.chat.server.user.UserRepository;
+import com.chat.server.block.BlockedUserService;
+import com.chat.server.contacts.ContactService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
