@@ -69,13 +69,30 @@ public class ChatAvatarService {
         return "chat/" + chatUuid + "/" + version + ".png";
     }
 
-    private void deleteStored(String url) {
-        if (url == null || !url.startsWith(PREFIX)) return;
+    /**
+     * Ключ объекта аватара чата в MinIO по URL из БД, null — если URL не наш.
+     * Используется при полном удалении аккаунта вместе с его чатами.
+     */
+    public String storedKey(String url) {
+        if (url == null || !url.startsWith(PREFIX)) return null;
+        return url.substring(PREFIX.length());
+    }
+
+    /**
+     * Удаление объекта из MinIO без обращения к БД. Ошибку логируем, но не
+     * пробрасываем: запись о файле уже удалена.
+     */
+    public void deleteStoredObject(String key) {
+        if (key == null) return;
         try {
-            storage.delete(url.substring(PREFIX.length()));
+            storage.delete(key);
         } catch (RuntimeException e) {
-            log.warn("Failed to clean up old chat avatar object", e);
+            log.warn("Failed to delete chat avatar object {}", key, e);
         }
+    }
+
+    private void deleteStored(String url) {
+        deleteStoredObject(storedKey(url));
     }
 
     private byte[] normalize(MultipartFile file) {

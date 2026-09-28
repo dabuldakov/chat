@@ -28,6 +28,7 @@ public class UserController {
     private final UserService userService;
     private final UserSessionService userSessionService;
     private final UserAvatarService avatars;
+    private final AccountDeletionService accountDeletionService;
 
     @GetMapping("/me")
     @Operation(summary = "Получение своего профиля")
@@ -124,11 +125,11 @@ public class UserController {
     }
 
     @DeleteMapping("/me")
-    @Operation(summary = "Удаление своего аккаунта")
+    @Operation(summary = "Удаление своего аккаунта вместе с персональными данными")
     public ResponseEntity<Void> deleteMyAccount(Authentication authentication) {
         Long userId = Long.parseLong(authentication.getName());
-        userService.deleteUser(userId);
-        return ResponseEntity.ok().build();
+        accountDeletionService.purgeAccount(userId);
+        return ResponseEntity.noContent().build();
     }
 
     public record AvatarResponse(String avatarUrl) {}

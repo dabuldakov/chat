@@ -234,18 +234,4 @@ public class UserService implements UserDetailsService {
         User user = getUserByUuid(userUuid);
         return Boolean.TRUE.equals(user.getIsOnline());
     }
-
-    // ==================== Удаление пользователя ====================
-
-    @Transactional
-    @CacheEvict(value = "users", key = "#userId")
-    public void deleteUser(Long userId) {
-        log.warn("Deleting user with id: {}", userId);
-        User user = getUserById(userId);
-        user.setIsDeleted(true);
-        user.setDeletedAt(LocalDateTime.now(ZoneOffset.UTC));
-        user.setStatus(User.UserStatus.INACTIVE);
-        userRepository.save(user);
-        log.info("User soft deleted: {}", userId);
-    }
 }

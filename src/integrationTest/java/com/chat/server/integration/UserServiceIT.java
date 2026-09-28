@@ -159,15 +159,6 @@ class UserServiceIT extends AbstractIntegrationTest {
     }
 
     @Test
-    void shouldSoftDeleteUser() {
-        userService.deleteUser(user.getUserId());
-
-        assertThatThrownBy(() -> userService.getUserById(user.getUserId()))
-                .isInstanceOf(NotFoundException.class);
-        assertThat(userRepository.findAll()).isEmpty();
-    }
-
-    @Test
     void shouldLoadUserByUsernameForSecurity() {
         var details = userService.loadUserByUsername(user.getUserUuid().toString());
 

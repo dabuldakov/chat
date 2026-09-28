@@ -241,6 +241,30 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
     @Query("SELECT m.messageId FROM Message m WHERE m.chatId = :chatId")
     List<Long> findAllMessageIdsByChatId(@Param("chatId") Long chatId);
 
+    /**
+     * Полное удаление аккаунта: сообщения пользователя в чужих чатах. Каскад по
+     * sender_id удалил бы их и так, но вызов нужен, чтобы заранее собрать
+     * вложения — на messages у них нет FK, и каскад их не тронет.
+     */
+    @Query("SELECT m.messageId FROM Message m WHERE m.senderId = :senderId AND m.chatId IN :chatIds")
+    List<Long> findAllMessageIdsBySenderIdAndChatIdIn(
+            @Param("senderId") Long senderId,
+            @Param("chatIds") List<Long> chatIds);
+
+    @Modifying
+    @Query("DELETE FROM Message m WHERE m.senderId = :senderId AND m.chatId IN :chatIds")
+    void hardDeleteBySenderIdAndChatIdIn(
+            @Param("senderId") Long senderId,
+            @Param("chatIds") List<Long> chatIds);
+
+    /**
+     * Сообщения в чате без учёта is_deleted — так же, как их считает
+     * ChatRepository.updateLastMessage (message_count растёт при каждой
+     * отправке).
+     */
+    @Query("SELECT COUNT(m) FROM Message m WHERE m.chatId = :chatId")
+    long countAllInChat(@Param("chatId") Long chatId);
+
     // ==================== Поиск по типу ====================
 
     @Query("SELECT m FROM Message m WHERE m.chatId = :chatId AND m.messageType = :type AND m.isDeleted = false ORDER BY m.createdAt DESC")

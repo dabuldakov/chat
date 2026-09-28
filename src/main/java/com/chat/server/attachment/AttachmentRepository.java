@@ -104,6 +104,16 @@ public interface AttachmentRepository extends JpaRepository<Attachment, Long> {
     @Query("DELETE FROM Attachment a WHERE a.uploaderId = :uploaderId")
     void deleteByUploaderId(@Param("uploaderId") Long uploaderId);
 
+    /**
+     * Файлы, загруженные пользователем, но не прикреплённые ни к одному
+     * сообщению. Их не удалит ни каскад по пользователю, ни каскад по чату.
+     */
+    List<Attachment> findByUploaderIdAndMessageIdIsNull(Long uploaderId);
+
+    @Modifying
+    @Query("DELETE FROM Attachment a WHERE a.uploaderId = :uploaderId AND a.messageId IS NULL")
+    void deleteByUploaderIdAndMessageIdIsNull(@Param("uploaderId") Long uploaderId);
+
     // ==================== Обновление ====================
 
     @Modifying

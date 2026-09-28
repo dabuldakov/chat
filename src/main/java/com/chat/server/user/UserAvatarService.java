@@ -55,13 +55,36 @@ public class UserAvatarService {
         deleteStored(oldUrl);
     }
 
-    private void deleteStored(String url) {
-        if (url == null || !url.startsWith(PREFIX)) return;
-        try {
-            storage.delete(url.substring(PREFIX.length()));
-        } catch (RuntimeException e) {
-            log.warn("Failed to clean up old avatar object", e);
+    /**
+     * Ключ объекта аватара в MinIO по URL из БД, null — если URL не наш.
+     * Нужен полному удалению аккаунта: там строка в БД исчезает вместе с
+     * пользователем, а объект надо удалить отдельно и позже — после коммита.
+     */
+    public String storedKey(String url) {
+        if (url == null || !url.startsWith(PREFIX)) {
+            return null;
         }
+        return url.substring(PREFIX.length());
+    }
+
+    /**
+     * Удаление объекта из MinIO без обращения к БД. Ошибку логируем, но не
+     * пробрасываем: запись о файле уже удалена, повторная попытка возможна
+     * только вручную.
+     */
+    public void deleteStoredObject(String key) {
+        if (key == null) {
+            return;
+        }
+        try {
+            storage.delete(key);
+        } catch (RuntimeException e) {
+            log.warn("Failed to delete avatar object {}", key, e);
+        }
+    }
+
+    private void deleteStored(String url) {
+        deleteStoredObject(storedKey(url));
     }
 
     private byte[] normalize(MultipartFile file) {
