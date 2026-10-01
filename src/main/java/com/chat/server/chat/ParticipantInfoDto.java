@@ -1,6 +1,8 @@
 package com.chat.server.chat;
 
+import com.chat.server.presence.PresenceInfo;
 import com.chat.server.user.User;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 import lombok.Data;
 
@@ -19,14 +21,19 @@ public class ParticipantInfoDto {
     private String avatarUrl;
     private String role;
     private LocalDateTime joinedAt;
+
+    /** JSON-ключ зафиксирован явно: у Lombok-поля boolean isOnline Jackson срезает
+     *  префикс is и отдаёт "online" — клиент, ждавший "isOnline", получал false. */
+    @JsonProperty("online")
     private boolean isOnline;
+
     private LocalDateTime lastSeenAt;
     private String nickname;
     private boolean isMuted;
     private LocalDateTime mutedUntil;
     private boolean isPinned;
 
-    public static ParticipantInfoDto fromEntity(Participant participant, User user) {
+    public static ParticipantInfoDto fromEntity(Participant participant, User user, PresenceInfo presence) {
         return ParticipantInfoDto.builder()
                 .userUuid(user.getUserUuid())
                 .username(user.getUsername())
@@ -36,8 +43,8 @@ public class ParticipantInfoDto {
                 .avatarUrl(user.getAvatarUrl())
                 .role(participant.getRole().name())
                 .joinedAt(participant.getJoinedAt())
-                .isOnline(user.getIsOnline() != null && user.getIsOnline())
-                .lastSeenAt(user.getLastSeenAt())
+                .isOnline(presence.online())
+                .lastSeenAt(presence.lastSeenAt())
                 .nickname(participant.getNickname())
                 .isMuted(participant.isMuted())
                 .mutedUntil(participant.getMutedUntil())

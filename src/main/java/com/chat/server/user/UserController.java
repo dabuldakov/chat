@@ -2,6 +2,9 @@ package com.chat.server.user;
 
 import com.chat.server.auth.UserSessionDto;
 import com.chat.server.auth.UserSessionService;
+import com.chat.server.presence.PresenceInfo;
+import com.chat.server.presence.PresenceService;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -14,7 +17,9 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -29,13 +34,14 @@ public class UserController {
     private final UserSessionService userSessionService;
     private final UserAvatarService avatars;
     private final AccountDeletionService accountDeletionService;
+    private final PresenceService presenceService;
 
     @GetMapping("/me")
     @Operation(summary = "Получение своего профиля")
     public ResponseEntity<UserProfileDto> getMyProfile(Authentication authentication) {
         Long userId = Long.parseLong(authentication.getName());
         User user = userService.getUserById(userId);
-        return ResponseEntity.ok(UserProfileDto.fromEntity(user));
+        return ResponseEntity.ok(UserProfileDto.fromEntity(user, presenceService.presenceOf(userId)));
     }
 
     @PutMapping("/me")
@@ -45,7 +51,7 @@ public class UserController {
             Authentication authentication) {
         Long userId = Long.parseLong(authentication.getName());
         User user = userService.updateUser(userId, request);
-        return ResponseEntity.ok(UserProfileDto.fromEntity(user));
+        return ResponseEntity.ok(UserProfileDto.fromEntity(user, presenceService.presenceOf(userId)));
     }
 
     @PostMapping("/me/avatar")
@@ -79,7 +85,7 @@ public class UserController {
     @Operation(summary = "Получение профиля пользователя по UUID")
     public ResponseEntity<UserDto> getUserByUuid(@PathVariable UUID userUuid) {
         User user = userService.getUserByUuid(userUuid);
-        return ResponseEntity.ok(UserDto.fromEntity(user));
+        return ResponseEntity.ok(UserDto.fromEntity(user, presenceService.presenceOf(user.getUserId())));
     }
 
     @GetMapping("/search")
@@ -89,8 +95,11 @@ public class UserController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         Page<User> users = userService.searchUsers(query, PageRequest.of(page, size));
+        Map<Long, PresenceInfo> presence = presenceService.presenceByUserIds(
+                users.getContent().stream().map(User::getUserId).toList());
         List<UserDto> userDtos = users.getContent().stream()
-                .map(UserDto::fromEntity)
+                .map(user -> UserDto.fromEntity(user,
+                        presence.getOrDefault(user.getUserId(), PresenceInfo.unknown())))
                 .collect(Collectors.toList());
         return ResponseEntity.ok(userDtos);
     }
@@ -99,21 +108,28 @@ public class UserController {
     @Operation(summary = "Получение пользователя по имени")
     public ResponseEntity<UserDto> getUserByUsername(@PathVariable String username) {
         User user = userService.findByUsername(username);
-        return ResponseEntity.ok(UserDto.fromEntity(user));
+        return ResponseEntity.ok(UserDto.fromEntity(user, presenceService.presenceOf(user.getUserId())));
     }
 
     @GetMapping("/by-email/{email}")
     @Operation(summary = "Получение пользователя по email")
     public ResponseEntity<UserDto> getUserByEmail(@PathVariable String email) {
         User user = userService.findByEmail(email);
-        return ResponseEntity.ok(UserDto.fromEntity(user));
+        return ResponseEntity.ok(UserDto.fromEntity(user, presenceService.presenceOf(user.getUserId())));
     }
 
+    /**
+     * Статус присутствия одного пользователя.
+     *
+     * <p>Клиенту(list контактов) удобнее брать статусы пачкой через
+     * {@code GET /api/presence}; этот метод остаётся для точечных запросов.
+     */
     @GetMapping("/{userUuid}/status")
     @Operation(summary = "Получение статуса пользователя (онлайн/оффлайн)")
     public ResponseEntity<UserStatusResponse> getUserStatus(@PathVariable UUID userUuid) {
-        boolean isOnline = userService.isUserOnline(userUuid);
-        return ResponseEntity.ok(new UserStatusResponse(isOnline));
+        User user = userService.getUserByUuid(userUuid);
+        PresenceInfo presence = presenceService.presenceOf(user.getUserId());
+        return ResponseEntity.ok(new UserStatusResponse(presence.online(), presence.lastSeenAt()));
     }
 
     @GetMapping("/me/sessions")
@@ -136,5 +152,7 @@ public class UserController {
 
     public record FcmTokenRequest(String token, String deviceId) {}
 
-    record UserStatusResponse(boolean online) {}
+    /** @param lastSeenAt время последней активности (UTC) — «был в сети» */
+    record UserStatusResponse(@JsonProperty("online") boolean online,
+                              @JsonProperty("lastSeenAt") LocalDateTime lastSeenAt) {}
 }

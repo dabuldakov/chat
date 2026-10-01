@@ -1,7 +1,5 @@
 package com.chat.server.contacts;
 
-import com.chat.server.user.User;
-import com.chat.server.user.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -25,7 +23,6 @@ import java.util.UUID;
 public class ContactController {
 
     private final ContactService contactService;
-    private final UserService userService;
 
     @GetMapping
     @Operation(summary = "Получение всех контактов пользователя")
@@ -80,8 +77,9 @@ public class ContactController {
         Long userId = Long.parseLong(authentication.getName());
         Contact contact = contactService.addContact(userId, request);
 
-        User contactUser = userService.getUserById(contact.getContactUserId());
-        return ResponseEntity.ok(ContactDto.fromEntity(contact, contactUser));
+        // DTO собирает сам сервис: там пользователи и присутствие читаются
+        // одним батчем, минуя кэш (иначе статус «в сети» отставал бы на 10 минут).
+        return ResponseEntity.ok(contactService.getContactByUuid(userId, contact.getContactUuid()));
     }
 
     @DeleteMapping("/{contactUuid}")

@@ -1,5 +1,7 @@
 package com.chat.server.user;
 
+import com.chat.server.presence.PresenceInfo;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 import lombok.Data;
 
@@ -15,9 +17,14 @@ public class UserDto {
     private String lastName;
     private String fullName;
     private String avatarUrl;
+
+    /** JSON-ключ зафиксирован явно: Lombok даёт геттер isOnline(), а Jackson
+     *  срезает префикс is и отдаёт "online" — клиент, ждавший "isOnline",
+     *  молча получал false. */
+    @JsonProperty("online")
     private boolean isOnline;
 
-    public static UserDto fromEntity(User user) {
+    public static UserDto fromEntity(User user, PresenceInfo presence) {
         return UserDto.builder()
                 .userUuid(user.getUserUuid())
                 .username(user.getUsername())
@@ -25,7 +32,7 @@ public class UserDto {
                 .lastName(user.getLastName())
                 .fullName(user.getFullName())
                 .avatarUrl(user.getAvatarUrl())
-                .isOnline(user.getIsOnline() != null && user.getIsOnline())
+                .isOnline(presence.online())
                 .build();
     }
 }

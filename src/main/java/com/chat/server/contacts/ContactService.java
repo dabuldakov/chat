@@ -3,15 +3,21 @@ package com.chat.server.contacts;
 import com.chat.server.user.User;
 import com.chat.server.exception.ConflictException;
 import com.chat.server.exception.NotFoundException;
+import com.chat.server.presence.PresenceInfo;
+import com.chat.server.presence.PresenceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import com.chat.server.block.BlockedUserService;
@@ -23,6 +29,7 @@ public class ContactService {
 
     private final ContactRepository contactRepository;
     private final UserService userService;
+    private final PresenceService presenceService;
     //private final BlockedUserService blockedUserService;
 
     @Transactional
@@ -67,12 +74,7 @@ public class ContactService {
 
         List<Contact> contacts = contactRepository.findByUserIdOrderByName(userId);
 
-        return contacts.stream()
-                .map(contact -> {
-                    User contactUser = userService.getUserById(contact.getContactUserId());
-                    return ContactDto.fromEntity(contact, contactUser);
-                })
-                .collect(Collectors.toList());
+        return toDtos(contacts);
     }
 
     @Transactional(readOnly = true)
@@ -82,11 +84,7 @@ public class ContactService {
         userService.getUserById(userId);
 
         Page<Contact> contacts = contactRepository.findByUserId(userId, pageable);
-
-        return contacts.map(contact -> {
-            User contactUser = userService.getUserById(contact.getContactUserId());
-            return ContactDto.fromEntity(contact, contactUser);
-        });
+        return new PageImpl<>(toDtos(contacts.getContent()), pageable, contacts.getTotalElements());
     }
 
     @Transactional(readOnly = true)
@@ -96,11 +94,7 @@ public class ContactService {
         userService.getUserById(userId);
 
         Page<Contact> contacts = contactRepository.searchContacts(userId, search, pageable);
-
-        return contacts.map(contact -> {
-            User contactUser = userService.getUserById(contact.getContactUserId());
-            return ContactDto.fromEntity(contact, contactUser);
-        });
+        return new PageImpl<>(toDtos(contacts.getContent()), pageable, contacts.getTotalElements());
     }
 
     @Transactional(readOnly = true)
@@ -115,8 +109,45 @@ public class ContactService {
             throw new NotFoundException("Contact not found");
         }
 
-        User contactUser = userService.getUserById(contact.getContactUserId());
-        return ContactDto.fromEntity(contact, contactUser);
+        return toDtos(List.of(contact)).get(0);
+    }
+
+    /**
+     * Собирает DTO контактов, подгружая пользователей и их присутствие.
+     *
+     * <p>Два пакетных запроса вместо запроса на контакт: пользователи — через
+     * findAllByIds, статус — через {@link PresenceService#presenceByUserIds}.
+     *
+     * <p>Статус запрашивается отдельным запросом намеренно. Кэш пользователей
+     * живёт 10 минут, и если взять last_seen_at из сущности User, свежесть
+     * статуса окажется связана с тем, как закэширован именно этот путь.
+     * Отдельный запрос к PresenceService такого допустить не может: он всегда
+     * читает актуальный last_seen_at и пересчитывает «онлайн» по TTL.
+     */
+    private List<ContactDto> toDtos(List<Contact> contacts) {
+        if (contacts.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> contactUserIds = contacts.stream()
+                .map(Contact::getContactUserId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+
+        Map<Long, User> usersById = userService.findAllByIds(contactUserIds).stream()
+                .collect(Collectors.toMap(User::getUserId, Function.identity()));
+        Map<Long, PresenceInfo> presenceByUserId = presenceService.presenceByUserIds(contactUserIds);
+
+        return contacts.stream()
+                .map(contact -> {
+                    Long contactUserId = contact.getContactUserId();
+                    User contactUser = usersById.get(contactUserId);
+                    PresenceInfo presence = presenceByUserId.getOrDefault(
+                            contactUserId, PresenceInfo.unknown());
+                    return ContactDto.fromEntity(contact, contactUser, presence);
+                })
+                .toList();
     }
 
     @Transactional(readOnly = true)

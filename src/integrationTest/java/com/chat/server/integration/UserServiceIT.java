@@ -140,15 +140,6 @@ class UserServiceIT extends AbstractIntegrationTest {
     }
 
     @Test
-    void shouldUpdateOnlineStatus() {
-        assertThat(userService.isUserOnline(user.getUserUuid())).isFalse();
-
-        userService.updateOnlineStatus(user.getUserId(), true);
-
-        assertThat(userService.isUserOnline(user.getUserUuid())).isTrue();
-    }
-
-    @Test
     void shouldSearchUsers() {
         userService.createUser("alicebob", "alicebob@example.com", "secret123");
 

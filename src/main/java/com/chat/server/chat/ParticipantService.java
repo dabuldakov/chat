@@ -4,6 +4,8 @@ import com.chat.server.user.User;
 import com.chat.server.exception.AccessDeniedException;
 import com.chat.server.exception.ConflictException;
 import com.chat.server.exception.NotFoundException;
+import com.chat.server.presence.PresenceInfo;
+import com.chat.server.presence.PresenceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -25,6 +27,7 @@ public class ParticipantService {
     private final ParticipantRepository participantRepository;
     private final ChatService chatService;
     private final UserService userService;
+    private final PresenceService presenceService;
 
     @Transactional(readOnly = true)
     public List<Participant> getChatParticipants(Long chatId) {
@@ -32,6 +35,10 @@ public class ParticipantService {
         return participantRepository.findAllByChatId(chatId);
     }
 
+    /**
+     * Пользователи читаются через findAllByIds, то есть мимо 10-минутного кэша,
+     * поэтому last_seen_at здесь свежий, а «онлайн» пересчитывается по TTL.
+     */
     @Transactional(readOnly = true)
     public List<ParticipantInfoDto> getChatParticipantsWithDetails(Long chatId) {
         log.debug("Fetching participants with details for chat: {}", chatId);
@@ -45,8 +52,17 @@ public class ParticipantService {
         Map<Long, User> userMap = users.stream()
                 .collect(Collectors.toMap(User::getUserId, u -> u));
 
+        // Статус берём отдельным запросом, а не из сущности User: кэш
+        // пользователей живёт 10 минут, и «в сети» не должен от него зависеть.
+        Map<Long, PresenceInfo> presenceByUserId = presenceService.presenceByUserIds(userIds);
+
         return participants.stream()
-                .map(p -> ParticipantInfoDto.fromEntity(p, userMap.get(p.getUserId())))
+                .map(p -> {
+                    User user = userMap.get(p.getUserId());
+                    PresenceInfo presence = presenceByUserId.getOrDefault(
+                            p.getUserId(), PresenceInfo.unknown());
+                    return ParticipantInfoDto.fromEntity(p, user, presence);
+                })
                 .toList();
     }
 

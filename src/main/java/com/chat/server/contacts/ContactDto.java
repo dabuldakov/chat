@@ -1,6 +1,8 @@
 package com.chat.server.contacts;
 
+import com.chat.server.presence.PresenceInfo;
 import com.chat.server.user.User;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 import lombok.Data;
 
@@ -20,11 +22,22 @@ public class ContactDto {
     private String fullName;
     private String avatarUrl;
     private String contactName;
+
+    /**
+     * Явно зафиксированное JSON-имя. Без аннотации Lombok генерирует геттер
+     * {@code isOnline()}, а Jackson по умолчанию срезает префикс {@code is} и
+     * отдаёт ключ {@code "online"} — клиент ждал {@code "isOnline"} и всегда
+     * получал {@code false}. Имя контракта должно быть видимым в коде.
+     */
+    @JsonProperty("online")
     private boolean isOnline;
+
+    @JsonProperty("lastSeenAt")
     private LocalDateTime lastSeenAt;
+
     private LocalDateTime addedAt;
 
-    public static ContactDto fromEntity(Contact contact, User contactUser) {
+    public static ContactDto fromEntity(Contact contact, User contactUser, PresenceInfo presence) {
         return ContactDto.builder()
                 .contactUuid(contact.getContactUuid())
                 .contactUserId(contact.getContactUserId())
@@ -35,8 +48,8 @@ public class ContactDto {
                 .fullName(contactUser != null ? contactUser.getFullName() : null)
                 .avatarUrl(contactUser != null ? contactUser.getAvatarUrl() : null)
                 .contactName(contact.getContactName())
-                .isOnline(contactUser != null && Boolean.TRUE.equals(contactUser.getIsOnline()))
-                .lastSeenAt(contactUser != null ? contactUser.getLastSeenAt() : null)
+                .isOnline(presence.online())
+                .lastSeenAt(presence.lastSeenAt())
                 .addedAt(contact.getCreatedAt())
                 .build();
     }

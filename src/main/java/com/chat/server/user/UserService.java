@@ -17,8 +17,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -220,18 +218,7 @@ public class UserService implements UserDetailsService {
         log.info("Avatar deleted for user: {}", userId);
     }
 
-    @Transactional
-    @CacheEvict(value = "users", key = "#userId")
-    public void updateOnlineStatus(Long userId, boolean isOnline) {
-        User user = getUserById(userId);
-        user.setIsOnline(isOnline);
-        user.setLastSeenAt(LocalDateTime.now(ZoneOffset.UTC));
-        userRepository.save(user);
-    }
-
-    @Transactional(readOnly = true)
-    public boolean isUserOnline(UUID userUuid) {
-        User user = getUserByUuid(userUuid);
-        return Boolean.TRUE.equals(user.getIsOnline());
-    }
+    // Presence живёт в отдельном PresenceService: он считает «онлайн» из
+    // last_seen_at по TTL и читает мимо этого кэша. Методы updateOnlineStatus /
+    // isUserOnline удалены вместе с логикой «is_online = true только на входе».
 }

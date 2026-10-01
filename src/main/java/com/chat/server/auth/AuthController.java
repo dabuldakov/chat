@@ -3,6 +3,7 @@ package com.chat.server.auth;
 import com.chat.server.user.UserDto;
 import com.chat.server.user.User;
 import com.chat.server.exception.UnauthorizedException;
+import com.chat.server.presence.PresenceService;
 import com.chat.server.user.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -33,6 +34,7 @@ public class AuthController {
     private final AuthService authService;
     private final UserSessionService userSessionService;
     private final JwtUtil jwtUtil;
+    private final PresenceService presenceService;
 
     @PostMapping("/register")
     @Operation(summary = "Регистрация нового пользователя")
@@ -59,6 +61,9 @@ public class AuthController {
                 request.getIpAddress(),
                 request.getUserAgent()
         );
+
+        // Регистрация сразу создаёт сессию — пользователь уже «в приложении».
+        presenceService.recordActivity(user.getUserId());
 
         return getResponse(token, refreshToken, user);
     }
@@ -88,7 +93,7 @@ public class AuthController {
         );
 
         // Обновляем статус онлайн
-        userService.updateOnlineStatus(user.getUserId(), true);
+        presenceService.recordActivity(user.getUserId());
 
         return getResponse(token, refreshToken, user);
     }
@@ -124,7 +129,12 @@ public class AuthController {
         } else {
             userSessionService.invalidateAllSessions(userId);
         }
-        userService.updateOnlineStatus(userId, false);
+
+        // Статус гасим, только если активных сессий не осталось: иначе выход
+        // на телефоне показывал бы «оффлайн» на ещё работающем десктопе.
+        if (userSessionService.getActiveSessionsCount(userId) == 0) {
+            presenceService.markOffline(userId);
+        }
 
         return ResponseEntity.ok().build();
     }
@@ -136,7 +146,7 @@ public class AuthController {
         log.info("Logout from all devices for user: {}", userId);
 
         userSessionService.invalidateAllSessions(userId);
-        userService.updateOnlineStatus(userId, false);
+        presenceService.markOffline(userId);
 
         return ResponseEntity.ok().build();
     }
@@ -151,6 +161,10 @@ public class AuthController {
 
         userSessionService.invalidateSessionByDeviceId(userId, deviceId);
 
+        if (userSessionService.getActiveSessionsCount(userId) == 0) {
+            presenceService.markOffline(userId);
+        }
+
         return ResponseEntity.ok().build();
     }
 
@@ -159,7 +173,7 @@ public class AuthController {
     public ResponseEntity<UserDto> getCurrentUser(Authentication authentication) {
         Long userId = Long.parseLong(authentication.getName());
         User user = userService.getUserById(userId);
-        return ResponseEntity.ok(UserDto.fromEntity(user));
+        return ResponseEntity.ok(UserDto.fromEntity(user, presenceService.presenceOf(userId)));
     }
 
     @PostMapping("/change-password")

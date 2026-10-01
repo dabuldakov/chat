@@ -67,6 +67,16 @@ jwt:
 app:
   cors:
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:*}
+  presence:
+    # Как часто клиент шлёт heartbeat, пока приложение на переднем плане.
+    heartbeat-interval-seconds: 15
+    # Окно «онлайна»: столько секунд последний heartbeat считается актуальным.
+    # Втрое больше интервала heartbeat — переживает пару потерянных запросов.
+    online-ttl-seconds: 45
+    # Период PresenceSweeper (снимает флаг is_online у «зависших»).
+    sweep-interval-ms: 60000
+    # Максимум UUID за один запрос batch-presence.
+    max-batch-size: 200
 
 server:
   port: 8080
