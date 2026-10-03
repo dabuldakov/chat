@@ -1,7 +1,6 @@
 package com.chat.server.notification;
 
-import com.chat.server.message.Message;
-import com.chat.server.auth.UserSessionRepository;
+import com.chat.server.identity.UserSessionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -29,11 +28,11 @@ public class PushNotificationService {
                 .toList();
     }
 
-    public void sendMessageNotification(Message message, List<Long> recipientIds) {
+    public void sendMessageNotification(Long senderId, String messageText, List<Long> recipientIds) {
         // Отправляем уведомление всем участникам кроме отправителя.
         // Токены получаем одним GROUP-запросом, а не SELECT-ом на каждого получателя.
         List<Long> targetIds = recipientIds.stream()
-                .filter(id -> !id.equals(message.getSenderId()))
+                .filter(id -> !id.equals(senderId))
                 .toList();
 
         if (targetIds.isEmpty()) {
@@ -46,7 +45,7 @@ public class PushNotificationService {
                 .toList();
 
         for (String token : tokens) {
-            fcmService.sendMessageNotification(token, message.getSenderId(), message.getMessageText());
+            fcmService.sendMessageNotification(token, senderId, messageText);
         }
     }
 

@@ -2,6 +2,45 @@
 
 Бэкенд чата: Java 21, Spring Boot 4.0.5, PostgreSQL, JWT, Firebase Cloud Messaging.
 
+## Архитектура
+
+Приложение — **stateless модульный монолит**. Код организован по feature-модулям,
+границы между которыми проверяются ArchUnit-тестом
+(`ModuleBoundariesTest`): модули не образуют циклов, технические модули не
+зависят от доменных. Зависимости идут в одну сторону:
+
+```
+shared (common/config/util/exception)  ← база для всех
+storage (MinIO)                        ← инфраструктура, ни от кого не зависит
+identity (users, auth, sessions, presence) ← все доменные модули
+conversation (чаты, сообщения, вложения) → identity, block, notification, storage
+contacts → identity        block → identity, contacts
+notification → identity    sync → conversation
+account (удаление аккаунта) → identity, conversation, storage   ← лист-оркестратор
+```
+
+Приложение не хранит состояние в памяти между запросами (JWT + сессии в БД,
+файлы в MinIO), поэтому его можно запускать в нескольких экземплярах за
+балансировщиком. Каждому экземпляру нужны **своя БД** (через `DATABASE_URL`) и
+общий MinIO — см. «Независимый инстанс».
+
+## Независимый инстанс
+
+Второй экземпляр поднимается теми же артефактами без пересборки, только через
+переменные окружения:
+
+- **БД своя у каждого инстанса** — задайте отдельный `DATABASE_URL` (схема
+  создаётся Flyway при старте).
+- **MinIO общий** — тот же `MINIO_URL`/ключи и bucket; доступ к объектам идёт
+  через API приложения, поэтому bucket остаётся закрытым.
+- **JWT_SECRET** может быть общим (доверие между инстансами) или своим — второй
+  вариант изолирует токены.
+- **FCM и SMTP** общие (`FCM_*`, `MAIL_*`), но необязательны: при
+  `FCM_ENABLED=false` push работает как no-op.
+
+Секреты задаются только через окружение; профиль `prod` не содержит дефолтов и
+не стартует без `JWT_SECRET`.
+
 ## Требования
 
 - JDK 21
@@ -85,12 +124,23 @@ docker compose exec app wget -qO- http://minio:9000/minio/health/ready && echo "
 
 ## Конфигурация
 
+Конфигурация разбита по профилям: `application.yaml` (общая), `application-dev.yaml`
+(локальные значения «из коробки») и `application-prod.yaml` (только окружение,
+без небезопасных дефолтов). Профиль по умолчанию — `dev`; в Docker Compose
+выставляется `SPRING_PROFILES_ACTIVE=prod`.
+
 | Переменная | Назначение | По умолчанию |
 |-----------|-----------|--------------|
-| `JWT_SECRET` | ключ подписи JWT | dev-заглушка (в prod обязателен) |
-| `DATABASE_PASSWORD` | пароль БД | нет (обязателен) |
+| `SPRING_PROFILES_ACTIVE` | профиль (`dev`/`prod`) | `dev` |
+| `JWT_SECRET` | ключ подписи JWT | dev-заглушка; в `prod` обязателен |
+| `DATABASE_URL` / `DATABASE_USERNAME` / `DATABASE_PASSWORD` | доступ к БД инстанса | `localhost:5432/chat_db`, `admin/admin` |
 | `APP_CORS_ALLOWED_ORIGINS` | origin-паттерны через запятую | `http://localhost:*` |
-| `MINIO_ATTACHMENT_BUCKET` | bucket вложений | `attachments` |
+| `MINIO_URL` / `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` | объектное хранилище | `localhost:9000`, `minioadmin/minioadmin` |
+| `MINIO_AVATAR_BUCKET` / `MINIO_ATTACHMENT_BUCKET` | bucket’ы | `avatars` / `attachments` |
+| `FCM_ENABLED` | включать ли Firebase push | `false` |
+| `FCM_SERVICE_ACCOUNT_FILE` | путь к сервисному аккаунту в classpath | `firebase-service-account.json` |
+| `MAIL_HOST` / `MAIL_PORT` / `MAIL_USERNAME` / `MAIL_PASSWORD` | SMTP для писем | пустые |
+| `SERVER_PORT` | порт приложения | `8080` |
 
 Токены сессий хранятся в БД только в виде SHA-256 хэша; refresh-токен ротируется при обновлении.
 
@@ -99,7 +149,13 @@ docker compose exec app wget -qO- http://minio:9000/minio/health/ready && echo "
 | Тип | Где лежат | Суффикс | Что нужно | Команда |
 |-----|-----------|---------|-----------|---------|
 | Юнит-тесты | `src/test/java` | `*Test` | ничего | `./gradlew test` |
+| Архитектурные | `src/test/java` (`architecture/`) | `*Test` | ничего | `./gradlew test` |
 | Интеграционные | `src/integrationTest/java` | `*IT` | Docker | `./gradlew integrationTest` |
+| Гейт покрытия | — | — | Docker | `./gradlew jacocoTestCoverageVerification` |
+
+Архитектурные тесты (`ModuleBoundariesTest`) проверяют границы модулей через
+ArchUnit: отсутствие циклов и запрет обратных зависимостей. Покрытие строк
+бизнес-кода — не ниже 70% (JaCoCo), отчёт объединяет unit- и integration-тесты.
 
 Интеграционные тесты поднимают полный Spring-контекст и подключаются к реальному PostgreSQL,
 запущенному в контейнере (`postgres:17-alpine`, образ из `PostgresTestContainer`).
@@ -149,7 +205,17 @@ docker compose exec app wget -qO- http://minio:9000/minio/health/ready && echo "
 ## Структура
 
 ```
-src/test/java/com/chat/server/                    # юнит-тесты
+src/main/java/com/chat/server/
+├── identity/        # пользователи, аутентификация, сессии, presence, аватары
+├── conversation/    # чаты, участники, сообщения, вложения
+├── storage/         # MinIO: конфиг, файлы, аватары
+├── contacts/        # контакты
+├── block/           # блокировки
+├── notification/    # FCM (Firebase опционален)
+├── sync/            # инкрементальная синхронизация
+├── account/         # оркестрация удаления аккаунта
+└── common|config|exception|util/   # shared-ядро
+src/test/java/com/chat/server/                    # юнит- и архитектурные тесты
 src/integrationTest/java/com/chat/server/integration/
 ├── AbstractIntegrationTest.java                  # база: контекст + Testcontainers + очистка БД
 ├── containers/                                   # фабрика PostgreSQL-контейнера

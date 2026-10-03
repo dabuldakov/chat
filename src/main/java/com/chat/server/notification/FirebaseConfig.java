@@ -4,72 +4,59 @@ import com.google.auth.oauth2.GoogleCredentials;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
 import com.google.firebase.messaging.FirebaseMessaging;
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
 
-import javax.annotation.PostConstruct;
 import java.io.InputStream;
 
+/**
+ * Подключает Firebase Admin только когда включён флаг {@code fcm.enabled}
+ * и задан файл сервисного аккаунта. Если Firebase не сконфигурирован,
+ * конфигурация не активируется, а {@link FcmService} работает как no-op.
+ */
 @Slf4j
 @Configuration
+@ConditionalOnProperty(prefix = "fcm", name = "enabled", havingValue = "true")
 public class FirebaseConfig {
 
-    @Value("${fcm.service-account-file:firebase-service-account.json}")
-    private String serviceAccountFile;
+    private final String serviceAccountFile;
+
+    public FirebaseConfig(@Value("${fcm.service-account-file:firebase-service-account.json}") String serviceAccountFile) {
+        this.serviceAccountFile = serviceAccountFile;
+    }
 
     @PostConstruct
     public void initialize() {
         try {
-            log.info("Initializing Firebase with file: {}", serviceAccountFile);
-
-            // Пробуем загрузить файл
             ClassPathResource resource = new ClassPathResource(serviceAccountFile);
-
             if (!resource.exists()) {
-                log.error("Firebase service account file not found: {}", serviceAccountFile);
-                log.error("Current classpath: {}", System.getProperty("java.class.path"));
-                return;
+                throw new IllegalStateException(
+                        "Firebase service account file not found on classpath: " + serviceAccountFile);
             }
-
-            log.info("File found, size: {} bytes", resource.contentLength());
-
-            InputStream serviceAccount = resource.getInputStream();
-
-            FirebaseOptions options = FirebaseOptions.builder()
-                    .setCredentials(GoogleCredentials.fromStream(serviceAccount))
-                    .build();
 
             if (FirebaseApp.getApps().isEmpty()) {
-                FirebaseApp.initializeApp(options);
-                log.info("Firebase application initialized successfully");
-            } else {
-                log.info("Firebase application already initialized");
+                try (InputStream serviceAccount = resource.getInputStream()) {
+                    FirebaseOptions options = FirebaseOptions.builder()
+                            .setCredentials(GoogleCredentials.fromStream(serviceAccount))
+                            .build();
+                    FirebaseApp.initializeApp(options);
+                }
             }
-
+            log.info("Firebase initialized from {}", serviceAccountFile);
         } catch (Exception e) {
-            log.error("Failed to initialize Firebase: {}", e.getMessage(), e);
+            // fcm.enabled=true означает, что push обязателен: падаем сразу,
+            // а не отдаём null-бин и не роняем контекст позже неочевидной ошибкой.
+            throw new IllegalStateException("Failed to initialize Firebase", e);
         }
     }
 
     @Bean
     public FirebaseMessaging firebaseMessaging() {
-        try {
-            if (FirebaseApp.getApps().isEmpty()) {
-                log.warn("FirebaseApp not initialized, trying to initialize...");
-                initialize();
-            }
-
-            if (!FirebaseApp.getApps().isEmpty()) {
-                return FirebaseMessaging.getInstance();
-            }
-        } catch (Exception e) {
-            log.error("Failed to get FirebaseMessaging instance: {}", e.getMessage());
-        }
-
-        log.warn("Returning null FirebaseMessaging bean");
-        return null;
+        return FirebaseMessaging.getInstance();
     }
 }

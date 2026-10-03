@@ -1,7 +1,7 @@
 package com.chat.server.sync;
 
-import com.chat.server.chat.Chat;
-import com.chat.server.message.Message;
+import com.chat.server.conversation.Chat;
+import com.chat.server.conversation.Message;
 import lombok.Data;
 
 import java.time.LocalDateTime;

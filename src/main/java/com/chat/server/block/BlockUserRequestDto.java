@@ -5,7 +5,7 @@ import lombok.Data;
 
 import java.util.UUID;
 
-import com.chat.server.user.User;
+import com.chat.server.identity.User;
 @Data
 public class BlockUserRequestDto {
 

@@ -1,11 +1,11 @@
 package com.chat.server.integration;
 
-import com.chat.server.user.UpdateProfileRequestDto;
-import com.chat.server.user.User;
+import com.chat.server.identity.UpdateProfileRequestDto;
+import com.chat.server.identity.User;
 import com.chat.server.exception.ConflictException;
 import com.chat.server.exception.NotFoundException;
-import com.chat.server.user.UserRepository;
-import com.chat.server.user.UserService;
+import com.chat.server.identity.UserRepository;
+import com.chat.server.identity.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

@@ -1,10 +1,10 @@
 package com.chat.server.integration;
 
-import com.chat.server.auth.JwtUtil;
+import com.chat.server.identity.JwtUtil;
 import com.chat.server.contacts.AddContactRequestDto;
 import com.chat.server.contacts.ContactService;
-import com.chat.server.user.User;
-import com.chat.server.user.UserService;
+import com.chat.server.identity.User;
+import com.chat.server.identity.UserService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;

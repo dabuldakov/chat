@@ -1,0 +1,12 @@
+# Локальная разработка: работающие «из коробки» значения.
+# Секреты намеренно небезопасные и только для dev.
+spring:
+  jpa:
+    show-sql: true
+
+jwt:
+  secret: ${JWT_SECRET:dev-insecure-secret-please-set-JWT_SECRET}
+
+logging:
+  level:
+    com.chat.server: DEBUG

@@ -1,16 +1,16 @@
 package com.chat.server.integration;
 
-import com.chat.server.chat.Chat;
-import com.chat.server.chat.Participant;
-import com.chat.server.user.User;
+import com.chat.server.conversation.Chat;
+import com.chat.server.conversation.Participant;
+import com.chat.server.identity.User;
 import com.chat.server.exception.AccessDeniedException;
 import com.chat.server.exception.ConflictException;
 import com.chat.server.exception.NotFoundException;
-import com.chat.server.chat.ChatRepository;
-import com.chat.server.chat.ParticipantRepository;
-import com.chat.server.user.UserRepository;
-import com.chat.server.chat.ChatService;
-import com.chat.server.chat.ParticipantService;
+import com.chat.server.conversation.ChatRepository;
+import com.chat.server.conversation.ParticipantRepository;
+import com.chat.server.identity.UserRepository;
+import com.chat.server.conversation.ChatService;
+import com.chat.server.conversation.ParticipantService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

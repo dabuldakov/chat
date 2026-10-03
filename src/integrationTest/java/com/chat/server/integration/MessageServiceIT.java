@@ -1,20 +1,20 @@
 package com.chat.server.integration;
 
-import com.chat.server.chat.ChatResponseDto;
-import com.chat.server.message.DeliveryStatusDto;
-import com.chat.server.chat.Chat;
-import com.chat.server.message.Message;
-import com.chat.server.user.User;
+import com.chat.server.conversation.ChatResponseDto;
+import com.chat.server.conversation.DeliveryStatusDto;
+import com.chat.server.conversation.Chat;
+import com.chat.server.conversation.Message;
+import com.chat.server.identity.User;
 import com.chat.server.exception.AccessDeniedException;
 import com.chat.server.exception.BadRequestException;
 import com.chat.server.exception.NotFoundException;
-import com.chat.server.chat.ChatRepository;
-import com.chat.server.message.MessageRepository;
-import com.chat.server.user.UserRepository;
-import com.chat.server.chat.ChatService;
-import com.chat.server.message.MessageService;
+import com.chat.server.conversation.ChatRepository;
+import com.chat.server.conversation.MessageRepository;
+import com.chat.server.identity.UserRepository;
+import com.chat.server.conversation.ChatService;
+import com.chat.server.conversation.MessageService;
 import com.chat.server.notification.PushNotificationService;
-import com.chat.server.message.MessageStatusService;
+import com.chat.server.conversation.MessageStatusService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -131,7 +131,8 @@ class MessageServiceIT extends AbstractIntegrationTest {
         assertThat(messageStatusService.getMessageStatusForUser(message.getMessageUuid(), user2.getUserId()))
                 .isEqualTo(DeliveryStatusDto.SENT);
 
-        verify(pushNotificationService).sendMessageNotification(Mockito.eq(message), Mockito.anyList());
+        verify(pushNotificationService).sendMessageNotification(
+                Mockito.eq(user1.getUserId()), Mockito.eq("Hello world"), Mockito.anyList());
     }
 
     @Test

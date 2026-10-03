@@ -1,9 +1,9 @@
 package com.chat.server.notification;
 
 import com.google.firebase.messaging.*;
-import com.google.gson.Gson;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
@@ -16,8 +16,33 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class FcmService {
 
-    private final FirebaseMessaging firebaseMessaging;
-    private final Gson gson = new Gson();
+    private final ObjectProvider<FirebaseMessaging> firebaseMessagingProvider;
+
+    /**
+     * Firebase Admin может быть не сконфигурирован (например, в dev/CI).
+     * Тогда отправка становится no-op, а не падением контекста.
+     */
+    private FirebaseMessaging firebaseMessaging() {
+        return firebaseMessagingProvider.getIfAvailable();
+    }
+
+    private void send(Message message) throws FirebaseMessagingException {
+        FirebaseMessaging messaging = firebaseMessaging();
+        if (messaging == null) {
+            log.debug("FCM disabled, dropping notification");
+            return;
+        }
+        messaging.send(message);
+    }
+
+    private BatchResponse sendEachForMulticast(MulticastMessage message) throws FirebaseMessagingException {
+        FirebaseMessaging messaging = firebaseMessaging();
+        if (messaging == null) {
+            log.debug("FCM disabled, dropping multicast notification");
+            return null;
+        }
+        return messaging.sendEachForMulticast(message);
+    }
 
     /**
      * Отправка уведомления о новом сообщении
@@ -70,8 +95,8 @@ public class FcmService {
                     .build();
 
             // Отправляем
-            String response = firebaseMessaging.send(message);
-            log.debug("Message notification sent successfully: {}", response);
+            send(message);
+            log.debug("Message notification sent successfully");
 
         } catch (FirebaseMessagingException e) {
             log.error("Failed to send message notification to token: {}", fcmToken, e);
@@ -102,8 +127,8 @@ public class FcmService {
                             .build())
                     .build();
 
-            String response = firebaseMessaging.send(message);
-            log.debug("Typing notification sent successfully: {}", response);
+            send(message);
+            log.debug("Typing notification sent successfully");
 
         } catch (FirebaseMessagingException e) {
             log.error("Failed to send typing notification to token: {}", fcmToken, e);
@@ -140,8 +165,8 @@ public class FcmService {
                             .build())
                     .build();
 
-            String response = firebaseMessaging.send(message);
-            log.debug("Call notification sent successfully: {}", response);
+            send(message);
+            log.debug("Call notification sent successfully");
 
         } catch (FirebaseMessagingException e) {
             log.error("Failed to send call notification to token: {}", fcmToken, e);
@@ -172,8 +197,8 @@ public class FcmService {
                             .build())
                     .build();
 
-            String response = firebaseMessaging.send(message);
-            log.debug("Read receipt sent successfully: {}", response);
+            send(message);
+            log.debug("Read receipt sent successfully");
 
         } catch (FirebaseMessagingException e) {
             log.error("Failed to send read receipt to token: {}", fcmToken, e);
@@ -203,7 +228,10 @@ public class FcmService {
                             .build())
                     .build();
 
-            BatchResponse response = firebaseMessaging.sendEachForMulticast(message);
+            BatchResponse response = sendEachForMulticast(message);
+            if (response == null) {
+                return;
+            }
 
             log.info("Multicast notification sent. Success: {}, Failure: {}",
                     response.getSuccessCount(), response.getFailureCount());
@@ -244,8 +272,8 @@ public class FcmService {
                     .putAllData(data)
                     .build();
 
-            String response = firebaseMessaging.send(message);
-            log.debug("New contact notification sent: {}", response);
+            send(message);
+            log.debug("New contact notification sent");
 
         } catch (FirebaseMessagingException e) {
             log.error("Failed to send new contact notification", e);
@@ -279,8 +307,8 @@ public class FcmService {
                     .putAllData(data)
                     .build();
 
-            String response = firebaseMessaging.send(message);
-            log.debug("Group invite notification sent: {}", response);
+            send(message);
+            log.debug("Group invite notification sent");
 
         } catch (FirebaseMessagingException e) {
             log.error("Failed to send group invite notification", e);
@@ -307,8 +335,8 @@ public class FcmService {
                     .putAllData(data)
                     .build();
 
-            String response = firebaseMessaging.send(message);
-            log.debug("Message deleted notification sent: {}", response);
+            send(message);
+            log.debug("Message deleted notification sent");
 
         } catch (FirebaseMessagingException e) {
             log.error("Failed to send message deleted notification", e);

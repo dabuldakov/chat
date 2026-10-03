@@ -12,51 +12,24 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import com.chat.server.user.User;
+import com.chat.server.identity.User;
 @Repository
 public interface ContactRepository extends JpaRepository<Contact, Long> {
 
-    // ==================== Поиск по UUID ====================
-
     Optional<Contact> findByContactUuid(UUID contactUuid);
-
-    // ==================== Поиск контактов пользователя ====================
-
-    List<Contact> findByUserId(Long userId);
 
     Page<Contact> findByUserId(Long userId, Pageable pageable);
 
     @Query("SELECT c FROM Contact c WHERE c.userId = :userId ORDER BY c.contactName ASC")
     List<Contact> findByUserIdOrderByName(@Param("userId") Long userId);
 
-    // ==================== Поиск конкретного контакта ====================
-
-    Optional<Contact> findByUserIdAndContactUserId(Long userId, Long contactUserId);
-
-    @Query("SELECT c FROM Contact c WHERE c.userId = :userId AND c.contactUserId IN :contactUserIds")
-    List<Contact> findByUserIdAndContactUserIds(@Param("userId") Long userId,
-                                                @Param("contactUserIds") List<Long> contactUserIds);
-
-    // ==================== Проверка существования ====================
-
     boolean existsByUserIdAndContactUserId(Long userId, Long contactUserId);
-
-    @Query("SELECT CASE WHEN COUNT(c) > 0 THEN true ELSE false END FROM Contact c WHERE c.userId = :userId AND c.contactUserId = :contactUserId")
-    boolean isContactExists(@Param("userId") Long userId, @Param("contactUserId") Long contactUserId);
-
-    // ==================== Подсчет контактов ====================
-
-    long countByUserId(Long userId);
-
-    // ==================== Удаление ====================
 
     @Modifying
     void deleteByUserIdAndContactUserId(Long userId, Long contactUserId);
 
     @Modifying
     void deleteByUserId(Long userId);
-
-    // ==================== Поиск с фильтрацией ====================
 
     @Query("""
         SELECT c FROM Contact c 
@@ -68,8 +41,6 @@ public interface ContactRepository extends JpaRepository<Contact, Long> {
     Page<Contact> searchContacts(@Param("userId") Long userId,
                                  @Param("search") String search,
                                  Pageable pageable);
-
-    // ==================== Получение ID контактов ====================
 
     @Query("SELECT c.contactUserId FROM Contact c WHERE c.userId = :userId")
     List<Long> findContactUserIdsByUserId(@Param("userId") Long userId);

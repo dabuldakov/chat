@@ -1,0 +1,18 @@
+# Прод: все секреты обязательны из окружения, без небезопасных дефолтов.
+spring:
+  jpa:
+    show-sql: false
+
+# Нет дефолта — приложение не стартует без JWT_SECRET.
+jwt:
+  secret: ${JWT_SECRET}
+
+server:
+  error:
+    # Не раскрываем внутренние сообщения об ошибках наружу.
+    include-message: never
+    include-binding-errors: never
+
+logging:
+  level:
+    com.chat.server: INFO

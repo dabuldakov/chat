@@ -6,28 +6,27 @@ import lombok.Setter;
 import lombok.ToString;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 
+/**
+ * Общая база сущностей: {@code created_at}/{@code updated_at} и оптимистичная
+ * блокировка. Времена проставляются в UTC единообразно через callbacks — без
+ * Spring Data auditing, чтобы не было двух источников времени.
+ */
 @Getter
 @Setter
 @ToString
 @MappedSuperclass
 @NoArgsConstructor
 @AllArgsConstructor
-@EntityListeners(AuditingEntityListener.class)
 public abstract class BaseEntity implements Serializable {
 
-    @CreatedDate
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
-    @LastModifiedDate
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 

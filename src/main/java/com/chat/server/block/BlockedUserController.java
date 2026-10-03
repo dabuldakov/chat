@@ -1,7 +1,7 @@
 package com.chat.server.block;
 
-import com.chat.server.user.User;
-import com.chat.server.user.UserService;
+import com.chat.server.identity.User;
+import com.chat.server.identity.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;

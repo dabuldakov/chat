@@ -1,8 +1,8 @@
 package com.chat.server.integration;
 
-import com.chat.server.auth.JwtUtil;
-import com.chat.server.user.User;
-import com.chat.server.user.UserService;
+import com.chat.server.identity.JwtUtil;
+import com.chat.server.identity.User;
+import com.chat.server.identity.UserService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -14,9 +14,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.chat.server.auth.JwtAuthenticationFilter;
+import com.chat.server.identity.JwtAuthenticationFilter;
 /**
- * Регрессионные тесты безопасности {@link com.chat.server.auth.AuthController}.
+ * Регрессионные тесты безопасности {@link com.chat.server.identity.AuthController}.
  * <p>
  * Раньше {@code JwtAuthenticationFilter.isPublicEndpoint} помечал публичными все
  * {@code /api/auth/**} и пропускал JWT-фильтр. Из-за этого {@code Authentication} был

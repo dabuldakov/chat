@@ -1,12 +1,12 @@
 package com.chat.server.integration;
 
-import com.chat.server.chat.Chat;
-import com.chat.server.message.Message;
-import com.chat.server.user.User;
-import com.chat.server.chat.ChatRepository;
-import com.chat.server.message.MessageRepository;
-import com.chat.server.user.UserRepository;
-import com.chat.server.chat.ChatService;
+import com.chat.server.conversation.Chat;
+import com.chat.server.conversation.Message;
+import com.chat.server.identity.User;
+import com.chat.server.conversation.ChatRepository;
+import com.chat.server.conversation.MessageRepository;
+import com.chat.server.identity.UserRepository;
+import com.chat.server.conversation.ChatService;
 import com.chat.server.sync.SyncService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

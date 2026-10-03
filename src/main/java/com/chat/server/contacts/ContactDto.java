@@ -1,7 +1,7 @@
 package com.chat.server.contacts;
 
-import com.chat.server.presence.PresenceInfo;
-import com.chat.server.user.User;
+import com.chat.server.identity.PresenceInfo;
+import com.chat.server.identity.User;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 import lombok.Data;

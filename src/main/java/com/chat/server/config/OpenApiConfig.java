@@ -14,7 +14,6 @@ import org.springframework.context.annotation.Configuration;
 
 import java.util.List;
 
-import com.chat.server.chat.Chat;
 @Configuration
 public class OpenApiConfig {
 

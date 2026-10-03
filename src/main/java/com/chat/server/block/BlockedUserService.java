@@ -1,6 +1,6 @@
 package com.chat.server.block;
 
-import com.chat.server.user.User;
+import com.chat.server.identity.User;
 import com.chat.server.exception.ConflictException;
 import com.chat.server.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -11,12 +11,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import com.chat.server.contacts.Contact;
 import com.chat.server.contacts.ContactService;
-import com.chat.server.user.UserService;
+import com.chat.server.identity.UserService;
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -30,7 +31,6 @@ public class BlockedUserService {
     public BlockedUser blockUser(Long userId, BlockUserRequestDto request) {
         log.info("Blocking user: {} by user: {}", request.getBlockUserUuid(), userId);
 
-        User user = userService.getUserById(userId);
         User blockedUser = userService.getUserByUuid(request.getBlockUserUuid());
 
         // Нельзя заблокировать себя
@@ -69,11 +69,9 @@ public class BlockedUserService {
 
         List<BlockedUser> blockedUsers = blockedUserRepository.findByUserId(userId);
 
+        Map<Long, User> usersById = usersById(blockedUsers);
         return blockedUsers.stream()
-                .map(block -> {
-                    User blockedUserInfo = userService.getUserById(block.getBlockedUserId());
-                    return BlockedUserDto.fromEntity(block, blockedUserInfo);
-                })
+                .map(block -> BlockedUserDto.fromEntity(block, usersById.get(block.getBlockedUserId())))
                 .collect(Collectors.toList());
     }
 
@@ -85,10 +83,8 @@ public class BlockedUserService {
 
         Page<BlockedUser> blockedUsers = blockedUserRepository.findByUserId(userId, pageable);
 
-        return blockedUsers.map(block -> {
-            User blockedUserInfo = userService.getUserById(block.getBlockedUserId());
-            return BlockedUserDto.fromEntity(block, blockedUserInfo);
-        });
+        Map<Long, User> usersById = usersById(blockedUsers.getContent());
+        return blockedUsers.map(block -> BlockedUserDto.fromEntity(block, usersById.get(block.getBlockedUserId())));
     }
 
     @Transactional(readOnly = true)
@@ -99,10 +95,18 @@ public class BlockedUserService {
 
         Page<BlockedUser> blockedUsers = blockedUserRepository.searchBlockedUsers(userId, search, pageable);
 
-        return blockedUsers.map(block -> {
-            User blockedUserInfo = userService.getUserById(block.getBlockedUserId());
-            return BlockedUserDto.fromEntity(block, blockedUserInfo);
-        });
+        Map<Long, User> usersById = usersById(blockedUsers.getContent());
+        return blockedUsers.map(block -> BlockedUserDto.fromEntity(block, usersById.get(block.getBlockedUserId())));
+    }
+
+    /** Пользователи одним запросом вместо N+1 обращений по каждому блоком. */
+    private Map<Long, User> usersById(List<BlockedUser> blocks) {
+        return userService.getUsersByIds(blocks.stream()
+                        .map(BlockedUser::getBlockedUserId)
+                        .distinct()
+                        .toList())
+                .stream()
+                .collect(Collectors.toMap(User::getUserId, Function.identity()));
     }
 
     @Transactional(readOnly = true)

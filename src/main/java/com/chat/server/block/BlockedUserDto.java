@@ -1,6 +1,6 @@
 package com.chat.server.block;
 
-import com.chat.server.user.User;
+import com.chat.server.identity.User;
 import lombok.Builder;
 import lombok.Data;
 

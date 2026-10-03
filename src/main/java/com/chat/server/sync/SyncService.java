@@ -1,8 +1,8 @@
 package com.chat.server.sync;
 
-import com.chat.server.chat.Chat;
-import com.chat.server.message.Message;
-import com.chat.server.message.MessageRepository;
+import com.chat.server.conversation.Chat;
+import com.chat.server.conversation.Message;
+import com.chat.server.conversation.MessageRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -16,8 +16,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.chat.server.chat.ChatService;
-import com.chat.server.chat.ParticipantService;
+import com.chat.server.conversation.ChatService;
+import com.chat.server.conversation.ParticipantService;
 @Slf4j
 @Service
 @RequiredArgsConstructor

@@ -1,10 +1,10 @@
 package com.chat.server.contacts;
 
-import com.chat.server.user.User;
+import com.chat.server.identity.User;
 import com.chat.server.exception.ConflictException;
 import com.chat.server.exception.NotFoundException;
-import com.chat.server.presence.PresenceInfo;
-import com.chat.server.presence.PresenceService;
+import com.chat.server.identity.PresenceInfo;
+import com.chat.server.identity.PresenceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -20,8 +20,7 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import com.chat.server.block.BlockedUserService;
-import com.chat.server.user.UserService;
+import com.chat.server.identity.UserService;
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -30,7 +29,6 @@ public class ContactService {
     private final ContactRepository contactRepository;
     private final UserService userService;
     private final PresenceService presenceService;
-    //private final BlockedUserService blockedUserService;
 
     @Transactional
     public Contact addContact(Long userId, AddContactRequestDto request) {
@@ -43,11 +41,6 @@ public class ContactService {
         if (userId.equals(contactUser.getUserId())) {
             throw new ConflictException("Cannot add yourself as a contact");
         }
-
-/*        // Проверяем, не заблокирован ли контакт
-        if (blockedUserService.isBlocked(userId, contactUser.getUserId())) {
-            throw new ConflictException("Cannot add blocked user as contact");
-        }*/
 
         // Проверяем, не добавлен ли уже
         if (contactRepository.existsByUserIdAndContactUserId(userId, contactUser.getUserId())) {

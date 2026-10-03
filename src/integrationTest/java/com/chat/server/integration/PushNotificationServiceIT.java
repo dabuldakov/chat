@@ -1,12 +1,11 @@
 package com.chat.server.integration;
 
-import com.chat.server.message.Message;
-import com.chat.server.user.User;
-import com.chat.server.auth.UserSession;
-import com.chat.server.user.UserRepository;
+import com.chat.server.identity.User;
+import com.chat.server.identity.UserSession;
+import com.chat.server.identity.UserRepository;
 import com.chat.server.notification.FcmService;
 import com.chat.server.notification.PushNotificationService;
-import com.chat.server.auth.UserSessionService;
+import com.chat.server.identity.UserSessionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -60,19 +59,13 @@ class PushNotificationServiceIT extends AbstractIntegrationTest {
         return session;
     }
 
-    private Message message(Long senderId, String text) {
-        return Message.builder()
-                .senderId(senderId)
-                .messageText(text)
-                .build();
-    }
 
     @Test
     void shouldNotifyAllRecipientsExceptSender() {
         UserSession senderSession = sessionWithFcm(sender.getUserId(), "sender-tok", "fcm-sender");
         UserSession recipientSession = sessionWithFcm(recipient.getUserId(), "recipient-tok", "fcm-recipient");
 
-        pushNotificationService.sendMessageNotification(message(sender.getUserId(), "hi"), 
+        pushNotificationService.sendMessageNotification(sender.getUserId(), "hi", 
                 List.of(sender.getUserId(), recipient.getUserId()));
 
         verify(fcmService).sendMessageNotification("fcm-recipient", sender.getUserId(), "hi");
@@ -83,7 +76,7 @@ class PushNotificationServiceIT extends AbstractIntegrationTest {
     void shouldNotSendNotificationWithoutFcmToken() {
         sessionWithFcm(recipient.getUserId(), "recipient-tok", null);
 
-        pushNotificationService.sendMessageNotification(message(sender.getUserId(), "hi"),
+        pushNotificationService.sendMessageNotification(sender.getUserId(), "hi",
                 List.of(sender.getUserId(), recipient.getUserId()));
 
         verify(fcmService, never()).sendMessageNotification(any(), any(), any());
@@ -94,7 +87,7 @@ class PushNotificationServiceIT extends AbstractIntegrationTest {
         sessionWithFcm(recipient.getUserId(), "recipient-tok-1", "fcm-same");
         sessionWithFcm(recipient.getUserId(), "recipient-tok-2", "fcm-same");
 
-        pushNotificationService.sendMessageNotification(message(sender.getUserId(), "hi"),
+        pushNotificationService.sendMessageNotification(sender.getUserId(), "hi",
                 List.of(recipient.getUserId()));
 
         verify(fcmService, org.mockito.Mockito.times(1))
