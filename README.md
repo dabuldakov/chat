@@ -89,27 +89,28 @@ bucket остаётся закрытым, внешний адрес MinIO при
 Поддерживаются JPEG/PNG до 5 MB; изображение преобразуется в PNG до 512 px.
 Новая версия получает новый URL. Контакты, приватные чаты и сообщения возвращают этот URL.
 
-Для Docker Compose сначала запустите makeup (в нём поднимается MinIO). Chat app подключается
-к **той же Docker-сети**, что и MinIO, и обращается к нему по имени `http://minio:9000`.
-Узнайте реальное имя сети MinIO (оно зависит от имени compose-проекта makeup):
+Для Docker Compose MinIO поднимается в makeup. Оба проекта подключаются к
+нейтральной внешней сети **`shared-minio`** (её создаёт deploy и в неё входит
+MinIO), поэтому chat не заходит в сеть makeup и обращается к хранилищу по имени
+`http://minio:9000`.
+
+Один раз создайте сеть на хосте (deploy делает это автоматически):
 
 ```bash
-docker inspect makeup-backend-minio-1 \
-  --format '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{"\n"}}{{end}}'
+docker network create shared-minio
 ```
 
-Добавьте в `chat/.env` доступ к **тому же** MinIO (значения ключей возьмите из конфигурации makeup):
+Добавьте в `chat/.env` доступ к общему MinIO (значения ключей возьмите из конфигурации makeup):
 
 ```dotenv
 MINIO_URL=http://minio:9000
 MINIO_ACCESS_KEY=<ключ доступа из makeup>
 MINIO_SECRET_KEY=<секретный ключ из makeup>
 MINIO_AVATAR_BUCKET=avatars
-MINIO_NETWORK=<имя сети из команды выше>
 ```
 
-`MINIO_NETWORK` обязателен: compose подключает chat к этой внешней сети. Bucket создаётся
-при первой загрузке; ключу MinIO нужны права создания bucket и чтения/записи/удаления объектов.
+Bucket создаётся при первой загрузке; ключу MinIO нужны права создания bucket и
+чтения/записи/удаления объектов.
 
 ```bash
 docker compose up -d --build app
@@ -288,5 +289,6 @@ cd /opt/chat
 docker compose up -d
 ```
 
-Важно: chat использует внешнюю Docker-сеть MinIO из makeup, поэтому на сервере
-makeup должен быть поднят раньше. Дальнейшие деплои идут автоматически при push в `main`.
+Важно: chat использует общую внешнюю Docker-сеть `shared-minio` (в ней же MinIO
+из makeup), поэтому MinIO должен быть поднят. Сеть создаётся в deploy идемпотентно.
+Дальнейшие деплои идут автоматически при push в `main`.

@@ -80,9 +80,11 @@ services:
       - chat-network
 
 networks:
+  # Нейтральная общая сеть с makeup для доступа к MinIO (создаётся на хосте
+  # в deploy). chat больше не заходит в сеть makeup — нет коллизий алиасов.
   shared-minio:
     external: true
-    name: ${MINIO_NETWORK}
+    name: shared-minio
   chat-network:
     driver: bridge
 
