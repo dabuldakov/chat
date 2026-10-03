@@ -17,11 +17,25 @@ services:
     networks:
       - chat-network
 
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - chat-network
+
   app:
     build: .
     restart: unless-stopped
-    ports:
-      - "8086:8080"
+    # Порт не публикуется наружу: масштабируем за nginx.
+    # Число реплик: `APP_REPLICAS=3` в .env или `docker compose up --scale app=3`.
+    deploy:
+      replicas: ${APP_REPLICAS:-1}
     environment:
       SPRING_PROFILES_ACTIVE: prod
       DATABASE_URL: ${POSTGRES_URL}
@@ -30,6 +44,8 @@ services:
       TZ: UTC
       JWT_SECRET: ${JWT_SECRET}
       FCM_ENABLED: ${FCM_ENABLED:-false}
+      REDIS_HOST: redis
+      APP_CACHE_REDIS_ENABLED: "true"
       MINIO_URL: ${MINIO_URL:-http://minio:9000}
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
@@ -38,11 +54,25 @@ services:
       - .env
     depends_on:
       - postgres
+      - redis
     networks:
       - chat-network
       - shared-minio
     extra_hosts:
       - "90.188.89.63:host-gateway"
+
+  # Балансировщик: внешний порт остаётся 8086, внутри — на все реплики app.
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "8086:80"
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
+    networks:
+      - chat-network
 
 networks:
   shared-minio:

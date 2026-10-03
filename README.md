@@ -41,6 +41,37 @@ account (удаление аккаунта) → identity, conversation, storage 
 Секреты задаются только через окружение; профиль `prod` не содержит дефолтов и
 не стартует без `JWT_SECRET`.
 
+## Горизонтальное масштабирование
+
+Несколько нод работают с **одной общей БД** и общим MinIO. Приложение stateless
+(JWT + сессии в БД, файлы в MinIO), sticky sessions не нужны. Что учитывается:
+
+- **Кеш** — по умолчанию (dev, одна нода) локальный Caffeine. При нескольких
+  нодах включается общий **Redis**: `app.cache.redis.enabled=true`
+  (`REDIS_HOST`/`REDIS_PORT`). Иначе `@CacheEvict` на одной ноде не виден
+  другим, и до TTL отдаётся устаревшее значение.
+- **Шедулеры** — `PresenceSweeper`, `MessagePartitionScheduler` и очистка сессий
+  защищены лидер-локом на PostgreSQL advisory locks
+  (`DistributedLockService`): задачу выполняет ровно одна нода.
+- **Flyway** берёт advisory-lock и накатывает миграции один раз; для лишних нод
+  можно выставить `SPRING_FLYWAY_ENABLED=false`.
+- **Пул БД** — `hikari.maximum-pool-size` умножается на число нод; при росте
+  ставьте PgBouncer и/или read-реплики для `@Transactional(readOnly=true)`.
+
+`docker-compose.yaml` уже готов к масштабированию: `app` не публикует порт,
+наружу смотрит `nginx` (порт `8086`) и балансирует между репликами.
+
+```bash
+# 2 реплики разово
+docker compose up -d --scale app=3
+
+# или постоянно через .env
+APP_REPLICAS=3
+```
+
+Если ноды делят **одну БД** — это масштабирование. Если у каждого своя БД — это
+два независимых инстанса (см. выше).
+
 ## Требования
 
 - JDK 21
@@ -139,6 +170,9 @@ docker compose exec app wget -qO- http://minio:9000/minio/health/ready && echo "
 | `MINIO_AVATAR_BUCKET` / `MINIO_ATTACHMENT_BUCKET` | bucket’ы | `avatars` / `attachments` |
 | `FCM_ENABLED` | включать ли Firebase push | `false` |
 | `FCM_SERVICE_ACCOUNT_FILE` | путь к сервисному аккаунту в classpath | `firebase-service-account.json` |
+| `APP_CACHE_REDIS_ENABLED` | общий Redis-кеш вместо локального Caffeine | `false` (в `prod` — `true`) |
+| `REDIS_HOST` / `REDIS_PORT` | адрес Redis | `redis:6379` |
+| `APP_REPLICAS` | число реплик `app` в compose | `1` |
 | `MAIL_HOST` / `MAIL_PORT` / `MAIL_USERNAME` / `MAIL_PASSWORD` | SMTP для писем | пустые |
 | `SERVER_PORT` | порт приложения | `8080` |
 

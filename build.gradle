@@ -48,8 +48,9 @@ dependencies {
     implementation 'org.flywaydb:flyway-core'
     implementation 'org.flywaydb:flyway-database-postgresql'
 
-    // Caching
+    // Caching: Caffeine (dev, одна нода) и Redis (prod, несколько нод)
     implementation 'com.github.ben-manes.caffeine:caffeine'
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 
     // Utilities
     implementation 'io.minio:minio:8.5.9'

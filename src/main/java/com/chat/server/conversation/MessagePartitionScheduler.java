@@ -1,5 +1,6 @@
 package com.chat.server.conversation;
 
+import com.chat.server.config.DistributedLockService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -23,16 +24,20 @@ public class MessagePartitionScheduler {
 
     private static final int MONTHS_AHEAD = 6;
 
+    /** Ключ advisory-лока: партиции создаёт один инстанс за раз. */
+    private static final long LOCK_KEY = 1_845_003L;
+
     private final JdbcTemplate jdbcTemplate;
+    private final DistributedLockService lockService;
 
     @EventListener(ApplicationReadyEvent.class)
     public void onStartup() {
-        ensurePartitions();
+        lockService.runIfLockAcquired(LOCK_KEY, this::ensurePartitions);
     }
 
     @Scheduled(cron = "0 15 3 * * *")
     public void ensurePartitionsDaily() {
-        ensurePartitions();
+        lockService.runIfLockAcquired(LOCK_KEY, this::ensurePartitions);
     }
 
     private void ensurePartitions() {

@@ -2,10 +2,20 @@
 spring:
   jpa:
     show-sql: false
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
 
 # Нет дефолта — приложение не стартует без JWT_SECRET.
 jwt:
   secret: ${JWT_SECRET}
+
+app:
+  cache:
+    redis:
+      # Несколько нод должны видеть общий кеш; отключается REDIS_ENABLED=false.
+      enabled: ${APP_CACHE_REDIS_ENABLED:true}
 
 server:
   error:

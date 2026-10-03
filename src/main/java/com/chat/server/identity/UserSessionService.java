@@ -1,5 +1,6 @@
 package com.chat.server.identity;
 
+import com.chat.server.config.DistributedLockService;
 import com.chat.server.exception.BadRequestException;
 import com.chat.server.exception.UnauthorizedException;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +21,7 @@ public class UserSessionService {
 
     private final UserSessionRepository userSessionRepository;
     private final TokenHasher tokenHasher;
+    private final DistributedLockService lockService;
 
     @Transactional
     public UserSession createSession(Long userId, String token, String refreshToken,
@@ -187,7 +189,14 @@ public class UserSessionService {
 
     // ==================== Очистка старых сессий (шедулер) ====================
 
+    /** Ключ advisory-лока: при нескольких инстансах чистит только один. */
+    private static final long SESSION_CLEANUP_LOCK = 1_845_002L;
+
     @Scheduled(cron = "0 0 2 * * ?") // Каждый день в 2 часа ночи
+    public void scheduledSessionCleanup() {
+        lockService.runIfLockAcquired(SESSION_CLEANUP_LOCK, this::cleanupExpiredSessions);
+    }
+
     @Transactional
     public void cleanupExpiredSessions() {
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);

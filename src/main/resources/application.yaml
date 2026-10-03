@@ -67,6 +67,11 @@ jwt:
   refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}  # 7 дней
 
 app:
+  cache:
+    redis:
+      # false — локальный Caffeine (dev/одна нода). true — общий Redis-кеш
+      # (несколько нод: иначе @CacheEvict не виден другим инстансам).
+      enabled: ${APP_CACHE_REDIS_ENABLED:false}
   cors:
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:*}
   presence:
