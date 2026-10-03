@@ -56,8 +56,12 @@ services:
       - postgres
       - redis
     networks:
-      - chat-network
-      - shared-minio
+      # Уникальный алиас: сеть shared-minio общая с makeup, и service alias `app`
+      # там конфликтует с app от makeup.
+      chat-network:
+        aliases:
+          - chat-app
+      shared-minio:
     extra_hosts:
       - "90.188.89.63:host-gateway"
 
@@ -68,7 +72,8 @@ services:
     ports:
       - "8086:80"
     volumes:
-      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      # Каталог, а не файл: bind-mount файла держит inode и не видит замену.
+      - ./deploy:/etc/nginx/conf.d:ro
     depends_on:
       - app
     networks:
