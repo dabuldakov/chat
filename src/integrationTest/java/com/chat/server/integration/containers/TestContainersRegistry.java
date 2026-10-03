@@ -6,6 +6,8 @@ import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 
+import java.time.Duration;
+
 /**
  * Единая точка старта контейнеров для всех интеграционных тестов.
  * Контейнеры поднимаются один раз на JVM и переиспользуются всеми тестами.
@@ -23,7 +25,11 @@ public final class TestContainersRegistry {
                     .withEnv("MINIO_ROOT_PASSWORD", "minioadmin")
                     .withCommand("server", "/data")
                     .withExposedPorts(9000)
-                    .waitingFor(Wait.forHttp("/minio/health/ready").forPort(9000));
+                    // Холодный раннер: pull образа + ready могут занять больше
+                    // дефолтных 60с. Даём запас, иначе весь прогон IT падает.
+                    .withStartupTimeout(Duration.ofMinutes(3))
+                    .waitingFor(Wait.forHttp("/minio/health/ready").forPort(9000)
+                            .withStartupTimeout(Duration.ofMinutes(3)));
 
     static {
         log.info("Starting PostgreSQL test container...");
