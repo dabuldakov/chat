@@ -4,7 +4,8 @@ FROM gradle:9.4-jdk21 AS build
 WORKDIR /app
 COPY . .
 
-RUN gradle build --no-daemon
+# Только сборка jar: тесты гоняются в CI, здесь они только замедляют образ.
+RUN gradle bootJar --no-daemon
 
 # Runtime stage
 FROM amazoncorretto:21-alpine
