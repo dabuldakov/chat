@@ -12,6 +12,8 @@
 
 # Package Files #
 *.jar
+# Gradle wrapper обязан быть в репозитории, иначе CI не соберётся
+!gradle/wrapper/gradle-wrapper.jar
 *.war
 *.nar
 *.ear
