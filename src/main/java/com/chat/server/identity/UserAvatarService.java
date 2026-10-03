@@ -14,14 +14,14 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.UUID;
 
-import com.chat.server.storage.MinioAvatarStorage;
+import com.chat.server.storage.AvatarStorage;
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserAvatarService {
     private static final String PREFIX = "/api/avatars/";
     private static final long MAX_SIZE = 5 * 1024 * 1024;
-    private final MinioAvatarStorage storage;
+    private final AvatarStorage storage;
     private final UserService users;
 
     public String upload(Long userId, MultipartFile file) {

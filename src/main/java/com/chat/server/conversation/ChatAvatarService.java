@@ -16,7 +16,7 @@ import java.io.IOException;
 import java.util.Objects;
 import java.util.UUID;
 
-import com.chat.server.storage.MinioAvatarStorage;
+import com.chat.server.storage.AvatarStorage;
 import com.chat.server.identity.UserAvatarService;
 /**
  * Аватары групповых чатов. Реализованы по образцу {@link UserAvatarService}:
@@ -31,7 +31,7 @@ public class ChatAvatarService {
     private static final String PREFIX = "/api/avatars/";
     private static final long MAX_SIZE = 5 * 1024 * 1024;
 
-    private final MinioAvatarStorage storage;
+    private final AvatarStorage storage;
     private final ChatService chats;
 
     public String upload(Long chatId, UUID chatUuid, Long userId, MultipartFile file) {

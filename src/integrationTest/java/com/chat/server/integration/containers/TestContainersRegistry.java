@@ -2,15 +2,15 @@ package com.chat.server.integration.containers;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.containers.wait.strategy.Wait;
-
-import java.time.Duration;
 
 /**
- * Единая точка старта контейнеров для всех интеграционных тестов.
- * Контейнеры поднимаются один раз на JVM и переиспользуются всеми тестами.
+ * Единая точка старта контейнеров для интеграционных тестов.
+ * Поднимается один раз на JVM и переиспользуется всеми тестами.
+ *
+ * <p>Только PostgreSQL: объектное хранилище в тестах подменяется in-memory
+ * реализациями ({@code TestStorageConfig}), поэтому внешний MinIO-образ не
+ * требуется — прогон не зависит от доступности реестра образов.
  */
 public final class TestContainersRegistry {
 
@@ -18,31 +18,10 @@ public final class TestContainersRegistry {
 
     public static final PostgreSQLContainer<?> POSTGRES = PostgresTestContainer.create();
 
-    @SuppressWarnings("resource")
-    public static final GenericContainer<?> MINIO =
-            new GenericContainer<>("quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z")
-                    .withEnv("MINIO_ROOT_USER", "minioadmin")
-                    .withEnv("MINIO_ROOT_PASSWORD", "minioadmin")
-                    .withCommand("server", "/data")
-                    .withExposedPorts(9000)
-                    // Холодный раннер: pull образа + ready могут занять больше
-                    // дефолтных 60с. Даём запас, иначе весь прогон IT падает.
-                    .withStartupTimeout(Duration.ofMinutes(3))
-                    .waitingFor(Wait.forHttp("/minio/health/ready").forPort(9000)
-                            .withStartupTimeout(Duration.ofMinutes(3)));
-
     static {
         log.info("Starting PostgreSQL test container...");
         POSTGRES.start();
         log.info("PostgreSQL test container started at {}", POSTGRES.getJdbcUrl());
-
-        log.info("Starting MinIO test container...");
-        MINIO.start();
-        log.info("MinIO test container started at {}", minioUrl());
-    }
-
-    public static String minioUrl() {
-        return "http://" + MINIO.getHost() + ":" + MINIO.getMappedPort(9000);
     }
 
     private TestContainersRegistry() {

@@ -20,7 +20,7 @@ import java.util.UUID;
 
 import com.chat.server.conversation.ChatService;
 import com.chat.server.conversation.MessageService;
-import com.chat.server.storage.FileUploadService;
+import com.chat.server.storage.FileStorage;
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -29,7 +29,7 @@ public class AttachmentService {
     private final AttachmentRepository attachmentRepository;
     private final MessageService messageService;
     private final ChatService chatService;
-    private final FileUploadService fileUploadService;
+    private final FileStorage fileUploadService;
 
     /**
      * Без @Transactional: на время загрузки файла в MinIO не удерживается

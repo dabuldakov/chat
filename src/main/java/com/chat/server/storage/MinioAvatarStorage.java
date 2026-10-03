@@ -10,7 +10,7 @@ import java.io.ByteArrayInputStream;
 
 @Service
 @RequiredArgsConstructor
-public class MinioAvatarStorage {
+public class MinioAvatarStorage implements AvatarStorage {
     private final MinioClient client;
     private final MinioConfig config;
 

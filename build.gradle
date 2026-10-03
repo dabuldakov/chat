@@ -75,6 +75,15 @@ test {
     useJUnitPlatform()
 }
 
+// В CI видно полный стек упавших тестов, а не только одну строку.
+tasks.withType(Test).configureEach {
+    testLogging {
+        events 'failed'
+        exceptionFormat = 'full'
+        showStackTraces = true
+    }
+}
+
 sourceSets {
     integrationTest {
         java.srcDirs = ['src/integrationTest/java']

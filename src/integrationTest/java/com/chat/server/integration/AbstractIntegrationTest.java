@@ -1,11 +1,13 @@
 package com.chat.server.integration;
 
 import com.chat.server.integration.containers.TestContainersRegistry;
+import com.chat.server.integration.support.TestStorageConfig;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.cache.CacheManager;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -24,6 +26,7 @@ import java.util.List;
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("integration-test")
+@Import(TestStorageConfig.class)
 public abstract class AbstractIntegrationTest {
 
     private static final List<String> CLEANUP_TABLES = List.of(
@@ -43,12 +46,6 @@ public abstract class AbstractIntegrationTest {
         registry.add("spring.datasource.password", TestContainersRegistry.POSTGRES::getPassword);
         registry.add("spring.jpa.hibernate.ddl-auto", () -> "none");
         registry.add("spring.flyway.enabled", () -> "true");
-
-        registry.add("minio.url", TestContainersRegistry::minioUrl);
-        registry.add("minio.access-key", () -> "minioadmin");
-        registry.add("minio.secret-key", () -> "minioadmin");
-        registry.add("minio.avatar-bucket", () -> "avatars");
-        registry.add("minio.attachment-bucket", () -> "attachments");
     }
 
     @BeforeEach

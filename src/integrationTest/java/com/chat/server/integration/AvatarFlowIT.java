@@ -21,7 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-import com.chat.server.storage.MinioAvatarStorage;
+import com.chat.server.storage.AvatarStorage;
 import com.chat.server.conversation.ChatService;
 import com.chat.server.contacts.ContactService;
 import com.chat.server.identity.UserService;
@@ -34,7 +34,7 @@ class AvatarFlowIT extends AbstractIntegrationTest {
     @Autowired ChatService chats;
     @Autowired JwtUtil jwt;
     @Autowired MessageRepository messages;
-    @Autowired MinioAvatarStorage storage;
+    @Autowired AvatarStorage storage;
     private final ObjectMapper json = new ObjectMapper();
 
     private String token(User user) { return "Bearer " + jwt.generateToken(user.getUserUuid(), user.getUsername()); }

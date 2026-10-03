@@ -2,7 +2,7 @@ package com.chat.server.account;
 
 import com.chat.server.conversation.Attachment;
 import com.chat.server.conversation.AttachmentRepository;
-import com.chat.server.storage.FileUploadService;
+import com.chat.server.storage.FileStorage;
 import com.chat.server.conversation.Chat;
 import com.chat.server.conversation.ChatAvatarService;
 import com.chat.server.conversation.ChatRepository;
@@ -65,7 +65,7 @@ public class AccountDeletionService {
     private final ParticipantRepository participantRepository;
     private final MessageRepository messageRepository;
     private final AttachmentRepository attachmentRepository;
-    private final FileUploadService fileUploadService;
+    private final FileStorage fileUploadService;
     private final CacheManager cacheManager;
 
     @Transactional

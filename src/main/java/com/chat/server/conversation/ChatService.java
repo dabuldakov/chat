@@ -23,7 +23,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import com.chat.server.storage.FileUploadService;
+import com.chat.server.storage.FileStorage;
 import com.chat.server.identity.UserService;
 @Slf4j
 @Service
@@ -34,7 +34,7 @@ public class ChatService {
     private final ParticipantRepository participantRepository;
     private final MessageRepository messageRepository;
     private final AttachmentRepository attachmentRepository;
-    private final FileUploadService fileUploadService;
+    private final FileStorage fileUploadService;
     private final UserService userService;
     private final ChatResponseAssembler chatResponseAssembler;
 

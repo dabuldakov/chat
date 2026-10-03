@@ -12,7 +12,7 @@ import com.chat.server.conversation.ParticipantRepository;
 import com.chat.server.identity.UserRepository;
 import com.chat.server.conversation.AttachmentService;
 import com.chat.server.conversation.ChatService;
-import com.chat.server.storage.FileUploadService;
+import com.chat.server.storage.FileStorage;
 import com.chat.server.conversation.MessageService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -44,7 +44,7 @@ class ChatServiceIT extends AbstractIntegrationTest {
     @Autowired
     private AttachmentService attachmentService;
     @Autowired
-    private FileUploadService fileUploadService;
+    private FileStorage fileUploadService;
 
     private User user1;
     private User user2;

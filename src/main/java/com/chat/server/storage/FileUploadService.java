@@ -25,7 +25,7 @@ import java.io.InputStream;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class FileUploadService {
+public class FileUploadService implements FileStorage {
 
     private final MinioClient minioClient;
     private final MinioConfig minioConfig;
