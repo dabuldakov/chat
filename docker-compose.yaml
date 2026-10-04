@@ -43,7 +43,10 @@ services:
       DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
       TZ: UTC
       JWT_SECRET: ${JWT_SECRET}
-      FCM_ENABLED: ${FCM_ENABLED:-false}
+      # В prod push включён по умолчанию: если сервисный аккаунт не положили,
+      # приложение упадёт на старте (громко), а не потеряет уведомления молча.
+      # Отключается явно: FCM_ENABLED=false.
+      FCM_ENABLED: ${FCM_ENABLED:-true}
       REDIS_HOST: redis
       APP_CACHE_REDIS_ENABLED: "true"
       MINIO_URL: ${MINIO_URL:-http://minio:9000}

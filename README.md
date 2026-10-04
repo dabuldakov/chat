@@ -169,7 +169,7 @@ docker compose exec app wget -qO- http://minio:9000/minio/health/ready && echo "
 | `APP_CORS_ALLOWED_ORIGINS` | origin-паттерны через запятую | `http://localhost:*` |
 | `MINIO_URL` / `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` | объектное хранилище | `localhost:9000`, `minioadmin/minioadmin` |
 | `MINIO_AVATAR_BUCKET` / `MINIO_ATTACHMENT_BUCKET` | bucket’ы | `avatars` / `attachments` |
-| `FCM_ENABLED` | включать ли Firebase push | `false` |
+| `FCM_ENABLED` | включать ли Firebase push | app: `false`; в Docker Compose prod: `true` (без сервисного аккаунта старт упадёт) |
 | `FCM_SERVICE_ACCOUNT_FILE` | путь к сервисному аккаунту в classpath | `firebase-service-account.json` |
 | `APP_CACHE_REDIS_ENABLED` | общий Redis-кеш вместо локального Caffeine | `false` (в `prod` — `true`) |
 | `REDIS_HOST` / `REDIS_PORT` | адрес Redis | `redis:6379` |
