@@ -89,10 +89,10 @@ bucket остаётся закрытым, внешний адрес MinIO при
 Поддерживаются JPEG/PNG до 5 MB; изображение преобразуется в PNG до 512 px.
 Новая версия получает новый URL. Контакты, приватные чаты и сообщения возвращают этот URL.
 
-Для Docker Compose MinIO поднимается в makeup. Оба проекта подключаются к
-нейтральной внешней сети **`shared-minio`** (её создаёт deploy и в неё входит
-MinIO), поэтому chat не заходит в сеть makeup и обращается к хранилищу по имени
-`http://minio:9000`.
+MinIO — **отдельный сервис** [`shared-minio`](https://github.com/dabuldakov/shared-minio).
+Он, chat и makeup подключаются к нейтральной внешней сети **`shared-minio`**
+(её создаёт deploy), поэтому chat не заходит в сеть makeup и обращается к
+хранилищу по имени `http://minio:9000`.
 
 Один раз создайте сеть на хосте (deploy делает это автоматически):
 
@@ -100,12 +100,12 @@ MinIO), поэтому chat не заходит в сеть makeup и обращ
 docker network create shared-minio
 ```
 
-Добавьте в `chat/.env` доступ к общему MinIO (значения ключей возьмите из конфигурации makeup):
+Добавьте в `chat/.env` доступ к общему MinIO (ключи берутся из `shared-minio/.env`):
 
 ```dotenv
 MINIO_URL=http://minio:9000
-MINIO_ACCESS_KEY=<ключ доступа из makeup>
-MINIO_SECRET_KEY=<секретный ключ из makeup>
+MINIO_ACCESS_KEY=<MINIO_ROOT_USER из shared-minio/.env>
+MINIO_SECRET_KEY=<MINIO_ROOT_PASSWORD из shared-minio/.env>
 MINIO_AVATAR_BUCKET=avatars
 ```
 
@@ -289,6 +289,7 @@ cd /opt/chat
 docker compose up -d
 ```
 
-Важно: chat использует общую внешнюю Docker-сеть `shared-minio` (в ней же MinIO
-из makeup), поэтому MinIO должен быть поднят. Сеть создаётся в deploy идемпотентно.
-Дальнейшие деплои идут автоматически при push в `main`.
+Важно: chat использует общую внешнюю Docker-сеть `shared-minio` (в ней же живёт
+отдельный сервис MinIO из репозитория `shared-minio`), поэтому MinIO должен быть
+поднят. Сеть создаётся в deploy идемпотентно. Дальнейшие деплои идут автоматически
+при push в `main`.
