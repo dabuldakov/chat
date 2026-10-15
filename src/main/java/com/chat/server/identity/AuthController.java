@@ -35,11 +35,16 @@ public class AuthController {
     private final UserSessionService userSessionService;
     private final JwtUtil jwtUtil;
     private final PresenceService presenceService;
+    private final LoginRateLimiter loginRateLimiter;
 
     @PostMapping("/register")
     @Operation(summary = "Регистрация нового пользователя")
-    public ResponseEntity<AuthResponseDto> register(@Valid @RequestBody RegisterRequestDto request) {
+    public ResponseEntity<AuthResponseDto> register(
+            @Valid @RequestBody RegisterRequestDto request,
+            HttpServletRequest httpRequest) {
         log.info("Registering new user with username: {}", request.getUsername());
+
+        loginRateLimiter.checkAndRecord("register:" + clientIp(httpRequest));
 
         User user = userService.createUser(
                 request.getUsername(),
@@ -75,7 +80,19 @@ public class AuthController {
             HttpServletRequest httpRequest) {
         log.info("User login attempt: {}", request.getUsername());
 
-        User user = authService.authenticate(request.getUsername(), request.getPassword());
+        // Перебор пароля конкретного аккаунта: считаем неудачные попытки,
+        // успешный вход сбрасывает счётчик.
+        String rateKey = "login:" + request.getUsername().toLowerCase(java.util.Locale.ROOT);
+        loginRateLimiter.check(rateKey);
+
+        User user;
+        try {
+            user = authService.authenticate(request.getUsername(), request.getPassword());
+        } catch (UnauthorizedException e) {
+            loginRateLimiter.record(rateKey);
+            throw e;
+        }
+        loginRateLimiter.reset(rateKey);
 
         String token = jwtUtil.generateToken(user.getUserUuid(), user.getUsername());
         String refreshToken = jwtUtil.generateRefreshToken(user.getUserUuid());
@@ -216,6 +233,19 @@ public class AuthController {
         log.info("Verifying email with token");
         authService.verifyEmail(token);
         return ResponseEntity.ok().build();
+    }
+
+    /**
+     * IP клиента для лимита регистрации. За nginx берём первый адрес
+     * X-Forwarded-For, иначе адрес соединения.
+     */
+    private static String clientIp(HttpServletRequest request) {
+        String forwardedFor = request.getHeader("X-Forwarded-For");
+        if (forwardedFor != null && !forwardedFor.isBlank()) {
+            int comma = forwardedFor.indexOf(',');
+            return (comma > 0 ? forwardedFor.substring(0, comma) : forwardedFor).trim();
+        }
+        return request.getRemoteAddr();
     }
 
     private static String extractBearerToken(HttpServletRequest request) {

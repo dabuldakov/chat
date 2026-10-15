@@ -39,6 +39,9 @@ public abstract class AbstractIntegrationTest {
     @Autowired
     protected CacheManager cacheManager;
 
+    @Autowired
+    protected com.chat.server.identity.LoginRateLimiter loginRateLimiter;
+
     @DynamicPropertySource
     static void registerDatabaseProperties(DynamicPropertyRegistry registry) {
         registry.add("spring.datasource.url", TestContainersRegistry.POSTGRES::getJdbcUrl);
@@ -63,5 +66,8 @@ public abstract class AbstractIntegrationTest {
                 cache.clear();
             }
         });
+        // Лимитер логина/регистрации живёт в памяти — сбрасываем между тестами,
+        // иначе счётчики по IP/username протекают из теста в тест.
+        loginRateLimiter.reset();
     }
 }

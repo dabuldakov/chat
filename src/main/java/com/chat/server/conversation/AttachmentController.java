@@ -60,7 +60,7 @@ public class AttachmentController {
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION,
-                        "attachment; filename=\"" + attachment.getFileName() + "\"")
+                        "attachment; filename=\"" + com.chat.server.util.FileNames.sanitize(attachment.getFileName()) + "\"")
                 .contentType(mediaType(attachment.getMimeType()))
                 .body(resource);
     }
