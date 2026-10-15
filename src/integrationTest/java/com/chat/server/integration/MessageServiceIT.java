@@ -132,7 +132,8 @@ class MessageServiceIT extends AbstractIntegrationTest {
                 .isEqualTo(DeliveryStatusDto.SENT);
 
         verify(pushNotificationService).sendMessageNotification(
-                Mockito.eq(user1.getUserId()), Mockito.eq("Hello world"), Mockito.anyList());
+                Mockito.eq(user1.getUserId()), Mockito.eq("u1"),
+                Mockito.eq("Hello world"), Mockito.anyList());
     }
 
     @Test

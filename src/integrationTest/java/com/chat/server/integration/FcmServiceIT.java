@@ -6,6 +6,7 @@ import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.Message;
 import com.google.firebase.messaging.MessageAccessors;
 import com.google.firebase.messaging.MulticastMessage;
+import com.google.firebase.messaging.Notification;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,7 +34,7 @@ class FcmServiceIT extends AbstractIntegrationTest {
 
     @Test
     void shouldSendMessageNotification() throws com.google.firebase.messaging.FirebaseMessagingException {
-        fcmService.sendMessageNotification("token-1", 10L, "hello");
+        fcmService.sendMessageNotification("token-1", 10L, "Alice", "hello");
 
         ArgumentCaptor<Message> captor = ArgumentCaptor.forClass(Message.class);
         verify(firebaseMessaging, timeout(2000)).send(captor.capture());
@@ -42,11 +43,44 @@ class FcmServiceIT extends AbstractIntegrationTest {
         assertThat(MessageAccessors.tokenOf(sent)).isEqualTo("token-1");
         assertThat(MessageAccessors.dataOf(sent).get("type")).isEqualTo("MESSAGE");
         assertThat(MessageAccessors.dataOf(sent).get("senderId")).isEqualTo("10");
+        assertThat(MessageAccessors.dataOf(sent).get("senderName")).isEqualTo("Alice");
+        // Заголовок уведомления — имя отправителя, а не «Новое сообщение».
+        assertThat(notificationTitleOf(sent)).isEqualTo("Alice");
+    }
+
+    @Test
+    void shouldFallBackToGenericTitleWithoutSenderName() throws com.google.firebase.messaging.FirebaseMessagingException {
+        fcmService.sendMessageNotification("token-2", 11L, null, "hello");
+
+        ArgumentCaptor<Message> captor = ArgumentCaptor.forClass(Message.class);
+        verify(firebaseMessaging, timeout(2000)).send(captor.capture());
+
+        Message sent = captor.getValue();
+        assertThat(MessageAccessors.dataOf(sent)).doesNotContainKey("senderName");
+        assertThat(notificationTitleOf(sent)).isEqualTo("Новое сообщение");
+    }
+
+    /**
+     * Message#getNotification() пакетно-приватный, а у Notification в
+     * firebase-admin 9.2.0 вообще нет геттеров — читаем заголовок рефлексией.
+     */
+    private static String notificationTitleOf(Message message) {
+        try {
+            var getNotification = Message.class.getDeclaredMethod("getNotification");
+            getNotification.setAccessible(true);
+            Notification notification = (Notification) getNotification.invoke(message);
+
+            var titleField = Notification.class.getDeclaredField("title");
+            titleField.setAccessible(true);
+            return (String) titleField.get(notification);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("Cannot read notification title", e);
+        }
     }
 
     @Test
     void shouldNotSendWithEmptyToken() throws com.google.firebase.messaging.FirebaseMessagingException {
-        fcmService.sendMessageNotification("", 1L, "hello");
+        fcmService.sendMessageNotification("", 1L, "Alice", "hello");
 
         verify(firebaseMessaging, after(500).never()).send(any());
     }

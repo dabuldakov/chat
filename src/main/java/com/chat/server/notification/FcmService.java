@@ -45,10 +45,15 @@ public class FcmService {
     }
 
     /**
-     * Отправка уведомления о новом сообщении
+     * Отправка уведомления о новом сообщении.
+     *
+     * Заголовок — имя отправителя (а не безликое «Новое сообщение»), чтобы
+     * получатель сразу видел, от кого сообщение. Имя дублируется в data:
+     * клиент использует его, когда строит уведомление сам (приложение на переднем
+     * плане), а заголовок notification показывает система в фоне.
      */
     @Async
-    public void sendMessageNotification(String fcmToken, Long senderId, String messageText) {
+    public void sendMessageNotification(String fcmToken, Long senderId, String senderName, String messageText) {
         if (fcmToken == null || fcmToken.isEmpty()) {
             log.warn("Cannot send notification: FCM token is null or empty");
             return;
@@ -60,9 +65,11 @@ public class FcmService {
                     ? messageText.substring(0, 100) + "..."
                     : messageText;
 
+            boolean hasSenderName = senderName != null && !senderName.isBlank();
+
             // Создаем уведомление
             Notification notification = Notification.builder()
-                    .setTitle("Новое сообщение")
+                    .setTitle(hasSenderName ? senderName : "Новое сообщение")
                     .setBody(shortText)
                     .setImage(null)
                     .build();
@@ -71,6 +78,9 @@ public class FcmService {
             Map<String, String> data = new HashMap<>();
             data.put("type", "MESSAGE");
             data.put("senderId", String.valueOf(senderId));
+            if (hasSenderName) {
+                data.put("senderName", senderName);
+            }
             data.put("messageText", messageText);
 
             // Создаем сообщение

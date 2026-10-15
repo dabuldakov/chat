@@ -19,6 +19,8 @@ import java.util.UUID;
 import com.chat.server.block.BlockedUserService;
 import com.chat.server.conversation.ChatService;
 import com.chat.server.conversation.ParticipantService;
+import com.chat.server.identity.User;
+import com.chat.server.identity.UserService;
 import com.chat.server.notification.PushNotificationService;
 @Slf4j
 @Service
@@ -32,6 +34,7 @@ public class MessageService {
     private final ParticipantService participantService;
     private final PushNotificationService pushNotificationService;
     private final BlockedUserService blockedUserService;
+    private final UserService userService;
 
     @Transactional
     public Message sendMessage(Long chatId, Long senderId, String text,
@@ -72,8 +75,10 @@ public class MessageService {
         // Статусы доставки/прочтения не создаются: они выводятся из watermark-ов
         // участников (participants.last_read_message_id / last_delivered_message_id).
 
-        // Отправляем push уведомления
-        pushNotificationService.sendMessageNotification(senderId, text, participantIds);
+        // Отправляем push уведомления. Имя отправителя — как в MessageDto:
+        // полное имя, а при его отсутствии username.
+        User sender = userService.getUserById(senderId);
+        pushNotificationService.sendMessageNotification(senderId, sender.getFullName(), text, participantIds);
 
         return savedMessage;
     }

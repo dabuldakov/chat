@@ -28,7 +28,7 @@ public class PushNotificationService {
                 .toList();
     }
 
-    public void sendMessageNotification(Long senderId, String messageText, List<Long> recipientIds) {
+    public void sendMessageNotification(Long senderId, String senderName, String messageText, List<Long> recipientIds) {
         // Отправляем уведомление всем участникам кроме отправителя.
         // Токены получаем одним GROUP-запросом, а не SELECT-ом на каждого получателя.
         List<Long> targetIds = recipientIds.stream()
@@ -45,7 +45,7 @@ public class PushNotificationService {
                 .toList();
 
         for (String token : tokens) {
-            fcmService.sendMessageNotification(token, senderId, messageText);
+            fcmService.sendMessageNotification(token, senderId, senderName, messageText);
         }
     }
 

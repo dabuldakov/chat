@@ -65,21 +65,21 @@ class PushNotificationServiceIT extends AbstractIntegrationTest {
         UserSession senderSession = sessionWithFcm(sender.getUserId(), "sender-tok", "fcm-sender");
         UserSession recipientSession = sessionWithFcm(recipient.getUserId(), "recipient-tok", "fcm-recipient");
 
-        pushNotificationService.sendMessageNotification(sender.getUserId(), "hi", 
+        pushNotificationService.sendMessageNotification(sender.getUserId(), "Alice", "hi",
                 List.of(sender.getUserId(), recipient.getUserId()));
 
-        verify(fcmService).sendMessageNotification("fcm-recipient", sender.getUserId(), "hi");
-        verify(fcmService, never()).sendMessageNotification("fcm-sender", sender.getUserId(), "hi");
+        verify(fcmService).sendMessageNotification("fcm-recipient", sender.getUserId(), "Alice", "hi");
+        verify(fcmService, never()).sendMessageNotification("fcm-sender", sender.getUserId(), "Alice", "hi");
     }
 
     @Test
     void shouldNotSendNotificationWithoutFcmToken() {
         sessionWithFcm(recipient.getUserId(), "recipient-tok", null);
 
-        pushNotificationService.sendMessageNotification(sender.getUserId(), "hi",
+        pushNotificationService.sendMessageNotification(sender.getUserId(), "Alice", "hi",
                 List.of(sender.getUserId(), recipient.getUserId()));
 
-        verify(fcmService, never()).sendMessageNotification(any(), any(), any());
+        verify(fcmService, never()).sendMessageNotification(any(), any(), any(), any());
     }
 
     @Test
@@ -87,11 +87,11 @@ class PushNotificationServiceIT extends AbstractIntegrationTest {
         sessionWithFcm(recipient.getUserId(), "recipient-tok-1", "fcm-same");
         sessionWithFcm(recipient.getUserId(), "recipient-tok-2", "fcm-same");
 
-        pushNotificationService.sendMessageNotification(sender.getUserId(), "hi",
+        pushNotificationService.sendMessageNotification(sender.getUserId(), "Alice", "hi",
                 List.of(recipient.getUserId()));
 
         verify(fcmService, org.mockito.Mockito.times(1))
-                .sendMessageNotification("fcm-same", sender.getUserId(), "hi");
+                .sendMessageNotification("fcm-same", sender.getUserId(), "Alice", "hi");
     }
 
     @Test
