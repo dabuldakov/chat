@@ -12,6 +12,9 @@ public interface FileStorage {
 
     String store(MultipartFile file, String subdir, String fileName);
 
+    /** Сохранение «сырых» байтов (например, зеркалирование гифки из внешнего источника). */
+    String storeBytes(byte[] content, String contentType, String subdir, String fileName);
+
     Resource load(String key);
 
     String uploadAvatar(Long userId, MultipartFile file);

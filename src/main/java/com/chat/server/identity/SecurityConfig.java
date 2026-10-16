@@ -49,7 +49,9 @@ public class SecurityConfig {
 
                 // Правила авторизации
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/avatars/**").permitAll()
+                        // Публично: аватары и файлы зеркалированных гифок (по uuid).
+                        .requestMatchers(org.springframework.http.HttpMethod.GET,
+                                "/api/avatars/**", "/api/gifs/file/**").permitAll()
                         // Публичные эндпоинты
                         .requestMatchers(
                                 "/swagger-ui/**",

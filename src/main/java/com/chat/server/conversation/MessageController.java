@@ -33,6 +33,7 @@ public class MessageController {
     private final MessageStatusService messageStatusService;
     private final ChatService chatService;
     private final UserService userService;
+    private final AttachmentRepository attachmentRepository;
 
     @PostMapping("/{chatUuid}")
     @Operation(summary = "Отправка сообщения")
@@ -43,16 +44,31 @@ public class MessageController {
         Long userId = Long.parseLong(authentication.getName());
         Long chatId = chatService.getChatIdByUuid(chatUuid);
 
-        Message message = messageService.sendMessage(
-                chatId,
-                userId,
-                request.getText(),
-                request.getMessageType(),
-                request.getReplyToMessageUuid(),
-                request.getAttachments()
-        );
+        Message message;
+        if (request.getMessageType() == Message.MessageType.GIF) {
+            if (request.getGif() == null) {
+                throw new com.chat.server.exception.BadRequestException("GIF payload is required");
+            }
+            message = messageService.sendGifMessage(
+                    chatId, userId, request.getGif(), request.getReplyToMessageUuid());
+        } else {
+            if (request.getText() == null || request.getText().isBlank()) {
+                throw new com.chat.server.exception.BadRequestException("Message text is required");
+            }
+            message = messageService.sendMessage(
+                    chatId,
+                    userId,
+                    request.getText(),
+                    request.getMessageType(),
+                    request.getReplyToMessageUuid(),
+                    request.getAttachments()
+            );
+        }
 
-        return ResponseEntity.ok(MessageDto.fromEntity(message, userService.getUserById(userId)));
+        List<MessageDto> dtos = new java.util.ArrayList<>();
+        dtos.add(MessageDto.fromEntity(message, userService.getUserById(userId)));
+        attachAttachments(List.of(message), dtos);
+        return ResponseEntity.ok(dtos.get(0));
     }
 
     @GetMapping("/{chatUuid}")
@@ -66,9 +82,16 @@ public class MessageController {
         Long chatId = chatService.getChatIdByUuid(chatUuid);
 
         Page<Message> messages = messageService.getChatMessages(chatId, userId, PageRequest.of(page, size));
-        Page<MessageDto> messageDtos = messages.map(msg -> MessageDto.fromEntity(msg, senderMap(messages.getContent()).get(msg.getSenderId())));
+        Map<Long, User> senderMap = senderMap(messages.getContent());
+        List<Message> content = messages.getContent();
+        List<MessageDto> messageDtos = new java.util.ArrayList<>(content.size());
+        for (Message msg : content) {
+            messageDtos.add(MessageDto.fromEntity(msg, senderMap.get(msg.getSenderId())));
+        }
+        attachAttachments(content, messageDtos);
 
-        return ResponseEntity.ok(messageDtos);
+        return ResponseEntity.ok(new org.springframework.data.domain.PageImpl<>(
+                messageDtos, PageRequest.of(page, size), messages.getTotalElements()));
     }
 
     @GetMapping("/{chatUuid}/before/{messageUuid}")
@@ -86,6 +109,7 @@ public class MessageController {
         List<MessageDto> messageDtos = messages.stream()
                 .map(msg -> MessageDto.fromEntity(msg, senderMap.get(msg.getSenderId())))
                 .toList();
+        attachAttachments(messages, messageDtos);
 
         return ResponseEntity.ok(messageDtos);
     }
@@ -105,6 +129,7 @@ public class MessageController {
         List<MessageDto> messageDtos = messages.stream()
                 .map(msg -> MessageDto.fromEntity(msg, senderMap.get(msg.getSenderId())))
                 .toList();
+        attachAttachments(messages, messageDtos);
 
         return ResponseEntity.ok(messageDtos);
     }
@@ -266,6 +291,28 @@ public class MessageController {
                 .toList();
 
         return ResponseEntity.ok(messageDtos);
+    }
+
+    /** Подгружает вложения (например, GIF) для сообщений с флагом hasAttachments. */
+    private void attachAttachments(List<Message> messages, List<MessageDto> dtos) {
+        List<Long> ids = messages.stream()
+                .filter(m -> Boolean.TRUE.equals(m.getHasAttachments()) && m.getMessageId() != null)
+                .map(Message::getMessageId)
+                .distinct()
+                .toList();
+        if (ids.isEmpty()) {
+            return;
+        }
+        Map<Long, List<AttachmentDto>> byMessage = attachmentRepository.findByMessageIdIn(ids).stream()
+                .collect(Collectors.groupingBy(
+                        Attachment::getMessageId,
+                        Collectors.mapping(AttachmentDto::fromEntity, Collectors.toList())));
+        for (int i = 0; i < messages.size(); i++) {
+            List<AttachmentDto> list = byMessage.get(messages.get(i).getMessageId());
+            if (list != null) {
+                dtos.get(i).setAttachments(list);
+            }
+        }
     }
 
     private Map<Long, User> senderMap(List<Message> messages) {

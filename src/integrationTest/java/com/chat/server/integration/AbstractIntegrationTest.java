@@ -30,6 +30,7 @@ import java.util.List;
 public abstract class AbstractIntegrationTest {
 
     private static final List<String> CLEANUP_TABLES = List.of(
+            "gif_user_usage", "gif_chat_usage", "gif_catalog",
             "messages", "attachments", "participants",
             "blocked_users", "contacts", "chats", "user_sessions", "users");
 

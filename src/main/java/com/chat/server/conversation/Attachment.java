@@ -86,8 +86,12 @@ public class Attachment extends BaseEntity {
     @JdbcTypeCode(SqlTypes.JSON)  // ← Добавьте для лучшей работы с JSON
     private String metadata;
 
+    /** Наш ключ гифки (gif_catalog.gif_uuid) — только для вложений типа GIF. */
+    @Column(name = "gif_key")
+    private java.util.UUID gifKey;
+
     public enum AttachmentType {
-        IMAGE, VIDEO, AUDIO, DOCUMENT, OTHER
+        IMAGE, VIDEO, GIF, AUDIO, DOCUMENT, OTHER
     }
 
     @PrePersist

@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -17,6 +18,9 @@ public interface AttachmentRepository extends JpaRepository<Attachment, Long> {
 
     @Query("SELECT a FROM Attachment a WHERE a.messageId = :messageId")
     List<Attachment> findByMessageId(@Param("messageId") Long messageId);
+
+    @Query("SELECT a FROM Attachment a WHERE a.messageId IN :messageIds")
+    List<Attachment> findByMessageIdIn(@Param("messageIds") Collection<Long> messageIds);
 
     @Query("SELECT a FROM Attachment a WHERE a.chatId = :chatId ORDER BY a.createdAt DESC")
     List<Attachment> findByChatId(@Param("chatId") Long chatId);

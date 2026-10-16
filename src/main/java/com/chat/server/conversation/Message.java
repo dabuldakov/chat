@@ -93,7 +93,7 @@ public class Message extends BaseEntity {
     private String metadata; // JSON строка с дополнительными данными
 
     public enum MessageType {
-        TEXT, IMAGE, VIDEO, AUDIO, FILE, LOCATION, CONTACT, SYSTEM, DELETE
+        TEXT, IMAGE, VIDEO, GIF, AUDIO, FILE, LOCATION, CONTACT, SYSTEM, DELETE
     }
 
     @PrePersist

@@ -74,6 +74,14 @@ app:
       enabled: ${APP_CACHE_REDIS_ENABLED:false}
   cors:
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:*}
+  gifs:
+    # Максимальный размер зеркалируемой гифки (байт).
+    max-mirror-bytes: ${GIF_MAX_MIRROR_BYTES:10485760}
+    openverse:
+      # Источник свободных (CC0/public-domain) гифок с хранением у нас.
+      enabled: ${GIF_OPENVERSE_ENABLED:true}
+      base-url: ${OPENVERSE_BASE_URL:https://api.openverse.org/v1}
+      user-agent: ${OPENVERSE_USER_AGENT:muzea/1.0 (+https://muzea.su)}
   presence:
     # Как часто клиент шлёт heartbeat, пока приложение на переднем плане.
     heartbeat-interval-seconds: ${PRESENCE_HEARTBEAT_SECONDS:15}

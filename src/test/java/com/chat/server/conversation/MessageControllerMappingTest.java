@@ -58,6 +58,9 @@ class MessageControllerMappingTest {
     private UserService userService;
 
     @MockitoBean
+    private AttachmentRepository attachmentRepository;
+
+    @MockitoBean
     private JwtUtil jwtUtil;
 
     private org.springframework.test.web.servlet.request.RequestPostProcessor authPrincipal() {

@@ -19,6 +19,9 @@ import java.util.UUID;
 import com.chat.server.block.BlockedUserService;
 import com.chat.server.conversation.ChatService;
 import com.chat.server.conversation.ParticipantService;
+import com.chat.server.conversation.gif.GifCatalogPort;
+import com.chat.server.conversation.gif.GifPayload;
+import com.chat.server.conversation.gif.GifRef;
 import com.chat.server.identity.User;
 import com.chat.server.identity.UserService;
 import com.chat.server.notification.PushNotificationService;
@@ -30,11 +33,13 @@ public class MessageService {
     private static final int DEFAULT_SYNC_LIMIT = 500;
 
     private final MessageRepository messageRepository;
+    private final AttachmentRepository attachmentRepository;
     private final ChatService chatService;
     private final ParticipantService participantService;
     private final PushNotificationService pushNotificationService;
     private final BlockedUserService blockedUserService;
     private final UserService userService;
+    private final GifCatalogPort gifCatalog;
 
     @Transactional
     public Message sendMessage(Long chatId, Long senderId, String text,
@@ -81,6 +86,69 @@ public class MessageService {
         pushNotificationService.sendMessageNotification(senderId, sender.getFullName(), text, participantIds);
 
         return savedMessage;
+    }
+
+    /**
+     * Отправка гифки: сохраняем метаданные гифки (каталог + usage) и создаём
+     * вложение типа GIF со ссылкой на источник (поиск делает клиент напрямую у
+     * провайдера; сервер его не вызывает).
+     */
+    @Transactional
+    public Message sendGifMessage(Long chatId, Long senderId, GifPayload gif, UUID replyToMessageUuid) {
+        log.info("Sending GIF to chat: {} from user: {}", chatId, senderId);
+
+        chatService.validateUserAccessToChat(chatId, senderId);
+        List<Long> participantIds = chatService.getChatParticipants(chatId);
+        enforceBlockingForPrivateChat(chatId, senderId, participantIds);
+
+        Long replyToId = null;
+        if (replyToMessageUuid != null) {
+            Message replyTo = getMessageByUuid(replyToMessageUuid);
+            if (!replyTo.getChatId().equals(chatId)) {
+                throw new BadRequestException("Reply message does not belong to this chat");
+            }
+            replyToId = replyTo.getMessageId();
+        }
+
+        Message message = Message.builder()
+                .chatId(chatId)
+                .senderId(senderId)
+                .messageText("")
+                .messageType(Message.MessageType.GIF)
+                .replyToMessageId(replyToId)
+                .hasAttachments(true)
+                .build();
+        Message savedMessage = messageRepository.save(message);
+
+        GifRef gifRef = gifCatalog.recordSent(gif, senderId, chatId);
+
+        Attachment attachment = Attachment.builder()
+                .chatId(chatId)
+                .messageId(savedMessage.getMessageId())
+                .uploaderId(senderId)
+                .fileName(gifRef.gifKey() + ".gif")
+                .fileUrl(gifRef.url())
+                .thumbnailUrl(gifRef.previewUrl())
+                .mimeType("image/gif")
+                .width(gifRef.width())
+                .height(gifRef.height())
+                .type(Attachment.AttachmentType.GIF)
+                .gifKey(gifRef.gifKey())
+                .metadata(gifMetadata(gif))
+                .build();
+        attachmentRepository.save(attachment);
+
+        chatService.updateLastMessage(chatId, savedMessage.getMessageId(), "GIF", senderId);
+
+        User sender = userService.getUserById(senderId);
+        pushNotificationService.sendMessageNotification(senderId, sender.getFullName(), "Гифка", participantIds);
+
+        return savedMessage;
+    }
+
+    private static String gifMetadata(GifPayload gif) {
+        return "{\"provider\":\"" + gif.getProvider()
+                + "\",\"providerGifId\":\"" + gif.getProviderGifId() + "\"}";
     }
 
     @Transactional(readOnly = true)

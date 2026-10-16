@@ -19,6 +19,7 @@ public class AttachmentDto {
     private Integer width;
     private Integer height;
     private Integer duration;
+    private UUID gifKey;
 
     public static AttachmentDto fromEntity(Attachment attachment) {
         return AttachmentDto.builder()
@@ -32,6 +33,7 @@ public class AttachmentDto {
                 .width(attachment.getWidth())
                 .height(attachment.getHeight())
                 .duration(attachment.getDuration())
+                .gifKey(attachment.getGifKey())
                 .build();
     }
 }
