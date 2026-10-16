@@ -59,6 +59,22 @@ class OpenverseGifSourceTest {
     }
 
     @Test
+    void clampsPageSizeToAnonymousLimit() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        server.expect(requestTo(Matchers.containsString("page_size=20")))
+                .andRespond(withSuccess(JSON, MediaType.APPLICATION_JSON));
+
+        RestClient client = builder.baseUrl("https://api.openverse.org/v1")
+                .defaultHeader("User-Agent", "test-agent").build();
+        OpenverseGifSource source = new OpenverseGifSource(client);
+
+        source.search("cat", 0, 30);
+
+        server.verify();
+    }
+
+    @Test
     void returnsEmptyOnError() {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();

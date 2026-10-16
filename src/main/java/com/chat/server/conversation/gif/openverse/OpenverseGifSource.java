@@ -20,6 +20,12 @@ public class OpenverseGifSource implements GifSourceProvider {
 
     private static final String REDISTRIBUTABLE_LICENSES = "cc0,pdm";
 
+    /**
+     * Анонимные запросы Openverse ограничены страницей в 20 элементов
+     * (иначе 401). После регистрации приложения (client credentials) лимит выше.
+     */
+    private static final int MAX_PAGE_SIZE = 20;
+
     private final RestClient client;
 
     public OpenverseGifSource(RestClient client) {
@@ -33,6 +39,7 @@ public class OpenverseGifSource implements GifSourceProvider {
 
     @Override
     public List<GifSourceItem> search(String query, int page, int size) {
+        int pageSize = Math.max(1, Math.min(size, MAX_PAGE_SIZE));
         OpenverseResponse response;
         try {
             response = client.get()
@@ -41,7 +48,7 @@ public class OpenverseGifSource implements GifSourceProvider {
                             .queryParam("license", REDISTRIBUTABLE_LICENSES)
                             .queryParam("extension", "gif")
                             .queryParam("page", page + 1) // Openverse-страницы с 1
-                            .queryParam("page_size", size)
+                            .queryParam("page_size", pageSize)
                             .build())
                     .retrieve()
                     .body(OpenverseResponse.class);
