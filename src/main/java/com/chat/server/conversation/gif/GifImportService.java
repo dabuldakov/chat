@@ -48,15 +48,21 @@ public class GifImportService {
                     .getContent();
         }
 
+        List<GifSourceProvider> providers = sources.providers();
+        log.info("GIF library: query='{}' page={} size={} providers={}", query, page, size, providers.size());
+
         List<GifDto> result = new ArrayList<>();
-        for (GifSourceProvider provider : sources.providers()) {
-            for (GifSourceItem item : provider.search(query, page, size)) {
+        for (GifSourceProvider provider : providers) {
+            List<GifSourceItem> found = provider.search(query, page, size);
+            log.info("GIF library: provider={} query='{}' found={}", provider.name(), query, found.size());
+            for (GifSourceItem item : found) {
                 GifCatalog gif = importItem(item, query);
                 if (gif != null) {
                     result.add(GifDto.fromEntity(gif));
                 }
             }
         }
+        log.info("GIF library: query='{}' imported={}", query, result.size());
         return result;
     }
 
