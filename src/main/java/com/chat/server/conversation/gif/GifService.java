@@ -39,6 +39,7 @@ public class GifService implements GifCatalogPort {
         gif.setTitle(payload.getTitle());
         gif.setSourceUrl(payload.getUrl());
         gif.setPreviewUrl(payload.getPreviewUrl());
+        gif.setMp4Url(payload.getMp4Url());
         gif.setWidth(payload.getWidth());
         gif.setHeight(payload.getHeight());
         gif.setRating(payload.getRating());
@@ -79,6 +80,7 @@ public class GifService implements GifCatalogPort {
                 gif.getGifUuid(),
                 gif.deliverableUrl(),
                 gif.getPreviewUrl(),
+                gif.getMp4Url(),
                 gif.getWidth(),
                 gif.getHeight());
     }

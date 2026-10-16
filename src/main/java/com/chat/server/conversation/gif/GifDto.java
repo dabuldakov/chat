@@ -16,6 +16,7 @@ public class GifDto {
     private String title;
     private String url;
     private String previewUrl;
+    private String mp4Url;
     private Integer width;
     private Integer height;
     private String rating;
@@ -31,6 +32,7 @@ public class GifDto {
                 .title(gif.getTitle())
                 .url(gif.deliverableUrl())
                 .previewUrl(gif.getPreviewUrl())
+                .mp4Url(gif.getMp4Url())
                 .width(gif.getWidth())
                 .height(gif.getHeight())
                 .rating(gif.getRating())

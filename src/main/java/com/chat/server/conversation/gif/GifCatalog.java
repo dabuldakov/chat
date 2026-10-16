@@ -47,6 +47,9 @@ public class GifCatalog {
     @Column(name = "preview_url", length = 1000)
     private String previewUrl;
 
+    @Column(name = "mp4_url", length = 1000)
+    private String mp4Url;
+
     private Integer width;
 
     private Integer height;

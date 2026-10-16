@@ -24,6 +24,8 @@ public class GifPayload {
 
     private String previewUrl;
 
+    private String mp4Url;
+
     private Integer width;
 
     private Integer height;

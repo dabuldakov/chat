@@ -55,6 +55,7 @@ class GifFlowIT extends AbstractIntegrationTest {
                 + "\"provider\":\"klipy\",\"providerGifId\":\"" + slug + "\","
                 + "\"title\":\"cat\",\"url\":\"https://cdn.klipy.com/" + slug + ".gif\","
                 + "\"previewUrl\":\"https://cdn.klipy.com/" + slug + "-tiny.gif\","
+                + "\"mp4Url\":\"https://cdn.klipy.com/" + slug + ".mp4\","
                 + "\"width\":200,\"height\":150,\"rating\":\"g\"}}";
     }
 
@@ -87,6 +88,7 @@ class GifFlowIT extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.messageType").value("GIF"))
                 .andExpect(jsonPath("$.attachments[0].type").value("GIF"))
                 .andExpect(jsonPath("$.attachments[0].fileUrl").value("https://cdn.klipy.com/cat.gif"))
+                .andExpect(jsonPath("$.attachments[0].mp4Url").value("https://cdn.klipy.com/cat.mp4"))
                 // Наш ключ гифки — разделяет сообщение и каталог/источник.
                 .andExpect(jsonPath("$.attachments[0].gifKey").isNotEmpty());
 

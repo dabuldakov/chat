@@ -13,6 +13,7 @@ public class AttachmentDto {
     private String fileName;
     private String fileUrl;
     private String thumbnailUrl;
+    private String mp4Url;
     private Long fileSize;
     private String mimeType;
     private String type;
@@ -27,6 +28,7 @@ public class AttachmentDto {
                 .fileName(attachment.getFileName())
                 .fileUrl(attachment.getFileUrl())
                 .thumbnailUrl(attachment.getThumbnailUrl())
+                .mp4Url(attachment.getMp4Url())
                 .fileSize(attachment.getFileSize())
                 .mimeType(attachment.getMimeType())
                 .type(attachment.getType().name())

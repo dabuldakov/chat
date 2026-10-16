@@ -10,6 +10,7 @@ public record GifRef(
         UUID gifKey,
         String url,
         String previewUrl,
+        String mp4Url,
         Integer width,
         Integer height
 ) {

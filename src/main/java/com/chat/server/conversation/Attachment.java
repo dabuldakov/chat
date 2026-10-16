@@ -60,6 +60,10 @@ public class Attachment extends BaseEntity {
     @Column(name = "thumbnail_url", length = 500)
     private String thumbnailUrl;
 
+    /** MP4-вариант гифки (для плавного беззвучного воспроизведения). */
+    @Column(name = "mp4_url", length = 1000)
+    private String mp4Url;
+
     @Column(name = "file_size")
     private Long fileSize;
 

@@ -129,6 +129,7 @@ public class MessageService {
                 .fileName(gifRef.gifKey() + ".gif")
                 .fileUrl(gifRef.url())
                 .thumbnailUrl(gifRef.previewUrl())
+                .mp4Url(gifRef.mp4Url())
                 .mimeType("image/gif")
                 .width(gifRef.width())
                 .height(gifRef.height())
