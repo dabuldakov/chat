@@ -29,13 +29,6 @@ public class InMemoryFileStorage implements FileStorage {
     }
 
     @Override
-    public String storeBytes(byte[] content, String contentType, String subdir, String fileName) {
-        String key = subdir + "/" + fileName;
-        objects.put(key, content);
-        return key;
-    }
-
-    @Override
     public Resource load(String key) {
         byte[] bytes = objects.get(key);
         if (bytes == null) {

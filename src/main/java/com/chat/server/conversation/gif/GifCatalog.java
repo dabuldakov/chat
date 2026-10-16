@@ -11,9 +11,10 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * Наша запись о гифке из провайдера (Klipy): метаданные и, при зеркалировании,
- * ссылка на копию в MinIO. Уникальность — по (provider, providerGifId), чтобы
- * одна и та же гифка не дублировалась в каталоге.
+ * Наша запись о гифке из провайдера (Klipy): метаданные, которые пришли от
+ * клиента при отправке. Уникальность — по (provider, providerGifId), чтобы одна
+ * и та же гифка не дублировалась в каталоге. Медиа не храним — клиенты грузят
+ * его по sourceUrl (требование провайдера).
  */
 @Getter
 @Setter
@@ -57,15 +58,6 @@ public class GifCatalog {
     @Column(length = 16)
     private String rating;
 
-    @Column(name = "object_key", length = 500)
-    private String objectKey;
-
-    @Column(name = "public_url", length = 1000)
-    private String publicUrl;
-
-    @Column(nullable = false)
-    private Boolean mirrored;
-
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
@@ -75,31 +67,10 @@ public class GifCatalog {
     @Column(name = "use_count", nullable = false)
     private Long useCount;
 
-    @Column(length = 64)
-    private String license;
-
-    @Column(name = "license_version", length = 32)
-    private String licenseVersion;
-
-    @Column(length = 255)
-    private String creator;
-
-    @Column(length = 1000)
-    private String attribution;
-
-    @Column(name = "landing_url", length = 1000)
-    private String landingUrl;
-
-    @Column(length = 1000)
-    private String tags;
-
     @PrePersist
     protected void onCreate() {
         if (gifUuid == null) {
             gifUuid = UUID.randomUUID();
-        }
-        if (mirrored == null) {
-            mirrored = false;
         }
         if (useCount == null) {
             useCount = 0L;
@@ -107,10 +78,5 @@ public class GifCatalog {
         if (createdAt == null) {
             createdAt = LocalDateTime.now();
         }
-    }
-
-    /** URL, который отдаём клиентам: своё зеркало, если есть, иначе источник. */
-    public String deliverableUrl() {
-        return (Boolean.TRUE.equals(mirrored) && publicUrl != null) ? publicUrl : sourceUrl;
     }
 }

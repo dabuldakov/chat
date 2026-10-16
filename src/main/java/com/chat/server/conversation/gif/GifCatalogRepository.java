@@ -13,8 +13,4 @@ public interface GifCatalogRepository extends JpaRepository<GifCatalog, Long> {
     Optional<GifCatalog> findByGifUuid(java.util.UUID gifUuid);
 
     List<GifCatalog> findByGifIdIn(Collection<Long> gifIds);
-
-    /** Зеркалированные гифки (наша библиотека), новые сверху. */
-    org.springframework.data.domain.Page<GifCatalog> findByMirroredTrueOrderByCreatedAtDesc(
-            org.springframework.data.domain.Pageable pageable);
 }

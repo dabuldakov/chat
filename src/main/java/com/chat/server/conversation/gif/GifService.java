@@ -78,7 +78,7 @@ public class GifService implements GifCatalogPort {
     private static GifRef toRef(GifCatalog gif) {
         return new GifRef(
                 gif.getGifUuid(),
-                gif.deliverableUrl(),
+                gif.getSourceUrl(),
                 gif.getPreviewUrl(),
                 gif.getMp4Url(),
                 gif.getWidth(),

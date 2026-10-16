@@ -54,25 +54,6 @@ public class FileUploadService implements FileStorage {
         }
     }
 
-    @Override
-    public String storeBytes(byte[] content, String contentType, String subdir, String fileName) {
-        String key = subdir + "/" + fileName;
-        try (InputStream input = new java.io.ByteArrayInputStream(content)) {
-            ensureBucket();
-            minioClient.putObject(PutObjectArgs.builder()
-                    .bucket(minioConfig.getAttachmentBucket())
-                    .object(key)
-                    .stream(input, content.length, -1)
-                    .contentType(contentType)
-                    .build());
-            log.info("Stored bytes in MinIO: {}", key);
-            return key;
-        } catch (Exception e) {
-            log.error("Failed to store bytes: {}", key, e);
-            throw new RuntimeException("Failed to store file", e);
-        }
-    }
-
     public Resource load(String key) {
         try {
             InputStream stream = minioClient.getObject(GetObjectArgs.builder()

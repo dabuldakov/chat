@@ -29,7 +29,6 @@ public class GifController {
     private static final int MAX_PAGE_SIZE = 60;
 
     private final GifCatalogPort gifCatalog;
-    private final GifImportService gifImportService;
     private final ChatService chatService;
 
     @GetMapping("/recent")
@@ -53,26 +52,6 @@ public class GifController {
         Long chatId = chatService.getChatIdByUuid(chatUuid);
         chatService.validateUserAccessToChat(chatId, userId);
         return ResponseEntity.ok(gifCatalog.chatGifs(chatId, page, clamp(size)));
-    }
-
-    @GetMapping("/library")
-    @Operation(summary = "Поиск по нашей библиотеке свободных гифок (CC0/PD)")
-    public ResponseEntity<List<GifDto>> library(
-            @RequestParam(required = false, defaultValue = "") String q,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "30") int size,
-            Authentication authentication) {
-        // Аутентификация нужна: эндпоинт доступен только нашим пользователям.
-        Long.parseLong(authentication.getName());
-        return ResponseEntity.ok(gifImportService.library(q, page, clamp(size)));
-    }
-
-    @GetMapping("/file/{gifUuid}")
-    @Operation(summary = "Отдача зеркалированного файла гифки")
-    public ResponseEntity<org.springframework.core.io.Resource> file(@PathVariable UUID gifUuid) {
-        return ResponseEntity.ok()
-                .contentType(org.springframework.http.MediaType.IMAGE_GIF)
-                .body(gifImportService.file(gifUuid));
     }
 
     private static int clamp(int size) {

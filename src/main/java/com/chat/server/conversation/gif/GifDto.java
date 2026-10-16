@@ -20,9 +20,6 @@ public class GifDto {
     private Integer width;
     private Integer height;
     private String rating;
-    private String license;
-    private String attribution;
-    private String landingUrl;
 
     public static GifDto fromEntity(GifCatalog gif) {
         return GifDto.builder()
@@ -30,15 +27,12 @@ public class GifDto {
                 .provider(gif.getProvider())
                 .providerGifId(gif.getProviderGifId())
                 .title(gif.getTitle())
-                .url(gif.deliverableUrl())
+                .url(gif.getSourceUrl())
                 .previewUrl(gif.getPreviewUrl())
                 .mp4Url(gif.getMp4Url())
                 .width(gif.getWidth())
                 .height(gif.getHeight())
                 .rating(gif.getRating())
-                .license(gif.getLicense())
-                .attribution(gif.getAttribution())
-                .landingUrl(gif.getLandingUrl())
                 .build();
     }
 }

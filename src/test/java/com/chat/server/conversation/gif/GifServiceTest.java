@@ -105,9 +105,9 @@ class GifServiceTest {
                         GifUserUsage.builder().gifId(20L).build()));
         when(catalogRepository.findByGifIdIn(any())).thenReturn(List.of(
                 GifCatalog.builder().gifId(20L).provider("klipy").providerGifId("b")
-                        .sourceUrl("u20").mirrored(false).build(),
+                        .sourceUrl("u20").build(),
                 GifCatalog.builder().gifId(30L).provider("klipy").providerGifId("c")
-                        .sourceUrl("u30").mirrored(false).build()));
+                        .sourceUrl("u30").build()));
 
         List<GifDto> dtos = gifService.recent(1L, 0, 30);
 
