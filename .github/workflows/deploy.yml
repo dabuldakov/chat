@@ -83,3 +83,10 @@ jobs:
             docker network create shared-minio 2>/dev/null || true
             docker compose up -d --build
             docker image prune -f
+            # --- TEMP DIAG ---
+            sleep 8
+            U="deployprobe_$(date +%s)"
+            TOKEN=$(curl -s -X POST https://chat-muzea.su/api/auth/register -H 'Content-Type: application/json' -d "{\"username\":\"$U\",\"email\":\"$U@example.com\",\"password\":\"password123\",\"deviceType\":\"WEB\"}" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("token",""))' 2>/dev/null || true)
+            echo "probe library response:"; curl -s "https://chat-muzea.su/api/gifs/library?q=cat" -H "Authorization: Bearer $TOKEN" | head -c 400; echo
+            echo "==== APP LOGS ===="
+            docker compose logs --tail=200 app
