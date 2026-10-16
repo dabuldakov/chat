@@ -3,9 +3,6 @@ package com.chat.server.conversation.gif.openverse;
 import com.chat.server.conversation.gif.GifSourceItem;
 import com.chat.server.conversation.gif.GifSourceProvider;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
 import java.util.List;
@@ -14,24 +11,19 @@ import java.util.List;
  * Источник свободных гифок — Openverse (агрегатор CC/public-domain медиа).
  * Запрашиваем только перераспространяемые лицензии (CC0 и public domain) и формат
  * gif — такое можно легально скачивать и хранить у себя.
+ *
+ * <p>Бин создаётся в {@link com.chat.server.conversation.gif.GifHttpConfig}
+ * (RestClient собирается там), поэтому здесь нет @Component.
  */
 @Slf4j
-@Component
-@ConditionalOnProperty(name = "app.gifs.openverse.enabled", havingValue = "true", matchIfMissing = true)
 public class OpenverseGifSource implements GifSourceProvider {
 
     private static final String REDISTRIBUTABLE_LICENSES = "cc0,pdm";
 
     private final RestClient client;
 
-    public OpenverseGifSource(
-            RestClient.Builder builder,
-            @Value("${app.gifs.openverse.base-url:https://api.openverse.org/v1}") String baseUrl,
-            @Value("${app.gifs.openverse.user-agent:muzea/1.0 (+https://muzea.su)}") String userAgent) {
-        this.client = builder
-                .baseUrl(baseUrl)
-                .defaultHeader("User-Agent", userAgent)
-                .build();
+    public OpenverseGifSource(RestClient client) {
+        this.client = client;
     }
 
     @Override
