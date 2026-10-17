@@ -1,6 +1,8 @@
 package com.chat.server.conversation;
 
 import com.chat.server.identity.JwtUtil;
+import com.chat.server.identity.OidcProperties;
+import com.chat.server.identity.OidcUserProvisioner;
 import com.chat.server.identity.User;
 import com.chat.server.conversation.ChatService;
 import com.chat.server.identity.UserService;
@@ -62,6 +64,12 @@ class MessageControllerMappingTest {
 
     @MockitoBean
     private JwtUtil jwtUtil;
+
+    @MockitoBean
+    private OidcUserProvisioner oidcUserProvisioner;
+
+    @MockitoBean
+    private OidcProperties oidcProperties;
 
     private org.springframework.test.web.servlet.request.RequestPostProcessor authPrincipal() {
         var authentication = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(

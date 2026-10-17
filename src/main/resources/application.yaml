@@ -66,6 +66,15 @@ jwt:
   expiration: ${JWT_EXPIRATION:86400000}          # 24 часа
   refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}  # 7 дней
 
+# Приём access-токенов единого IdP (auth-service, RS256/JWKS).
+# В dev/тестах выключено — сервис работает на собственном HS256.
+auth:
+  oidc:
+    enabled: ${AUTH_OIDC_ENABLED:false}
+    issuer: ${AUTH_ISSUER:https://auth.muzea.su}
+    jwks-uri: ${AUTH_JWKS_URI:https://auth.muzea.su/.well-known/jwks.json}
+    audience: ${AUTH_AUDIENCE:chat-muzea}
+
 app:
   cache:
     redis:

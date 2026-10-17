@@ -6,10 +6,14 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -17,6 +21,16 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.UUID;
 
+/**
+ * Аутентификация по Bearer-токену. Поддерживает два источника:
+ * <ol>
+ *   <li>access-токен единого IdP (auth-service, RS256) — проверяется по JWKS,
+ *       пользователь находится/создаётся по claim {@code sub};</li>
+ *   <li>legacy HS256-токен chat (собственный логин/пароль) — на время миграции.</li>
+ * </ol>
+ * В обоих случаях в SecurityContext кладётся principal, у которого
+ * {@code getName()} — числовой {@code users.user_id}, как и раньше.
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -24,6 +38,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
     private final UserDetailsService userDetailsService;
+    private final OidcUserProvisioner oidcUserProvisioner;
+    private final OidcProperties oidcProperties;
+    private final ObjectProvider<JwtDecoder> oidcDecoderProvider;
 
     @Override
     protected void doFilterInternal(
@@ -43,23 +60,51 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             String token = extractToken(request);
 
-            if (token != null && jwtUtil.validateToken(token)) {
-                // ⭐ Теперь получаем UUID из токена
-                UUID userUuid = jwtUtil.getUserIdFromToken(token);
-
-                // Загружаем пользователя по UUID
-                UserDetails userDetails = userDetailsService.loadUserByUsername(userUuid.toString());
-
-                UsernamePasswordAuthenticationToken authentication = createAuthentication(userDetails, request);
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-
-                log.debug("Authenticated user: {} for request: {}", userUuid, requestPath);
+            if (token != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                if (!authenticateWithOidc(token, request)) {
+                    authenticateWithLegacyToken(token, request);
+                }
             }
         } catch (Exception e) {
             log.warn("Authentication error for request {}: {}", requestPath, e.getMessage());
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    /** Access-токен auth-service (RS256). Возвращает true, если он принят. */
+    private boolean authenticateWithOidc(String token, HttpServletRequest request) {
+        if (!oidcProperties.enabled()) {
+            return false;
+        }
+        JwtDecoder decoder = oidcDecoderProvider.getIfAvailable();
+        if (decoder == null) {
+            return false;
+        }
+        try {
+            Jwt jwt = decoder.decode(token);
+            UUID subject = UUID.fromString(jwt.getSubject());
+            User user = oidcUserProvisioner.findOrCreate(subject,
+                    jwt.getClaimAsString("username"), jwt.getClaimAsString("email"));
+            UserDetails userDetails = userDetailsService.loadUserByUsername(user.getUserUuid().toString());
+            SecurityContextHolder.getContext().setAuthentication(createAuthentication(userDetails, request));
+            log.debug("Authenticated auth subject {} as chat user {}", subject, user.getUserId());
+            return true;
+        } catch (JwtException | IllegalArgumentException e) {
+            log.debug("Token is not a valid auth-service access token: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    /** Legacy HS256-токен, выданный самим chat. */
+    private void authenticateWithLegacyToken(String token, HttpServletRequest request) {
+        if (!jwtUtil.validateToken(token)) {
+            return;
+        }
+        UUID userUuid = jwtUtil.getUserIdFromToken(token);
+        UserDetails userDetails = userDetailsService.loadUserByUsername(userUuid.toString());
+        SecurityContextHolder.getContext().setAuthentication(createAuthentication(userDetails, request));
+        log.debug("Authenticated legacy chat user: {}", userUuid);
     }
 
     private String extractToken(HttpServletRequest request) {

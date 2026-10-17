@@ -11,6 +11,11 @@ spring:
 jwt:
   secret: ${JWT_SECRET}
 
+# В проде приём токенов auth-service включён; отключается AUTH_OIDC_ENABLED=false.
+auth:
+  oidc:
+    enabled: ${AUTH_OIDC_ENABLED:true}
+
 app:
   cache:
     redis:

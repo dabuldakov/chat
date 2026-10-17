@@ -45,6 +45,13 @@ public class User extends BaseEntity {
     @Column(name = "user_uuid", unique = true, updatable = false, nullable = false)
     private UUID userUuid = UUID.randomUUID();
 
+    /**
+     * UUID пользователя в едином IdP (auth-service), claim {@code sub}.
+     * NULL для legacy-аккаунтов, заведённых собственным логином/паролем.
+     */
+    @Column(name = "auth_subject", unique = true)
+    private UUID authSubject;
+
     @Column(nullable = false, unique = true, length = 50)
     private String username;
 

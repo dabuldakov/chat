@@ -23,6 +23,10 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     Optional<User> findByUserUuid(UUID userUuid);
 
+    Optional<User> findByAuthSubject(UUID authSubject);
+
+    boolean existsByAuthSubject(UUID authSubject);
+
     @Query("SELECT u.userId FROM User u WHERE u.userUuid = :userUuid")
     Optional<Long> findUserIdByUserUuid(@Param("userUuid") UUID userUuid);
 
