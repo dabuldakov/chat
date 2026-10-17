@@ -18,7 +18,10 @@ class OidcUserProvisionerTest {
 
     private final UserRepository userRepository = mock(UserRepository.class);
     private final PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
-    private final OidcUserProvisioner provisioner = new OidcUserProvisioner(userRepository, passwordEncoder);
+    private final OidcProperties properties =
+            new OidcProperties(true, "iss", "jwks", java.util.List.of("chat-muzea"), true);
+    private final OidcUserProvisioner provisioner =
+            new OidcUserProvisioner(userRepository, passwordEncoder, properties);
 
     @Test
     void returnsExistingUserBySubject() {
@@ -42,6 +45,20 @@ class OidcUserProvisionerTest {
 
         assertThat(result.getAuthSubject()).isEqualTo(subject);
         assertThat(result.getEmailVerified()).isTrue();
+    }
+
+    @Test
+    void linksExistingAccountByUsernameWhenEmailDiffers() {
+        UUID subject = UUID.randomUUID();
+        User existing = user(4L, "legacylogin");
+        when(userRepository.findByAuthSubject(subject)).thenReturn(Optional.empty());
+        when(userRepository.findByEmail("new@example.com")).thenReturn(Optional.empty());
+        when(userRepository.findByUsername("legacylogin")).thenReturn(Optional.of(existing));
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        User result = provisioner.findOrCreate(subject, "legacylogin", "new@example.com");
+
+        assertThat(result.getAuthSubject()).isEqualTo(subject);
     }
 
     @Test

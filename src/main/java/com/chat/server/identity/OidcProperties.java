@@ -13,6 +13,7 @@ public record OidcProperties(
         boolean enabled,
         String issuer,
         String jwksUri,
-        List<String> audience
+        List<String> audience,
+        boolean linkByUsername
 ) {
 }

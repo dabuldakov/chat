@@ -74,6 +74,10 @@ auth:
     issuer: ${AUTH_ISSUER:https://auth.muzea.su}
     jwks-uri: ${AUTH_JWKS_URI:https://auth.muzea.su/.well-known/jwks.json}
     audience: ${AUTH_AUDIENCE:chat-muzea}
+    # Линковать существующий аккаунт по username, если email не совпал
+    # (миграция «заходите прежним логином»). Можно выключить, если риск
+    # перехвата username перевешивает.
+    link-by-username: ${AUTH_OIDC_LINK_BY_USERNAME:true}
 
 app:
   cache:
