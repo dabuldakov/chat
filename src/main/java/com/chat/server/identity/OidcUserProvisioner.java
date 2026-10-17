@@ -25,13 +25,32 @@ public class OidcUserProvisioner {
     private final PasswordEncoder passwordEncoder;
 
     /**
-     * Намеренно без {@code @Transactional}: при гонке двух параллельных первых
-     * запросов один падает с нарушением уникальности, и перечитать пользователя
-     * нужно в НОВОЙ транзакции — иначе Hibernate-сессия уже помечена rollback-only
-     * и повторное чтение роняет запрос (AssertionFailure: null identifier).
-     * Транзакции открывают сами репозиторные методы.
+     * Создание сериализуем по субъекту: приложение на первом входе шлёт
+     * несколько запросов сразу, и без этого они наперебой вставляют одного и
+     * того же пользователя (часть получает нарушение уникальности). Блокировки
+     * живут только на время операции.
      */
+    private final java.util.concurrent.ConcurrentHashMap<UUID, Object> provisionLocks =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
     public User findOrCreate(UUID subject, String username, String email) {
+        Object lock = provisionLocks.computeIfAbsent(subject, k -> new Object());
+        synchronized (lock) {
+            try {
+                return doFindOrCreate(subject, username, email);
+            } finally {
+                provisionLocks.remove(subject, lock);
+            }
+        }
+    }
+
+    /**
+     * Без общего {@code @Transactional}: если при гонке вставка падает по
+     * уникальности, перечитать пользователя нужно в НОВОЙ транзакции, иначе
+     * Hibernate-сессия уже rollback-only. Транзакции открывают репозиторные
+     * методы.
+     */
+    private User doFindOrCreate(UUID subject, String username, String email) {
         Optional<User> existing = userRepository.findByAuthSubject(subject);
         if (existing.isPresent()) {
             return existing.get();
