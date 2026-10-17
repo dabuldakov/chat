@@ -5,7 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -25,7 +24,13 @@ public class OidcUserProvisioner {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
-    @Transactional
+    /**
+     * Намеренно без {@code @Transactional}: при гонке двух параллельных первых
+     * запросов один падает с нарушением уникальности, и перечитать пользователя
+     * нужно в НОВОЙ транзакции — иначе Hibernate-сессия уже помечена rollback-only
+     * и повторное чтение роняет запрос (AssertionFailure: null identifier).
+     * Транзакции открывают сами репозиторные методы.
+     */
     public User findOrCreate(UUID subject, String username, String email) {
         Optional<User> existing = userRepository.findByAuthSubject(subject);
         if (existing.isPresent()) {
@@ -41,7 +46,11 @@ public class OidcUserProvisioner {
                     user.setEmailVerified(true);
                 }
                 log.info("Linked auth subject {} to existing user {}", subject, user.getUserId());
-                return userRepository.save(user);
+                try {
+                    return userRepository.save(user);
+                } catch (DataIntegrityViolationException e) {
+                    return userRepository.findByAuthSubject(subject).orElseThrow(() -> e);
+                }
             }
         }
 
@@ -65,8 +74,7 @@ public class OidcUserProvisioner {
             return saved;
         } catch (DataIntegrityViolationException e) {
             // Гонка: параллельный запрос уже создал пользователя с этим sub.
-            return userRepository.findByAuthSubject(subject)
-                    .orElseThrow(() -> e);
+            return userRepository.findByAuthSubject(subject).orElseThrow(() -> e);
         }
     }
 
