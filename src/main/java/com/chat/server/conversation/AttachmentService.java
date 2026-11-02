@@ -124,6 +124,12 @@ public class AttachmentService {
         return fileUploadService.load(attachment.getFileUrl());
     }
 
+    /** Часть файла для Range-запроса (перемотка видео/аудио). */
+    @Transactional(readOnly = true)
+    public Resource downloadAttachmentRange(Attachment attachment, long offset, long length) {
+        return fileUploadService.load(attachment.getFileUrl(), offset, length);
+    }
+
     @Transactional(readOnly = true)
     public Resource getPreview(Attachment attachment) throws IOException {
         if (attachment.isImage()) {

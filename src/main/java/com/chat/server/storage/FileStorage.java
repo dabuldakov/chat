@@ -14,6 +14,9 @@ public interface FileStorage {
 
     Resource load(String key);
 
+    /** Часть объекта для HTTP Range: offset + length (null — с начала/до конца). */
+    Resource load(String key, Long offset, Long length);
+
     String uploadAvatar(Long userId, MultipartFile file);
 
     String uploadChatAvatar(Long chatId, MultipartFile file);

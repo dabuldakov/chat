@@ -7,7 +7,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
-import org.springframework.core.io.support.ResourceRegion;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpRange;
 import org.springframework.http.HttpStatus;
@@ -65,42 +64,48 @@ public class AttachmentController {
         // Проверяем доступ к чату
         chatService.validateUserAccessToChat(attachment.getChatId(), userId);
 
-        Resource resource = attachmentService.downloadAttachment(attachment);
         MediaType contentType = mediaType(attachment.getMimeType());
-        String disposition = "attachment; filename=\"" +
+        String disposition = "inline; filename=\"" +
                 com.chat.server.util.FileNames.sanitize(attachment.getFileName()) + "\"";
+        Long size = attachment.getFileSize();
 
-        if (rangeHeader == null || rangeHeader.isBlank()) {
-            return ResponseEntity.ok()
+        // Range нужен видеоплееру и аудио: без него перемотка работает только
+        // после полной загрузки. Читаем только запрошенный кусок из MinIO,
+        // не пытаясь повторно использовать InputStreamResource.
+        if (rangeHeader != null && !rangeHeader.isBlank() && size != null && size > 0) {
+            List<HttpRange> ranges;
+            try {
+                ranges = HttpRange.parseRanges(rangeHeader);
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.status(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE).build();
+            }
+            if (ranges.size() != 1) {
+                return ResponseEntity.status(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE).build();
+            }
+            HttpRange range = ranges.get(0);
+            long start = range.getRangeStart(size);
+            long end = range.getRangeEnd(size);
+            long length = end - start + 1;
+            Resource resource = attachmentService.downloadAttachmentRange(attachment, start, length);
+
+            return ResponseEntity.status(HttpStatus.PARTIAL_CONTENT)
                     .header(HttpHeaders.CONTENT_DISPOSITION, disposition)
                     .header(HttpHeaders.ACCEPT_RANGES, "bytes")
-                    .contentLength(resource.contentLength())
+                    .header(HttpHeaders.CONTENT_RANGE, "bytes " + start + "-" + end + "/" + size)
+                    .contentLength(length)
                     .contentType(contentType)
                     .body(resource);
         }
 
-        // Range нужен видеоплееру и аудио: без него перемотка работает только
-        // после полной загрузки файла, а большие видео вообще не играют.
-        List<HttpRange> ranges;
-        try {
-            ranges = HttpRange.parseRanges(rangeHeader);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE).build();
-        }
-        if (ranges.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE).build();
-        }
-
-        List<ResourceRegion> regions = HttpRange.toResourceRegions(ranges, resource);
-        return ResponseEntity.status(HttpStatus.PARTIAL_CONTENT)
+        Resource resource = attachmentService.downloadAttachment(attachment);
+        var builder = ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, disposition)
                 .header(HttpHeaders.ACCEPT_RANGES, "bytes")
-                .contentType(contentType)
-                .body(regions);
-    }
-
-    private static MediaType mediaType(String mimeType) {
-        return mimeType != null ? MediaType.parseMediaType(mimeType) : MediaType.APPLICATION_OCTET_STREAM;
+                .contentType(contentType);
+        if (size != null && size > 0) {
+            builder.contentLength(size);
+        }
+        return builder.body(resource);
     }
 
     @GetMapping("/{attachmentUuid}/preview")
@@ -189,5 +194,9 @@ public class AttachmentController {
                 .toList();
 
         return ResponseEntity.ok(attachmentDtos);
+    }
+
+    private static MediaType mediaType(String mimeType) {
+        return mimeType != null ? MediaType.parseMediaType(mimeType) : MediaType.APPLICATION_OCTET_STREAM;
     }
 }

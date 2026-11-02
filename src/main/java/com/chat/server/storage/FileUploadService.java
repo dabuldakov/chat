@@ -55,11 +55,21 @@ public class FileUploadService implements FileStorage {
     }
 
     public Resource load(String key) {
+        return load(key, null, null);
+    }
+
+    public Resource load(String key, Long offset, Long length) {
         try {
-            InputStream stream = minioClient.getObject(GetObjectArgs.builder()
+            GetObjectArgs.Builder builder = GetObjectArgs.builder()
                     .bucket(minioConfig.getAttachmentBucket())
-                    .object(key)
-                    .build());
+                    .object(key);
+            if (offset != null) {
+                builder.offset(offset);
+            }
+            if (length != null && length > 0) {
+                builder.length(length);
+            }
+            InputStream stream = minioClient.getObject(builder.build());
             return new InputStreamResource(stream);
         } catch (ErrorResponseException e) {
             if ("NoSuchKey".equals(e.errorResponse().code())) {
