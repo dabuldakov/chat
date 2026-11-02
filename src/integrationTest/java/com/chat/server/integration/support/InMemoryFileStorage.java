@@ -6,6 +6,7 @@ import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -30,11 +31,21 @@ public class InMemoryFileStorage implements FileStorage {
 
     @Override
     public Resource load(String key) {
+        return load(key, null, null);
+    }
+
+    @Override
+    public Resource load(String key, Long offset, Long length) {
         byte[] bytes = objects.get(key);
         if (bytes == null) {
             throw new NotFoundException("File not found");
         }
-        return new ByteArrayResource(bytes);
+        if (offset == null) {
+            return new ByteArrayResource(bytes);
+        }
+        int start = offset.intValue();
+        int end = length == null ? bytes.length : Math.min(bytes.length, start + length.intValue());
+        return new ByteArrayResource(Arrays.copyOfRange(bytes, start, end));
     }
 
     @Override
