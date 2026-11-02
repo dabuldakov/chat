@@ -80,7 +80,7 @@ class CrossChatAccessIT extends AbstractIntegrationTest {
                 Message.MessageType.TEXT, null, null);
 
         var file = new MockMultipartFile("file", "secret.txt", "text/plain", "top secret".getBytes());
-        Attachment attachment = attachmentService.uploadAttachment(file, chatId, member.getUserId());
+        Attachment attachment = attachmentService.uploadAttachment(file, null, chatId, member.getUserId(), null, null, null);
         attachmentUuid = attachment.getAttachmentUuid();
     }
 

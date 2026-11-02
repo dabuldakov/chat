@@ -127,7 +127,7 @@ class ChatServiceIT extends AbstractIntegrationTest {
 
         var file = new MockMultipartFile("file", "secret.txt", "text/plain",
                 "data".getBytes(StandardCharsets.UTF_8));
-        Attachment attachment = attachmentService.uploadAttachment(file, chatId, user1.getUserId());
+        Attachment attachment = attachmentService.uploadAttachment(file, null, chatId, user1.getUserId(), null, null, null);
         String fileUrl = attachment.getFileUrl();
 
         chatService.deleteChat(chatId, user1.getUserId());

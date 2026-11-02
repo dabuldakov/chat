@@ -75,7 +75,7 @@ class AttachmentServiceIT extends AbstractIntegrationTest {
     }
 
     private Attachment upload() {
-        return attachmentService.uploadAttachment(imageFile(), chat.getChatId(), user1.getUserId());
+        return attachmentService.uploadAttachment(imageFile(), null, chat.getChatId(), user1.getUserId(), null, null, null);
     }
 
     @Test
@@ -95,7 +95,7 @@ class AttachmentServiceIT extends AbstractIntegrationTest {
     void shouldRejectUploadToForeignChat() {
         User outsider = createUser("outsider");
 
-        assertThatThrownBy(() -> attachmentService.uploadAttachment(imageFile(), chat.getChatId(), outsider.getUserId()))
+        assertThatThrownBy(() -> attachmentService.uploadAttachment(imageFile(), null, chat.getChatId(), outsider.getUserId(), null, null, null))
                 .isInstanceOf(AccessDeniedException.class);
     }
 
@@ -162,7 +162,7 @@ class AttachmentServiceIT extends AbstractIntegrationTest {
         upload();
         attachmentService.uploadAttachment(
                 new MockMultipartFile("file", "doc.txt", "text/plain", "content".getBytes()),
-                chat.getChatId(), user1.getUserId());
+                null, chat.getChatId(), user1.getUserId(), null, null, null);
 
         List<Attachment> media = attachmentService.getMediaAttachmentsByChatId(chat.getChatId(), 0, 10);
 

@@ -406,7 +406,7 @@ class AccountDeletionIT extends AbstractIntegrationTest {
     }
 
     private Attachment uploadAttachment(User user, Chat chat) throws Exception {
-        return attachmentService.uploadAttachment(png(), chat.getChatId(), user.getUserId());
+        return attachmentService.uploadAttachment(png(), null, chat.getChatId(), user.getUserId(), null, null, null);
     }
 
     private MockMultipartFile png() throws Exception {
