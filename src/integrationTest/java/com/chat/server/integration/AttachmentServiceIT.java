@@ -71,7 +71,9 @@ class AttachmentServiceIT extends AbstractIntegrationTest {
     }
 
     private MockMultipartFile imageFile() {
-        return new MockMultipartFile("file", "photo.png", "image/png", "fake-image-content".getBytes());
+        // Валидация проверяет сигнатуру PNG, поэтому содержимое должно быть настоящим.
+        byte[] png = new byte[]{(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A};
+        return new MockMultipartFile("file", "photo.png", "image/png", png);
     }
 
     private Attachment upload() {
