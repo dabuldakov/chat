@@ -7,7 +7,10 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
+import org.springframework.core.io.support.ResourceRegion;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpRange;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -33,21 +36,27 @@ public class AttachmentController {
     @Operation(summary = "Загрузка вложения для сообщения")
     public ResponseEntity<AttachmentDto> uploadAttachment(
             @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "thumbnail", required = false) MultipartFile thumbnail,
             @RequestParam UUID chatUuid,
+            @RequestParam(value = "width", required = false) Integer width,
+            @RequestParam(value = "height", required = false) Integer height,
+            @RequestParam(value = "duration", required = false) Integer duration,
             Authentication authentication) {
         Long userId = Long.parseLong(authentication.getName());
         Long chatId = chatService.getChatIdByUuid(chatUuid);
 
         chatService.validateUserAccessToChat(chatId, userId);
 
-        Attachment attachment = attachmentService.uploadAttachment(file, chatId, userId);
+        Attachment attachment = attachmentService.uploadAttachment(
+                file, thumbnail, chatId, userId, width, height, duration);
         return ResponseEntity.ok(AttachmentDto.fromEntity(attachment));
     }
 
     @GetMapping("/{attachmentUuid}")
     @Operation(summary = "Скачивание вложения")
-    public ResponseEntity<Resource> downloadAttachment(
+    public ResponseEntity<?> downloadAttachment(
             @PathVariable UUID attachmentUuid,
+            @RequestHeader(value = HttpHeaders.RANGE, required = false) String rangeHeader,
             Authentication authentication) throws IOException {
         Long userId = Long.parseLong(authentication.getName());
 
@@ -57,12 +66,37 @@ public class AttachmentController {
         chatService.validateUserAccessToChat(attachment.getChatId(), userId);
 
         Resource resource = attachmentService.downloadAttachment(attachment);
+        MediaType contentType = mediaType(attachment.getMimeType());
+        String disposition = "attachment; filename=\"" +
+                com.chat.server.util.FileNames.sanitize(attachment.getFileName()) + "\"";
 
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION,
-                        "attachment; filename=\"" + com.chat.server.util.FileNames.sanitize(attachment.getFileName()) + "\"")
-                .contentType(mediaType(attachment.getMimeType()))
-                .body(resource);
+        if (rangeHeader == null || rangeHeader.isBlank()) {
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, disposition)
+                    .header(HttpHeaders.ACCEPT_RANGES, "bytes")
+                    .contentLength(resource.contentLength())
+                    .contentType(contentType)
+                    .body(resource);
+        }
+
+        // Range нужен видеоплееру и аудио: без него перемотка работает только
+        // после полной загрузки файла, а большие видео вообще не играют.
+        List<HttpRange> ranges;
+        try {
+            ranges = HttpRange.parseRanges(rangeHeader);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE).build();
+        }
+        if (ranges.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE).build();
+        }
+
+        List<ResourceRegion> regions = HttpRange.toResourceRegions(ranges, resource);
+        return ResponseEntity.status(HttpStatus.PARTIAL_CONTENT)
+                .header(HttpHeaders.CONTENT_DISPOSITION, disposition)
+                .header(HttpHeaders.ACCEPT_RANGES, "bytes")
+                .contentType(contentType)
+                .body(regions);
     }
 
     private static MediaType mediaType(String mimeType) {

@@ -35,23 +35,44 @@ public class AttachmentService {
      * Без @Transactional: на время загрузки файла в MinIO не удерживается
      * соединение из пула (долгий сетевой ввод-вывод вне транзакции).
      */
-    public Attachment uploadAttachment(MultipartFile file, Long chatId, Long userId) {
+    public Attachment uploadAttachment(
+            MultipartFile file,
+            MultipartFile thumbnail,
+            Long chatId,
+            Long userId,
+            Integer width,
+            Integer height,
+            Integer duration
+    ) {
         log.info("Uploading attachment for chat: {} by user: {}", chatId, userId);
 
         chatService.validateUserAccessToChat(chatId, userId);
 
-        String fileName = fileUploadService.store(file, "attachments",
+        AttachmentPolicy.Rule rule = AttachmentPolicy.validate(file);
+
+        String storedName = fileUploadService.store(file, "attachments",
                 UUID.randomUUID().toString() + "_" + file.getOriginalFilename());
+
+        String thumbnailKey = null;
+        if (thumbnail != null && !thumbnail.isEmpty()) {
+            AttachmentPolicy.validateThumbnail(thumbnail);
+            thumbnailKey = fileUploadService.store(thumbnail, "attachment-thumbnails",
+                    UUID.randomUUID().toString() + ".jpg");
+        }
 
         Attachment attachment = Attachment.builder()
                 .attachmentUuid(UUID.randomUUID())
                 .chatId(chatId)
                 .uploaderId(userId)
-                .fileName(file.getOriginalFilename())
-                .fileUrl(fileName)
+                .fileName(com.chat.server.util.FileNames.sanitize(file.getOriginalFilename()))
+                .fileUrl(storedName)
+                .thumbnailUrl(thumbnailKey)
                 .fileSize(file.getSize())
-                .mimeType(file.getContentType())
-                .type(detectAttachmentType(file.getContentType()))
+                .mimeType(rule.mimeType())
+                .type(rule.type())
+                .width(width)
+                .height(height)
+                .duration(duration)
                 .build();
 
         return attachmentRepository.save(attachment);
@@ -186,16 +207,5 @@ public class AttachmentService {
         return attachmentRepository.countMediaByChatId(chatId);
     }
 
-    private Attachment.AttachmentType detectAttachmentType(String mimeType) {
-        if (mimeType == null) return Attachment.AttachmentType.OTHER;
 
-        if (mimeType.startsWith("image/")) return Attachment.AttachmentType.IMAGE;
-        if (mimeType.startsWith("video/")) return Attachment.AttachmentType.VIDEO;
-        if (mimeType.startsWith("audio/")) return Attachment.AttachmentType.AUDIO;
-        if (mimeType.startsWith("application/pdf") ||
-                mimeType.contains("document") ||
-                mimeType.contains("text/")) return Attachment.AttachmentType.DOCUMENT;
-
-        return Attachment.AttachmentType.OTHER;
-    }
 }

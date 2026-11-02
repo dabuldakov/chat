@@ -63,19 +63,31 @@ public class MessageService {
             replyToId = replyTo.getMessageId();
         }
 
+        List<Attachment> attachments = resolveAttachments(attachmentUuids, chatId, senderId);
+        Message.MessageType effectiveType = resolveMessageType(type, attachments);
+
         Message message = Message.builder()
                 .chatId(chatId)
                 .senderId(senderId)
                 .messageText(text)
-                .messageType(type)
+                .messageType(effectiveType)
                 .replyToMessageId(replyToId)
+                .hasAttachments(!attachments.isEmpty())
                 .build();
 
         Message savedMessage = messageRepository.save(message);
         log.info("Message sent with id: {}", savedMessage.getMessageId());
 
+        // Привязываем загруженные вложения к сообщению. Без этого файлы
+        // оставались сиротами и удалялись через сутки.
+        if (!attachments.isEmpty()) {
+            attachments.forEach(attachment -> attachment.setMessageId(savedMessage.getMessageId()));
+            attachmentRepository.saveAll(attachments);
+        }
+
+        String preview = previewText(text, effectiveType);
         // Обновляем последнее сообщение в чате
-        chatService.updateLastMessage(chatId, savedMessage.getMessageId(), text, senderId);
+        chatService.updateLastMessage(chatId, savedMessage.getMessageId(), preview, senderId);
 
         // Статусы доставки/прочтения не создаются: они выводятся из watermark-ов
         // участников (participants.last_read_message_id / last_delivered_message_id).
@@ -83,9 +95,81 @@ public class MessageService {
         // Отправляем push уведомления. Имя отправителя — как в MessageDto:
         // полное имя, а при его отсутствии username.
         User sender = userService.getUserById(senderId);
-        pushNotificationService.sendMessageNotification(senderId, sender.getFullName(), text, participantIds);
+        pushNotificationService.sendMessageNotification(
+                senderId, sender.getFullName(), preview, participantIds);
 
         return savedMessage;
+    }
+
+    /**
+     * Проверяет и возвращает вложения, которые клиент загрузил заранее.
+     * Вложение должно быть из этого чата, загружено этим пользователем и ещё
+     * не привязано к другому сообщению.
+     */
+    private List<Attachment> resolveAttachments(List<UUID> attachmentUuids, Long chatId, Long senderId) {
+        if (attachmentUuids == null || attachmentUuids.isEmpty()) {
+            return List.of();
+        }
+        if (attachmentUuids.size() > AttachmentPolicy.MAX_ATTACHMENTS_PER_MESSAGE) {
+            throw new BadRequestException(
+                    "Too many attachments, maximum " + AttachmentPolicy.MAX_ATTACHMENTS_PER_MESSAGE);
+        }
+
+        List<Attachment> attachments = new java.util.ArrayList<>(attachmentUuids.size());
+        for (UUID uuid : attachmentUuids) {
+            Attachment attachment = attachmentRepository.findByAttachmentUuid(uuid)
+                    .orElseThrow(() -> new NotFoundException("Attachment not found: " + uuid));
+            if (!attachment.getChatId().equals(chatId)) {
+                throw new BadRequestException("Attachment belongs to another chat");
+            }
+            if (!senderId.equals(attachment.getUploaderId())) {
+                throw new AccessDeniedException("Cannot attach a file uploaded by another user");
+            }
+            if (attachment.getMessageId() != null) {
+                throw new BadRequestException("Attachment is already attached to a message");
+            }
+            attachments.add(attachment);
+        }
+        return attachments;
+    }
+
+    private Message.MessageType resolveMessageType(
+            Message.MessageType requested,
+            List<Attachment> attachments
+    ) {
+        if (requested != null && requested != Message.MessageType.TEXT) {
+            return requested;
+        }
+        if (attachments.isEmpty()) {
+            return Message.MessageType.TEXT;
+        }
+        boolean allImages = attachments.stream()
+                .allMatch(a -> a.getType() == Attachment.AttachmentType.IMAGE);
+        if (allImages) {
+            return Message.MessageType.IMAGE;
+        }
+        boolean allAudio = attachments.stream()
+                .allMatch(a -> a.getType() == Attachment.AttachmentType.AUDIO);
+        if (allAudio) {
+            return Message.MessageType.AUDIO;
+        }
+        if (attachments.size() == 1 && attachments.get(0).getType() == Attachment.AttachmentType.VIDEO) {
+            return Message.MessageType.VIDEO;
+        }
+        return Message.MessageType.FILE;
+    }
+
+    private String previewText(String text, Message.MessageType type) {
+        if (text != null && !text.isBlank()) {
+            return text;
+        }
+        return switch (type) {
+            case IMAGE -> "📷 Фото";
+            case VIDEO -> "🎥 Видео";
+            case AUDIO -> "🎤 Аудио";
+            case FILE -> "📎 Файл";
+            default -> text;
+        };
     }
 
     /**

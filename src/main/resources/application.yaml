@@ -3,8 +3,8 @@ spring:
     active: ${SPRING_PROFILES_ACTIVE:dev}
   servlet:
     multipart:
-      max-file-size: 5MB
-      max-request-size: 6MB
+      max-file-size: 64MB
+      max-request-size: 72MB
   datasource:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/chat_db}
     username: ${DATABASE_USERNAME:admin}
