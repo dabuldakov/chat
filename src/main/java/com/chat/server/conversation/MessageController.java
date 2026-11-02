@@ -52,8 +52,10 @@ public class MessageController {
             message = messageService.sendGifMessage(
                     chatId, userId, request.getGif(), request.getReplyToMessageUuid());
         } else {
-            if (request.getText() == null || request.getText().isBlank()) {
-                throw new com.chat.server.exception.BadRequestException("Message text is required");
+            boolean hasAttachments = request.getAttachments() != null && !request.getAttachments().isEmpty();
+            if ((request.getText() == null || request.getText().isBlank()) && !hasAttachments) {
+                throw new com.chat.server.exception.BadRequestException(
+                        "Message text or attachments are required");
             }
             message = messageService.sendMessage(
                     chatId,
