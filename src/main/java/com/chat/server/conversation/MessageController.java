@@ -196,6 +196,19 @@ public class MessageController {
         return ResponseEntity.ok().build();
     }
 
+    @PostMapping("/{chatUuid}/delivered")
+    @Operation(summary = "Отметить сообщения как доставленные на устройство")
+    public ResponseEntity<Void> markMessagesAsDelivered(
+            @PathVariable UUID chatUuid,
+            @RequestParam UUID upToMessageUuid,
+            Authentication authentication) {
+        Long userId = Long.parseLong(authentication.getName());
+        Long chatId = chatService.getChatIdByUuid(chatUuid);
+
+        messageStatusService.markMessagesAsDelivered(chatId, userId, upToMessageUuid);
+        return ResponseEntity.ok().build();
+    }
+
     @GetMapping("/{chatUuid}/status/{messageUuid}")
     @Operation(summary = "Получение статусов доставки сообщения")
     public ResponseEntity<List<MessageStatusDto>> getMessageStatuses(

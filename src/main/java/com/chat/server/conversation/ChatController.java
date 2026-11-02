@@ -32,6 +32,7 @@ public class ChatController {
     private final ChatService chatService;
     private final UserService userService;
     private final ChatAvatarService chatAvatarService;
+    private final MessageStatusService messageStatusService;
 
     @GetMapping
     @Operation(summary = "Получение всех чатов пользователя")
@@ -134,6 +135,17 @@ public class ChatController {
 
         chatService.unarchiveChat(chatId, userId);
         return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/{chatUuid}/receipts")
+    @Operation(summary = "Квитанции доставки и прочтения участников чата")
+    public ResponseEntity<List<ChatReceiptDto>> getChatReceipts(
+            @PathVariable UUID chatUuid,
+            Authentication authentication) {
+        Long userId = Long.parseLong(authentication.getName());
+        Long chatId = chatService.getChatIdByUuid(chatUuid);
+
+        return ResponseEntity.ok(messageStatusService.getChatReceipts(chatId, userId));
     }
 
     @GetMapping("/unread-count/{chatUuid}")

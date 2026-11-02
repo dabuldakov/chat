@@ -12,10 +12,13 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import com.chat.server.conversation.ChatService;
 import com.chat.server.identity.User;
+import com.chat.server.identity.UserService;
 /**
  * Статусы доставки/прочтения на основе watermark-ов участника
  * ({@code participants.last_read_message_id}, {@code last_delivered_message_id}),
@@ -30,6 +33,7 @@ public class MessageStatusService {
     private final ParticipantRepository participantRepository;
     private final MessageRepository messageRepository;
     private final ChatService chatService;
+    private final UserService userService;
 
     @Transactional
     public void markMessagesAsRead(Long chatId, Long userId, UUID upToMessageUuid) {
@@ -57,6 +61,70 @@ public class MessageStatusService {
         Message message = getMessageByUuid(messageUuid);
         participantRepository.advanceDeliveredWatermark(
                 message.getChatId(), userId, message.getMessageId(), now());
+    }
+
+    /**
+     * Подтверждение доставки всей ленты до указанного сообщения.
+     *
+     * <p>Используется клиентом после получения очередной порции сообщений:
+     * один запрос вместо подтверждения каждого сообщения отдельно.
+     */
+    @Transactional
+    public void markMessagesAsDelivered(Long chatId, Long userId, UUID upToMessageUuid) {
+        chatService.validateUserAccessToChat(chatId, userId);
+
+        Message upToMessage = messageRepository.findByMessageUuid(upToMessageUuid)
+                .orElseThrow(() -> new NotFoundException("Message not found"));
+        if (!upToMessage.getChatId().equals(chatId)) {
+            throw new BadRequestException("Message does not belong to this chat");
+        }
+
+        participantRepository.advanceDeliveredWatermark(
+                chatId, userId, upToMessage.getMessageId(), now());
+    }
+
+    /**
+     * Квитанции всех участников чата: докуда доставлено и докуда прочитано.
+     *
+     * <p>Отдаём имена и аватары, чтобы клиент мог показать «кто прочитал» без
+     * дополнительных запросов. Водарки — числовые id сообщений: клиент
+     * сравнивает их с {@code messageId} из {@link MessageDto}.
+     */
+    @Transactional(readOnly = true)
+    public List<ChatReceiptDto> getChatReceipts(Long chatId, Long userId) {
+        chatService.validateUserAccessToChat(chatId, userId);
+
+        List<Participant> participants = participantRepository.findAllByChatId(chatId);
+        if (participants.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Long, User> usersById = userService
+                .getUsersByIds(participants.stream().map(Participant::getUserId).toList())
+                .stream()
+                .collect(Collectors.toMap(User::getUserId, u -> u));
+
+        return participants.stream()
+                .map(participant -> toReceipt(participant, usersById.get(participant.getUserId())))
+                .toList();
+    }
+
+    private ChatReceiptDto toReceipt(Participant participant, User user) {
+        String fullName = user == null ? null : user.getFullName();
+        if (fullName == null || fullName.isBlank()) {
+            fullName = user == null ? null : user.getUsername();
+        }
+        return ChatReceiptDto.builder()
+                .userUuid(participant.getUserUUID())
+                .username(user == null ? null : user.getUsername())
+                .fullName(fullName)
+                .avatarUrl(user == null ? null : user.getAvatarUrl())
+                .joinedAt(participant.getJoinedAt())
+                .lastDeliveredMessageId(participant.getLastDeliveredMessageId())
+                .lastDeliveredAt(participant.getLastDeliveredAt())
+                .lastReadMessageId(participant.getLastReadMessageId())
+                .lastReadAt(participant.getLastReadAt())
+                .build();
     }
 
     @Transactional

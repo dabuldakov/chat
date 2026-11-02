@@ -25,6 +25,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -116,7 +117,8 @@ class MessageControllerMappingTest {
         mockMvc.perform(get("/api/messages/{chatUuid}", chatUuid).with(authPrincipal()))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith("application/json"))
-                .andExpect(jsonPath("$.content[0].messageUuid").value(messageUuid.toString()));
+                .andExpect(jsonPath("$.content[0].messageUuid").value(messageUuid.toString()))
+                .andExpect(jsonPath("$.content[0].messageId").value(1));
 
         verify(messageService).getChatMessages(org.mockito.ArgumentMatchers.eq(5L), org.mockito.ArgumentMatchers.eq(7L), any());
         verify(messageService, never()).getMessageByUuid(any());
@@ -154,5 +156,17 @@ class MessageControllerMappingTest {
 
         verify(messageService).getMessagesBeforeMessage(5L, 7L, beforeMessageUuid, 50);
         verify(messageService, never()).getMessageByUuid(any());
+    }
+
+    @Test
+    void markMessagesAsDelivered_mapsToDeliveredEndpoint() throws Exception {
+        stubCommon();
+
+        mockMvc.perform(post("/api/messages/{chatUuid}/delivered", chatUuid)
+                        .param("upToMessageUuid", messageUuid.toString())
+                        .with(authPrincipal()))
+                .andExpect(status().isOk());
+
+        verify(messageStatusService).markMessagesAsDelivered(5L, 7L, messageUuid);
     }
 }

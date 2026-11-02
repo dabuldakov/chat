@@ -14,6 +14,8 @@ import com.chat.server.conversation.AttachmentDto;
 public class MessageDto {
 
     private UUID messageUuid;
+    /** Монотонный идентификатор внутри БД: по нему сравниваются watermark-и статусов. */
+    private Long messageId;
     private UUID chatUuid;
     private Long senderId;
     private UUID senderUuid;
@@ -35,6 +37,7 @@ public class MessageDto {
     public static MessageDto fromEntity(Message message) {
         return MessageDto.builder()
                 .messageUuid(message.getMessageUuid())
+                .messageId(message.getMessageId())
                 .text(message.getMessageText())
                 .messageType(message.getMessageType().name())
                 .isEdited(message.getIsEdited() != null && message.getIsEdited())
