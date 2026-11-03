@@ -167,6 +167,8 @@ public class MessageService {
             case IMAGE -> "📷 Фото";
             case VIDEO -> "🎥 Видео";
             case AUDIO -> "🎤 Аудио";
+            case VOICE -> "🎤 Голосовое сообщение";
+            case VIDEO_NOTE -> "🎥 Видеосообщение";
             case FILE -> "📎 Файл";
             default -> text;
         };
