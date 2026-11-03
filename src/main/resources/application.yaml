@@ -3,8 +3,8 @@ spring:
     active: ${SPRING_PROFILES_ACTIVE:dev}
   servlet:
     multipart:
-      max-file-size: 64MB
-      max-request-size: 72MB
+      max-file-size: 200MB
+      max-request-size: 220MB
   datasource:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/chat_db}
     username: ${DATABASE_USERNAME:admin}
@@ -150,3 +150,7 @@ management:
   health:
     mail:
       enabled: false
+
+# Общий секрет для внутренних запросов между сервисами (makeup -> chat push).
+push:
+  internal-token: ${PUSH_INTERNAL_TOKEN:}

@@ -45,6 +45,9 @@ public interface ContactRepository extends JpaRepository<Contact, Long> {
     @Query("SELECT c.contactUserId FROM Contact c WHERE c.userId = :userId")
     List<Long> findContactUserIdsByUserId(@Param("userId") Long userId);
 
+    @Query("SELECT c.userId FROM Contact c WHERE c.contactUserId = :contactUserId AND c.userId <> :contactUserId")
+    List<Long> findUserIdsByContactUserId(@Param("contactUserId") Long contactUserId);
+
     @Query("SELECT c.contactUserId FROM Contact c WHERE c.userId = :userId AND c.contactUserId IN :userIds")
     List<Long> findExistingContactIds(@Param("userId") Long userId,
                                       @Param("userIds") List<Long> userIds);

@@ -50,6 +50,8 @@ public class SecurityConfig {
                 // Правила авторизации
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/avatars/**").permitAll()
+                        // Внутренние push-запросы от makeup: защищены общим секретом в контроллере.
+                        .requestMatchers("/api/internal/**").permitAll()
                         // Публичные эндпоинты
                         .requestMatchers(
                                 "/swagger-ui/**",

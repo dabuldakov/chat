@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -53,7 +54,17 @@ public class FcmService {
      * плане), а заголовок notification показывает система в фоне.
      */
     @Async
-    public void sendMessageNotification(String fcmToken, Long senderId, String senderName, String messageText) {
+    public void sendMessageNotification(
+            String fcmToken,
+            Long senderId,
+            String senderName,
+            String messageText,
+            UUID chatUuid,
+            UUID messageUuid,
+            String chatTitle,
+            UUID senderUuid,
+            String senderAvatar
+    ) {
         if (fcmToken == null || fcmToken.isEmpty()) {
             log.warn("Cannot send notification: FCM token is null or empty");
             return;
@@ -82,6 +93,24 @@ public class FcmService {
                 data.put("senderName", senderName);
             }
             data.put("messageText", messageText);
+            if (chatUuid != null) {
+                data.put("chatUuid", chatUuid.toString());
+            }
+            if (messageUuid != null) {
+                data.put("messageUuid", messageUuid.toString());
+            }
+            if (chatTitle != null && !chatTitle.isBlank()) {
+                data.put("chatTitle", chatTitle);
+            }
+            if (senderUuid != null) {
+                data.put("senderUuid", senderUuid.toString());
+            }
+            if (senderAvatar != null && !senderAvatar.isBlank()) {
+                data.put("senderAvatar", senderAvatar);
+                // Аватар для шапки открытого чата: у группы — аватар группы,
+                // у личного чата — аватар собеседника.
+                data.put("chatAvatar", senderAvatar);
+            }
 
             // Создаем сообщение
             Message message = Message.builder()
@@ -90,10 +119,12 @@ public class FcmService {
                     .putAllData(data)
                     .setAndroidConfig(AndroidConfig.builder()
                             .setPriority(AndroidConfig.Priority.HIGH)
+                            .setCollapseKey(chatUuid != null ? chatUuid.toString() : null)
                             .setNotification(AndroidNotification.builder()
                                     .setChannelId("chat_messages")
                                     .setPriority(AndroidNotification.Priority.HIGH)
                                     .setDefaultSound(true)
+                                    .setTag(chatUuid != null ? chatUuid.toString() : null)
                                     .build())
                             .build())
                     .setApnsConfig(ApnsConfig.builder()
@@ -110,6 +141,62 @@ public class FcmService {
 
         } catch (FirebaseMessagingException e) {
             log.error("Failed to send message notification to token: {}", fcmToken, e);
+            handleError(fcmToken, e);
+        }
+    }
+
+    /**
+     * Push о новой новости. Канал отдельный от чата; tag по id новости,
+     * чтобы повторная отправка той же новости заменяла уведомление.
+     */
+    @Async
+    public void sendNewsNotification(
+            String fcmToken,
+            Long newsId,
+            String title,
+            String body,
+            String authorName
+    ) {
+        if (fcmToken == null || fcmToken.isEmpty()) return;
+        try {
+            String shortBody = body != null && body.length() > 140
+                    ? body.substring(0, 140) + "..."
+                    : body;
+
+            Notification notification = Notification.builder()
+                    .setTitle(title)
+                    .setBody(shortBody)
+                    .build();
+
+            Map<String, String> data = new HashMap<>();
+            data.put("type", "NEWS");
+            data.put("newsId", String.valueOf(newsId));
+            data.put("title", title);
+            if (shortBody != null) data.put("body", shortBody);
+            if (authorName != null) data.put("authorName", authorName);
+
+            String tag = "news_" + newsId;
+            Message message = Message.builder()
+                    .setToken(fcmToken)
+                    .setNotification(notification)
+                    .putAllData(data)
+                    .setAndroidConfig(AndroidConfig.builder()
+                            .setPriority(AndroidConfig.Priority.HIGH)
+                            .setCollapseKey(tag)
+                            .setNotification(AndroidNotification.builder()
+                                    .setChannelId("news")
+                                    .setPriority(AndroidNotification.Priority.HIGH)
+                                    .setDefaultSound(true)
+                                    .setTag(tag)
+                                    .build())
+                            .build())
+                    .setApnsConfig(ApnsConfig.builder()
+                            .setAps(Aps.builder().setSound("default").build())
+                            .build())
+                    .build();
+            send(message);
+        } catch (FirebaseMessagingException e) {
+            log.error("Failed to send news notification to token: {}", fcmToken, e);
             handleError(fcmToken, e);
         }
     }

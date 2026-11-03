@@ -95,8 +95,19 @@ public class MessageService {
         // Отправляем push уведомления. Имя отправителя — как в MessageDto:
         // полное имя, а при его отсутствии username.
         User sender = userService.getUserById(senderId);
+        Chat chat = chatService.getChatById(chatId);
         pushNotificationService.sendMessageNotification(
-                senderId, sender.getFullName(), preview, participantIds);
+                senderId,
+                sender.getFullName(),
+                preview,
+                participantIds,
+                chat.getChatUuid(),
+                savedMessage.getMessageUuid(),
+                chat.getChatType() == Chat.ChatType.GROUP ? chat.getTitle() : null,
+                sender.getUserUuid(),
+                chat.getChatType() == Chat.ChatType.GROUP && chat.getAvatarUrl() != null
+                        ? chat.getAvatarUrl()
+                        : sender.getAvatarUrl());
 
         return savedMessage;
     }
@@ -228,7 +239,19 @@ public class MessageService {
         chatService.updateLastMessage(chatId, savedMessage.getMessageId(), "GIF", senderId);
 
         User sender = userService.getUserById(senderId);
-        pushNotificationService.sendMessageNotification(senderId, sender.getFullName(), "Гифка", participantIds);
+        Chat gifChat = chatService.getChatById(chatId);
+        pushNotificationService.sendMessageNotification(
+                senderId,
+                sender.getFullName(),
+                "Гифка",
+                participantIds,
+                gifChat.getChatUuid(),
+                savedMessage.getMessageUuid(),
+                gifChat.getChatType() == Chat.ChatType.GROUP ? gifChat.getTitle() : null,
+                sender.getUserUuid(),
+                gifChat.getChatType() == Chat.ChatType.GROUP && gifChat.getAvatarUrl() != null
+                        ? gifChat.getAvatarUrl()
+                        : sender.getAvatarUrl());
 
         return savedMessage;
     }

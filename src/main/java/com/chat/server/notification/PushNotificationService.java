@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -28,7 +29,17 @@ public class PushNotificationService {
                 .toList();
     }
 
-    public void sendMessageNotification(Long senderId, String senderName, String messageText, List<Long> recipientIds) {
+    public void sendMessageNotification(
+            Long senderId,
+            String senderName,
+            String messageText,
+            List<Long> recipientIds,
+            UUID chatUuid,
+            UUID messageUuid,
+            String chatTitle,
+            UUID senderUuid,
+            String senderAvatar
+    ) {
         // Отправляем уведомление всем участникам кроме отправителя.
         // Токены получаем одним GROUP-запросом, а не SELECT-ом на каждого получателя.
         List<Long> targetIds = recipientIds.stream()
@@ -45,7 +56,9 @@ public class PushNotificationService {
                 .toList();
 
         for (String token : tokens) {
-            fcmService.sendMessageNotification(token, senderId, senderName, messageText);
+            fcmService.sendMessageNotification(
+                    token, senderId, senderName, messageText,
+                    chatUuid, messageUuid, chatTitle, senderUuid, senderAvatar);
         }
     }
 
