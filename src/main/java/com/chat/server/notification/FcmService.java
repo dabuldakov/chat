@@ -78,15 +78,12 @@ public class FcmService {
 
             boolean hasSenderName = senderName != null && !senderName.isBlank();
 
-            // Создаем уведомление
-            Notification notification = Notification.builder()
-                    .setTitle(hasSenderName ? senderName : "Новое сообщение")
-                    .setBody(shortText)
-                    .setImage(null)
-                    .build();
-
-            // Создаем данные для клиента
+            // Только data, без notification: уведомление строит клиент.
+            // Иначе в фоне уведомление рисует система, и тап по нему не
+            // доставляет data (открывается просто приложение, без чата).
             Map<String, String> data = new HashMap<>();
+            data.put("title", hasSenderName ? senderName : "Новое сообщение");
+            data.put("body", shortText);
             data.put("type", "MESSAGE");
             data.put("senderId", String.valueOf(senderId));
             if (hasSenderName) {
@@ -115,17 +112,10 @@ public class FcmService {
             // Создаем сообщение
             Message message = Message.builder()
                     .setToken(fcmToken)
-                    .setNotification(notification)
                     .putAllData(data)
                     .setAndroidConfig(AndroidConfig.builder()
+                            // HIGH нужен, чтобы data-сообщение будило приложение в фоне.
                             .setPriority(AndroidConfig.Priority.HIGH)
-                            .setCollapseKey(chatUuid != null ? chatUuid.toString() : null)
-                            .setNotification(AndroidNotification.builder()
-                                    .setChannelId("chat_messages")
-                                    .setPriority(AndroidNotification.Priority.HIGH)
-                                    .setDefaultSound(true)
-                                    .setTag(chatUuid != null ? chatUuid.toString() : null)
-                                    .build())
                             .build())
                     .setApnsConfig(ApnsConfig.builder()
                             .setAps(Aps.builder()
@@ -163,11 +153,7 @@ public class FcmService {
                     ? body.substring(0, 140) + "..."
                     : body;
 
-            Notification notification = Notification.builder()
-                    .setTitle(title)
-                    .setBody(shortBody)
-                    .build();
-
+            // Только data: уведомление строит приложение, чтобы тап вёл в новость.
             Map<String, String> data = new HashMap<>();
             data.put("type", "NEWS");
             data.put("newsId", String.valueOf(newsId));
@@ -175,20 +161,11 @@ public class FcmService {
             if (shortBody != null) data.put("body", shortBody);
             if (authorName != null) data.put("authorName", authorName);
 
-            String tag = "news_" + newsId;
             Message message = Message.builder()
                     .setToken(fcmToken)
-                    .setNotification(notification)
                     .putAllData(data)
                     .setAndroidConfig(AndroidConfig.builder()
                             .setPriority(AndroidConfig.Priority.HIGH)
-                            .setCollapseKey(tag)
-                            .setNotification(AndroidNotification.builder()
-                                    .setChannelId("news")
-                                    .setPriority(AndroidNotification.Priority.HIGH)
-                                    .setDefaultSound(true)
-                                    .setTag(tag)
-                                    .build())
                             .build())
                     .setApnsConfig(ApnsConfig.builder()
                             .setAps(Aps.builder().setSound("default").build())
