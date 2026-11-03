@@ -20,7 +20,7 @@ import com.chat.server.storage.AvatarStorage;
 @RequiredArgsConstructor
 public class UserAvatarService {
     private static final String PREFIX = "/api/avatars/";
-    private static final long MAX_SIZE = 5 * 1024 * 1024;
+    private static final long MAX_SIZE = 20 * 1024 * 1024;
     private final AvatarStorage storage;
     private final UserService users;
 
@@ -89,7 +89,7 @@ public class UserAvatarService {
 
     private byte[] normalize(MultipartFile file) {
         if (file.isEmpty() || file.getSize() > MAX_SIZE) {
-            throw new BadRequestException("Avatar must be an image up to 5 MB");
+            throw new BadRequestException("Avatar must be an image up to 20 MB");
         }
         try (var input = file.getInputStream(); var imageInput = ImageIO.createImageInputStream(input)) {
             var readers = ImageIO.getImageReaders(imageInput);

@@ -107,7 +107,7 @@ class AvatarFlowIT extends AbstractIntegrationTest {
                         .header("Authorization", token(owner)))
                 .andExpect(status().isBadRequest());
         mvc.perform(multipart("/api/users/me/avatar")
-                        .file(new MockMultipartFile("file", "big.png", "image/png", new byte[5 * 1024 * 1024 + 1]))
+                        .file(new MockMultipartFile("file", "big.png", "image/png", new byte[20 * 1024 * 1024 + 1]))
                         .header("Authorization", token(owner)))
                 .andExpect(status().isBadRequest());
         assertThat(users.getUserById(owner.getUserId()).getAvatarUrl()).isNull();

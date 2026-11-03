@@ -18,11 +18,11 @@ import java.util.Map;
 public final class AttachmentPolicy {
 
     public static final int MAX_ATTACHMENTS_PER_MESSAGE = 10;
-    public static final long MAX_IMAGE_BYTES = 15L * 1024 * 1024;
-    public static final long MAX_VIDEO_BYTES = 64L * 1024 * 1024;
-    public static final long MAX_AUDIO_BYTES = 20L * 1024 * 1024;
-    public static final long MAX_DOCUMENT_BYTES = 20L * 1024 * 1024;
-    public static final long MAX_THUMBNAIL_BYTES = 2L * 1024 * 1024;
+    public static final long MAX_IMAGE_BYTES = 50L * 1024 * 1024;
+    public static final long MAX_VIDEO_BYTES = 200L * 1024 * 1024;
+    public static final long MAX_AUDIO_BYTES = 50L * 1024 * 1024;
+    public static final long MAX_DOCUMENT_BYTES = 100L * 1024 * 1024;
+    public static final long MAX_THUMBNAIL_BYTES = 5L * 1024 * 1024;
 
     private static final int SIGNATURE_BYTES = 16;
 
