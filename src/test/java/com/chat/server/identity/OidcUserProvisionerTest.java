@@ -3,7 +3,6 @@ package com.chat.server.identity;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -17,11 +16,10 @@ import static org.mockito.Mockito.when;
 class OidcUserProvisionerTest {
 
     private final UserRepository userRepository = mock(UserRepository.class);
-    private final PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
     private final OidcProperties properties =
             new OidcProperties(true, "iss", "jwks", java.util.List.of("chat-muzea"), true);
     private final OidcUserProvisioner provisioner =
-            new OidcUserProvisioner(userRepository, passwordEncoder, properties);
+            new OidcUserProvisioner(userRepository, properties);
 
     @Test
     void returnsExistingUserBySubject() {
@@ -67,7 +65,6 @@ class OidcUserProvisionerTest {
         when(userRepository.findByAuthSubject(subject)).thenReturn(Optional.empty());
         when(userRepository.findByEmail(anyString())).thenReturn(Optional.empty());
         when(userRepository.existsByUsername("newuser")).thenReturn(false);
-        when(passwordEncoder.encode(anyString())).thenReturn("encoded");
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
         User result = provisioner.findOrCreate(subject, "newuser", "new@example.com");
@@ -76,7 +73,6 @@ class OidcUserProvisionerTest {
         assertThat(result.getEmail()).isEqualTo("new@example.com");
         assertThat(result.getAuthSubject()).isEqualTo(subject);
         assertThat(result.getStatus()).isEqualTo(User.UserStatus.ACTIVE);
-        assertThat(result.getPasswordHash()).isEqualTo("encoded");
     }
 
     @Test
@@ -87,7 +83,6 @@ class OidcUserProvisionerTest {
         when(userRepository.existsByUsername("taken")).thenReturn(true);
         when(userRepository.existsByUsername("taken_" + subject.toString().replace("-", "").substring(0, 6)))
                 .thenReturn(false);
-        when(passwordEncoder.encode(anyString())).thenReturn("encoded");
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
         User result = provisioner.findOrCreate(subject, "taken", "t@example.com");
@@ -101,7 +96,6 @@ class OidcUserProvisionerTest {
         when(userRepository.findByAuthSubject(subject)).thenReturn(Optional.empty());
         when(userRepository.findByEmail("john@example.com")).thenReturn(Optional.empty());
         when(userRepository.existsByUsername("john")).thenReturn(false);
-        when(passwordEncoder.encode(anyString())).thenReturn("encoded");
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
         User result = provisioner.findOrCreate(subject, null, "john@example.com");
@@ -118,7 +112,6 @@ class OidcUserProvisionerTest {
                 .thenReturn(Optional.of(concurrent));
         when(userRepository.findByEmail(anyString())).thenReturn(Optional.empty());
         when(userRepository.existsByUsername(anyString())).thenReturn(false);
-        when(passwordEncoder.encode(anyString())).thenReturn("encoded");
         when(userRepository.save(any(User.class))).thenThrow(new DataIntegrityViolationException("dup"));
 
         User result = provisioner.findOrCreate(subject, "racer", "racer@example.com");
@@ -130,7 +123,6 @@ class OidcUserProvisionerTest {
         User user = User.builder()
                 .username(username)
                 .email(username + "@example.com")
-                .passwordHash("hash")
                 .status(User.UserStatus.ACTIVE)
                 .build();
         user.setUserId(id);

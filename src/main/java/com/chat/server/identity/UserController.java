@@ -1,7 +1,5 @@
 package com.chat.server.identity;
 
-import com.chat.server.identity.UserSessionDto;
-import com.chat.server.identity.UserSessionService;
 import com.chat.server.identity.PresenceInfo;
 import com.chat.server.identity.PresenceService;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -31,7 +29,7 @@ import java.util.stream.Collectors;
 public class UserController {
 
     private final UserService userService;
-    private final UserSessionService userSessionService;
+    private final DeviceTokenService deviceTokenService;
     private final UserAvatarService avatars;
     private final PresenceService presenceService;
 
@@ -76,7 +74,7 @@ public class UserController {
             @RequestBody FcmTokenRequest request,
             Authentication authentication) {
         Long userId = Long.parseLong(authentication.getName());
-        userSessionService.registerFcmToken(userId, request.deviceId(), request.token());
+        deviceTokenService.registerFcmToken(userId, request.deviceId(), request.token());
         return ResponseEntity.ok().build();
     }
 
@@ -129,21 +127,6 @@ public class UserController {
         User user = userService.getUserByUuid(userUuid);
         PresenceInfo presence = presenceService.presenceOf(user.getUserId());
         return ResponseEntity.ok(new UserStatusResponse(presence.online(), presence.lastSeenAt()));
-    }
-
-    @GetMapping("/me/sessions")
-    @Operation(summary = "Получение списка активных сессий")
-    public ResponseEntity<List<UserSessionDto>> getMySessions(
-            @RequestHeader(value = "Authorization", required = false) String authorization,
-            Authentication authentication) {
-        Long userId = Long.parseLong(authentication.getName());
-        return ResponseEntity.ok(userSessionService.getUserSessions(userId, bearerToken(authorization)));
-    }
-
-    private static String bearerToken(String authorization) {
-        return authorization != null && authorization.startsWith("Bearer ")
-                ? authorization.substring(7)
-                : null;
     }
 
     public record AvatarResponse(String avatarUrl) {}

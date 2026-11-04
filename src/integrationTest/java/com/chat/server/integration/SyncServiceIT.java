@@ -47,7 +47,6 @@ class SyncServiceIT extends AbstractIntegrationTest {
         return userRepository.save(User.builder()
                 .username(username)
                 .email(username + "@example.com")
-                .passwordHash("hash")
                 .isOnline(false)
                 .isDeleted(false)
                 .build());

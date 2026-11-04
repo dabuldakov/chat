@@ -1,21 +1,25 @@
 package com.chat.server.integration;
 
+import com.chat.server.identity.DeviceTokenRepository;
+import com.chat.server.identity.DeviceTokenService;
 import com.chat.server.identity.User;
-import com.chat.server.identity.UserSession;
 import com.chat.server.identity.UserRepository;
 import com.chat.server.notification.FcmService;
 import com.chat.server.notification.PushNotificationService;
-import com.chat.server.identity.UserSessionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -24,7 +28,9 @@ class PushNotificationServiceIT extends AbstractIntegrationTest {
     @Autowired
     private UserRepository userRepository;
     @Autowired
-    private UserSessionService userSessionService;
+    private DeviceTokenService deviceTokenService;
+    @MockitoSpyBean
+    private DeviceTokenRepository deviceTokenRepository;
     @Autowired
     private PushNotificationService pushNotificationService;
 
@@ -44,59 +50,66 @@ class PushNotificationServiceIT extends AbstractIntegrationTest {
         return userRepository.save(User.builder()
                 .username(username)
                 .email(username + "@example.com")
-                .passwordHash("hash")
                 .isOnline(false)
                 .isDeleted(false)
                 .build());
     }
 
-    private UserSession sessionWithFcm(Long userId, String token, String fcmToken) {
-        UserSession session = userSessionService.createSession(userId, token, "refresh-" + token, "device-" + token,
-                "Pixel", "ANDROID", null, null);
-        if (fcmToken != null) {
-            userSessionService.updateFcmToken(session.getSessionId(), fcmToken);
-        }
-        return session;
+    /**
+     * Токены хранит таблица device_tokens: одна строка на устройство.
+     */
+    private void deviceWithFcm(Long userId, String deviceId, String fcmToken) {
+        deviceTokenService.registerFcmToken(userId, deviceId, fcmToken);
     }
 
+    private void sendMessage(User from, String text, List<Long> recipients) {
+        pushNotificationService.sendMessageNotification(
+                from.getUserId(), "Alice", text, recipients,
+                UUID.randomUUID(), UUID.randomUUID(), "chat-title",
+                from.getUserUuid(), "avatar-url");
+    }
 
     @Test
     void shouldNotifyAllRecipientsExceptSender() {
-        UserSession senderSession = sessionWithFcm(sender.getUserId(), "sender-tok", "fcm-sender");
-        UserSession recipientSession = sessionWithFcm(recipient.getUserId(), "recipient-tok", "fcm-recipient");
+        deviceWithFcm(sender.getUserId(), "device-sender", "fcm-sender");
+        deviceWithFcm(recipient.getUserId(), "device-recipient", "fcm-recipient");
 
-        pushNotificationService.sendMessageNotification(sender.getUserId(), "Alice", "hi",
-                List.of(sender.getUserId(), recipient.getUserId()));
+        sendMessage(sender, "hi", List.of(sender.getUserId(), recipient.getUserId()));
 
-        verify(fcmService).sendMessageNotification("fcm-recipient", sender.getUserId(), "Alice", "hi");
-        verify(fcmService, never()).sendMessageNotification("fcm-sender", sender.getUserId(), "Alice", "hi");
+        verify(fcmService).sendMessageNotification(
+                Mockito.eq("fcm-recipient"), Mockito.eq(sender.getUserId()), Mockito.eq("Alice"),
+                Mockito.eq("hi"), any(), any(), any(), any(), any());
+        verify(fcmService, never()).sendMessageNotification(
+                Mockito.eq("fcm-sender"), anyLong(), anyString(), anyString(),
+                any(), any(), any(), any(), any());
     }
 
     @Test
     void shouldNotSendNotificationWithoutFcmToken() {
-        sessionWithFcm(recipient.getUserId(), "recipient-tok", null);
+        // У получателя вообще нет зарегистрированного устройства.
+        sendMessage(sender, "hi", List.of(sender.getUserId(), recipient.getUserId()));
 
-        pushNotificationService.sendMessageNotification(sender.getUserId(), "Alice", "hi",
-                List.of(sender.getUserId(), recipient.getUserId()));
-
-        verify(fcmService, never()).sendMessageNotification(any(), any(), any(), any());
+        verify(fcmService, never()).sendMessageNotification(
+                any(), any(), any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
     void shouldNotSendDuplicateNotificationForSameToken() {
-        sessionWithFcm(recipient.getUserId(), "recipient-tok-1", "fcm-same");
-        sessionWithFcm(recipient.getUserId(), "recipient-tok-2", "fcm-same");
+        // В БД токен уникален (uk_device_tokens_fcm_token), но защитный distinct
+        // в сервисе всё равно проверяем: подсовываем дубль на уровне запроса.
+        Mockito.doReturn(List.of("fcm-same", "fcm-same"))
+                .when(deviceTokenRepository).findFcmTokensByUserIds(List.of(recipient.getUserId()));
 
-        pushNotificationService.sendMessageNotification(sender.getUserId(), "Alice", "hi",
-                List.of(recipient.getUserId()));
+        sendMessage(sender, "hi", List.of(recipient.getUserId()));
 
-        verify(fcmService, org.mockito.Mockito.times(1))
-                .sendMessageNotification("fcm-same", sender.getUserId(), "Alice", "hi");
+        verify(fcmService, Mockito.times(1)).sendMessageNotification(
+                Mockito.eq("fcm-same"), anyLong(), anyString(), anyString(),
+                any(), any(), any(), any(), any());
     }
 
     @Test
     void shouldSendTypingNotification() {
-        sessionWithFcm(recipient.getUserId(), "recipient-tok", "fcm-recipient");
+        deviceWithFcm(recipient.getUserId(), "device-recipient", "fcm-recipient");
 
         pushNotificationService.sendTypingNotification(5L, sender.getUserId(), recipient.getUserId());
 
@@ -105,7 +118,7 @@ class PushNotificationServiceIT extends AbstractIntegrationTest {
 
     @Test
     void shouldSendCallNotification() {
-        sessionWithFcm(recipient.getUserId(), "recipient-tok", "fcm-recipient");
+        deviceWithFcm(recipient.getUserId(), "device-recipient", "fcm-recipient");
 
         pushNotificationService.sendCallNotification(5L, sender.getUserId(), recipient.getUserId(), "AUDIO");
 
@@ -114,7 +127,7 @@ class PushNotificationServiceIT extends AbstractIntegrationTest {
 
     @Test
     void shouldSendReadReceipt() {
-        sessionWithFcm(sender.getUserId(), "sender-tok", "fcm-sender");
+        deviceWithFcm(sender.getUserId(), "device-sender", "fcm-sender");
 
         pushNotificationService.sendReadReceipt(5L, recipient.getUserId(), 9L,
                 List.of(sender.getUserId(), recipient.getUserId()));
@@ -124,7 +137,7 @@ class PushNotificationServiceIT extends AbstractIntegrationTest {
 
     @Test
     void shouldSendNewContactNotification() {
-        sessionWithFcm(recipient.getUserId(), "recipient-tok", "fcm-recipient");
+        deviceWithFcm(recipient.getUserId(), "device-recipient", "fcm-recipient");
 
         pushNotificationService.sendNewContactNotification(recipient.getUserId(), "Alice", 9L);
 
@@ -133,7 +146,7 @@ class PushNotificationServiceIT extends AbstractIntegrationTest {
 
     @Test
     void shouldSendGroupInviteNotification() {
-        sessionWithFcm(recipient.getUserId(), "recipient-tok", "fcm-recipient");
+        deviceWithFcm(recipient.getUserId(), "device-recipient", "fcm-recipient");
 
         pushNotificationService.sendGroupInviteNotification(recipient.getUserId(), "Team", 5L, "Bob");
 
@@ -142,8 +155,8 @@ class PushNotificationServiceIT extends AbstractIntegrationTest {
 
     @Test
     void shouldSendMessageDeletedNotification() {
-        sessionWithFcm(sender.getUserId(), "sender-tok", "fcm-sender");
-        sessionWithFcm(recipient.getUserId(), "recipient-tok", "fcm-recipient");
+        deviceWithFcm(sender.getUserId(), "device-sender", "fcm-sender");
+        deviceWithFcm(recipient.getUserId(), "device-recipient", "fcm-recipient");
 
         pushNotificationService.sendMessageDeletedNotification(5L, 9L,
                 List.of(sender.getUserId(), recipient.getUserId()));
@@ -154,8 +167,13 @@ class PushNotificationServiceIT extends AbstractIntegrationTest {
 
     @Test
     void shouldSendMulticastWithDistinctTokens() {
-        sessionWithFcm(sender.getUserId(), "sender-tok", "same-fcm");
-        sessionWithFcm(recipient.getUserId(), "recipient-tok", "same-fcm");
+        // Оба пользователя «указывают» на один и тот же токен: multicast должен
+        // схлопнуть его в один. В БД такое состояние невозможно (токен уникален),
+        // поэтому подменяем выдачу токенов.
+        Mockito.doReturn(List.of("same-fcm"))
+                .when(deviceTokenRepository).findFcmTokensByUserId(sender.getUserId());
+        Mockito.doReturn(List.of("same-fcm"))
+                .when(deviceTokenRepository).findFcmTokensByUserId(recipient.getUserId());
 
         pushNotificationService.sendMulticastMessage(
                 List.of(sender.getUserId(), recipient.getUserId()), "Title", "Body",

@@ -32,7 +32,7 @@ public abstract class AbstractIntegrationTest {
     private static final List<String> CLEANUP_TABLES = List.of(
             "gif_user_usage", "gif_chat_usage", "gif_catalog",
             "messages", "attachments", "participants",
-            "blocked_users", "contacts", "chats", "user_sessions", "users");
+            "blocked_users", "contacts", "chats", "device_tokens", "users");
 
     @Autowired
     protected DataSource dataSource;
@@ -40,8 +40,20 @@ public abstract class AbstractIntegrationTest {
     @Autowired
     protected CacheManager cacheManager;
 
-    @Autowired
-    protected com.chat.server.identity.LoginRateLimiter loginRateLimiter;
+    /**
+     * Аутентификация в MockMvc под единый IdP (auth-service): вместо legacy
+     * HS256-токена chat кладём в SecurityContext principal, у которого
+     * {@code getName()} — числовой {@code users.user_id}. Именно это читают
+     * контроллеры ({@code Long.parseLong(authentication.getName())}).
+     */
+    protected static org.springframework.test.web.servlet.request.RequestPostProcessor auth(
+            com.chat.server.identity.User user) {
+        var authentication = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                user.getUserId().toString(), null,
+                java.util.List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_USER")));
+        return org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
+                .authentication(authentication);
+    }
 
     @DynamicPropertySource
     static void registerDatabaseProperties(DynamicPropertyRegistry registry) {
@@ -67,8 +79,5 @@ public abstract class AbstractIntegrationTest {
                 cache.clear();
             }
         });
-        // Лимитер логина/регистрации живёт в памяти — сбрасываем между тестами,
-        // иначе счётчики по IP/username протекают из теста в тест.
-        loginRateLimiter.reset();
     }
 }

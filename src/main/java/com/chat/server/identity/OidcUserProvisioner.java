@@ -3,7 +3,6 @@ package com.chat.server.identity;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
@@ -22,7 +21,6 @@ public class OidcUserProvisioner {
     private static final int USERNAME_MAX = 50;
 
     private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
     private final OidcProperties properties;
 
     /**
@@ -100,7 +98,6 @@ public class OidcUserProvisioner {
         User user = User.builder()
                 .username(resolveUsername(username, email, subject))
                 .email(resolveEmail(email, username, subject))
-                .passwordHash(passwordEncoder.encode(UUID.randomUUID().toString()))
                 .status(User.UserStatus.ACTIVE)
                 .isOnline(false)
                 .isDeleted(false)

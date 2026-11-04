@@ -29,7 +29,6 @@ class UserServiceIT extends AbstractIntegrationTest {
         user = userRepository.save(User.builder()
                 .username("alice")
                 .email("alice@example.com")
-                .passwordHash("hash")
                 .isOnline(false)
                 .isDeleted(false)
                 .build());
@@ -43,25 +42,27 @@ class UserServiceIT extends AbstractIntegrationTest {
     }
 
     @Test
-    void shouldCreateUserWithEncodedPassword() {
-        var created = userService.createUser("bob", "bob@example.com", "secret123");
+    void shouldCreateActiveUserWithoutIdpLinkYet() {
+        var created = userService.createUser("bob", "bob@example.com");
 
         assertThat(created.getUserId()).isNotNull();
-        assertThat(created.getPasswordHash()).isNotEqualTo("secret123");
+        // Паролей у chat больше нет: вход только через IdP, поэтому auth_subject
+        // заполнится позднее при первом OIDC-входе.
+        assertThat(created.getAuthSubject()).isNull();
         assertThat(created.getStatus()).isEqualTo(User.UserStatus.ACTIVE);
         assertThat(created.getIsDeleted()).isFalse();
     }
 
     @Test
     void shouldRejectDuplicateUsername() {
-        assertThatThrownBy(() -> userService.createUser("alice", "other@example.com", "secret123"))
+        assertThatThrownBy(() -> userService.createUser("alice", "other@example.com"))
                 .isInstanceOf(ConflictException.class)
                 .hasMessageContaining("Username already exists");
     }
 
     @Test
     void shouldRejectDuplicateEmail() {
-        assertThatThrownBy(() -> userService.createUser("bob", "alice@example.com", "secret123"))
+        assertThatThrownBy(() -> userService.createUser("bob", "alice@example.com"))
                 .isInstanceOf(ConflictException.class)
                 .hasMessageContaining("Email already exists");
     }
@@ -109,7 +110,6 @@ class UserServiceIT extends AbstractIntegrationTest {
         userRepository.save(User.builder()
                 .username("bob")
                 .email("bob@example.com")
-                .passwordHash("hash")
                 .isOnline(false)
                 .isDeleted(false)
                 .build());
@@ -141,7 +141,7 @@ class UserServiceIT extends AbstractIntegrationTest {
 
     @Test
     void shouldSearchUsers() {
-        userService.createUser("alicebob", "alicebob@example.com", "secret123");
+        userService.createUser("alicebob", "alicebob@example.com");
 
         var result = userService.searchUsers("alice", PageRequest.of(0, 10));
 

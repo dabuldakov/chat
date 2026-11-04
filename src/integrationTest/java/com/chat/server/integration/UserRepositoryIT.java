@@ -17,7 +17,6 @@ class UserRepositoryIT extends AbstractIntegrationTest {
         return User.builder()
                 .username(username)
                 .email(email)
-                .passwordHash("hash")
                 .isOnline(false)
                 .isDeleted(false)
                 .build();
@@ -48,7 +47,6 @@ class UserRepositoryIT extends AbstractIntegrationTest {
         userRepository.save(User.builder()
                 .username("deleted")
                 .email("deleted@example.com")
-                .passwordHash("hash")
                 .isOnline(false)
                 .isDeleted(true)
                 .build());
@@ -79,7 +77,6 @@ class UserRepositoryIT extends AbstractIntegrationTest {
         userRepository.save(User.builder()
                 .username("online2")
                 .email("online2@example.com")
-                .passwordHash("hash")
                 .isOnline(true)
                 .isDeleted(false)
                 .build());

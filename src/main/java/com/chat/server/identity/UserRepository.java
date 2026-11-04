@@ -55,10 +55,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query("SELECT u FROM User u WHERE u.isOnline = true AND u.isDeleted = false")
     List<User> findOnlineUsers();
 
-    Optional<User> findByResetToken(String resetToken);
-
-    Optional<User> findByEmailVerificationToken(String emailVerificationToken);
-
     // ==================== Presence ====================
 
     /**

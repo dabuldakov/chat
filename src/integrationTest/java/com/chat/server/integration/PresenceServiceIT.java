@@ -52,14 +52,12 @@ class PresenceServiceIT extends AbstractIntegrationTest {
         user = userRepository.save(User.builder()
                 .username("presence-user")
                 .email("presence-user@example.com")
-                .passwordHash("hash")
                 .isOnline(false)
                 .isDeleted(false)
                 .build());
         contactUser = userRepository.save(User.builder()
                 .username("presence-contact")
                 .email("presence-contact@example.com")
-                .passwordHash("hash")
                 .isOnline(false)
                 .isDeleted(false)
                 .build());

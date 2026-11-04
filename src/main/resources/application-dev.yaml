@@ -4,9 +4,6 @@ spring:
   jpa:
     show-sql: true
 
-jwt:
-  secret: ${JWT_SECRET:dev-insecure-secret-please-set-JWT_SECRET}
-
 logging:
   level:
     com.chat.server: DEBUG

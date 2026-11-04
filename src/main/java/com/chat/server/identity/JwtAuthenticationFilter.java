@@ -22,21 +22,16 @@ import java.io.IOException;
 import java.util.UUID;
 
 /**
- * Аутентификация по Bearer-токену. Поддерживает два источника:
- * <ol>
- *   <li>access-токен единого IdP (auth-service, RS256) — проверяется по JWKS,
- *       пользователь находится/создаётся по claim {@code sub};</li>
- *   <li>legacy HS256-токен chat (собственный логин/пароль) — на время миграции.</li>
- * </ol>
- * В обоих случаях в SecurityContext кладётся principal, у которого
- * {@code getName()} — числовой {@code users.user_id}, как и раньше.
+ * Аутентификация по access-токену единого IdP (auth-service, RS256):
+ * токен проверяется по JWKS, пользователь находится/создаётся по claim
+ * {@code sub}. В SecurityContext кладётся principal, у которого
+ * {@code getName()} — числовой {@code users.user_id}.
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    private final JwtUtil jwtUtil;
     private final UserDetailsService userDetailsService;
     private final OidcUserProvisioner oidcUserProvisioner;
     private final OidcProperties oidcProperties;
@@ -61,9 +56,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String token = extractToken(request);
 
             if (token != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                if (!authenticateWithOidc(token, request)) {
-                    authenticateWithLegacyToken(token, request);
-                }
+                authenticateWithOidc(token, request);
             }
         } catch (Exception e) {
             log.warn("Authentication error for request {}: {}", requestPath, e.getMessage());
@@ -96,17 +89,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
     }
 
-    /** Legacy HS256-токен, выданный самим chat. */
-    private void authenticateWithLegacyToken(String token, HttpServletRequest request) {
-        if (!jwtUtil.validateToken(token)) {
-            return;
-        }
-        UUID userUuid = jwtUtil.getUserIdFromToken(token);
-        UserDetails userDetails = userDetailsService.loadUserByUsername(userUuid.toString());
-        SecurityContextHolder.getContext().setAuthentication(createAuthentication(userDetails, request));
-        log.debug("Authenticated legacy chat user: {}", userUuid);
-    }
-
     private String extractToken(HttpServletRequest request) {
         String authHeader = request.getHeader("Authorization");
 
@@ -133,10 +115,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private boolean isPublicEndpoint(String path) {
-        // ВАЖНО: /api/auth/** сюда не входит. Часть эндпоинтов (/api/auth/me,
-        // /api/auth/logout*, /api/auth/change-password) требует Authentication,
-        // поэтому JWT-фильтр обязан их обрабатывать. Публичность конкретных
-        // auth-эндпоинтов (login/register/refresh/...) задаётся в SecurityConfig.
         return path.startsWith("/api/avatars/")
                 || path.startsWith("/swagger-ui/")
                 || path.startsWith("/v3/api-docs/")

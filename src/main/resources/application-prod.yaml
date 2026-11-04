@@ -7,11 +7,7 @@ spring:
       host: ${REDIS_HOST:redis}
       port: ${REDIS_PORT:6379}
 
-# Нет дефолта — приложение не стартует без JWT_SECRET.
-jwt:
-  secret: ${JWT_SECRET}
-
-# В проде приём токенов auth-service включён; отключается AUTH_OIDC_ENABLED=false.
+# Приём токенов auth-service включён; отключается AUTH_OIDC_ENABLED=false.
 auth:
   oidc:
     enabled: ${AUTH_OIDC_ENABLED:true}

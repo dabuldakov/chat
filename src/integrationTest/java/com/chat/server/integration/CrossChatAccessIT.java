@@ -6,7 +6,6 @@ import com.chat.server.conversation.ChatRepository;
 import com.chat.server.conversation.ChatService;
 import com.chat.server.conversation.Message;
 import com.chat.server.conversation.MessageService;
-import com.chat.server.identity.JwtUtil;
 import com.chat.server.identity.User;
 import com.chat.server.identity.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -49,8 +48,6 @@ class CrossChatAccessIT extends AbstractIntegrationTest {
     private MessageService messageService;
     @Autowired
     private AttachmentService attachmentService;
-    @Autowired
-    private JwtUtil jwtUtil;
 
     private User member;
     private User member2;
@@ -58,10 +55,6 @@ class CrossChatAccessIT extends AbstractIntegrationTest {
     private UUID chatUuid;
     private Message message;
     private UUID attachmentUuid;
-
-    private String bearer(User user) {
-        return "Bearer " + jwtUtil.generateToken(user.getUserUuid(), user.getUsername());
-    }
 
     @BeforeEach
     void setUp() {
@@ -88,14 +81,9 @@ class CrossChatAccessIT extends AbstractIntegrationTest {
         return userRepository.save(User.builder()
                 .username(username)
                 .email(username + "@example.com")
-                .passwordHash("hash")
                 .isOnline(false)
                 .isDeleted(false)
                 .build());
-    }
-
-    private String intruderBearer() {
-        return bearer(intruder);
     }
 
     // ==================== Сообщения ====================
@@ -103,28 +91,28 @@ class CrossChatAccessIT extends AbstractIntegrationTest {
     @Test
     void intruderCannotReadMessages() throws Exception {
         mvc.perform(get("/api/messages/{chatUuid}", chatUuid)
-                        .header("Authorization", intruderBearer()))
+                        .with(auth(intruder)))
                 .andExpect(status().isForbidden());
     }
 
     @Test
     void intruderCannotReadMessagesBefore() throws Exception {
         mvc.perform(get("/api/messages/{chatUuid}/before/{messageUuid}", chatUuid, message.getMessageUuid())
-                        .header("Authorization", intruderBearer()))
+                        .with(auth(intruder)))
                 .andExpect(status().isForbidden());
     }
 
     @Test
     void intruderCannotReadNewMessages() throws Exception {
         mvc.perform(get("/api/messages/{chatUuid}/after/{timestamp}", chatUuid, "2020-01-01T00:00:00Z")
-                        .header("Authorization", intruderBearer()))
+                        .with(auth(intruder)))
                 .andExpect(status().isForbidden());
     }
 
     @Test
     void intruderCannotReadMessageByUuid() throws Exception {
         mvc.perform(get("/api/messages/by-uuid/{messageUuid}", message.getMessageUuid())
-                        .header("Authorization", intruderBearer()))
+                        .with(auth(intruder)))
                 .andExpect(status().isForbidden());
     }
 
@@ -132,28 +120,28 @@ class CrossChatAccessIT extends AbstractIntegrationTest {
     void intruderCannotSearchInChat() throws Exception {
         mvc.perform(get("/api/messages/{chatUuid}/search", chatUuid)
                         .param("query", "секрет")
-                        .header("Authorization", intruderBearer()))
+                        .with(auth(intruder)))
                 .andExpect(status().isForbidden());
     }
 
     @Test
     void intruderCannotReadPinnedMessages() throws Exception {
         mvc.perform(get("/api/messages/{chatUuid}/pinned", chatUuid)
-                        .header("Authorization", intruderBearer()))
+                        .with(auth(intruder)))
                 .andExpect(status().isForbidden());
     }
 
     @Test
     void intruderCannotReadMessageStatuses() throws Exception {
         mvc.perform(get("/api/messages/{chatUuid}/status/{messageUuid}", chatUuid, message.getMessageUuid())
-                        .header("Authorization", intruderBearer()))
+                        .with(auth(intruder)))
                 .andExpect(status().isForbidden());
     }
 
     @Test
     void intruderCannotSendMessage() throws Exception {
         mvc.perform(post("/api/messages/{chatUuid}", chatUuid)
-                        .header("Authorization", intruderBearer())
+                        .with(auth(intruder))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"text\":\"вторжение\"}"))
                 .andExpect(status().isForbidden());
@@ -162,7 +150,7 @@ class CrossChatAccessIT extends AbstractIntegrationTest {
     @Test
     void intruderCannotEditForeignMessage() throws Exception {
         mvc.perform(put("/api/messages/{messageUuid}", message.getMessageUuid())
-                        .header("Authorization", intruderBearer())
+                        .with(auth(intruder))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"text\":\"изменено\"}"))
                 .andExpect(status().isForbidden());
@@ -171,7 +159,7 @@ class CrossChatAccessIT extends AbstractIntegrationTest {
     @Test
     void intruderCannotDeleteForeignMessage() throws Exception {
         mvc.perform(delete("/api/messages/{messageUuid}", message.getMessageUuid())
-                        .header("Authorization", intruderBearer()))
+                        .with(auth(intruder)))
                 .andExpect(status().isForbidden());
     }
 
@@ -179,14 +167,14 @@ class CrossChatAccessIT extends AbstractIntegrationTest {
     void intruderCannotMarkMessagesAsRead() throws Exception {
         mvc.perform(post("/api/messages/{chatUuid}/read", chatUuid)
                         .param("upToMessageUuid", message.getMessageUuid().toString())
-                        .header("Authorization", intruderBearer()))
+                        .with(auth(intruder)))
                 .andExpect(status().isForbidden());
     }
 
     @Test
     void intruderCannotPinMessage() throws Exception {
         mvc.perform(get("/api/messages/{chatUuid}/pin/{messageUuid}", chatUuid, message.getMessageUuid())
-                        .header("Authorization", intruderBearer()))
+                        .with(auth(intruder)))
                 .andExpect(status().isForbidden());
     }
 
@@ -195,28 +183,28 @@ class CrossChatAccessIT extends AbstractIntegrationTest {
     @Test
     void intruderCannotReadChatDetails() throws Exception {
         mvc.perform(get("/api/chats/{chatUuid}", chatUuid)
-                        .header("Authorization", intruderBearer()))
+                        .with(auth(intruder)))
                 .andExpect(status().isForbidden());
     }
 
     @Test
     void intruderCannotReadParticipants() throws Exception {
         mvc.perform(get("/api/chats/{chatUuid}/participants", chatUuid)
-                        .header("Authorization", intruderBearer()))
+                        .with(auth(intruder)))
                 .andExpect(status().isForbidden());
     }
 
     @Test
     void intruderCannotReadUnreadCount() throws Exception {
         mvc.perform(get("/api/chats/unread-count/{chatUuid}", chatUuid)
-                        .header("Authorization", intruderBearer()))
+                        .with(auth(intruder)))
                 .andExpect(status().isForbidden());
     }
 
     @Test
     void intruderCannotUpdateChat() throws Exception {
         mvc.perform(put("/api/chats/{chatUuid}", chatUuid)
-                        .header("Authorization", intruderBearer())
+                        .with(auth(intruder))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"title\":\"hijacked\"}"))
                 .andExpect(status().isForbidden());
@@ -225,7 +213,7 @@ class CrossChatAccessIT extends AbstractIntegrationTest {
     @Test
     void intruderCannotAddParticipants() throws Exception {
         mvc.perform(post("/api/chats/{chatUuid}/participants", chatUuid)
-                        .header("Authorization", intruderBearer())
+                        .with(auth(intruder))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"memberUuids\":[\"" + member.getUserUuid() + "\"]}"))
                 .andExpect(status().isForbidden());
@@ -234,14 +222,14 @@ class CrossChatAccessIT extends AbstractIntegrationTest {
     @Test
     void intruderCannotRemoveParticipant() throws Exception {
         mvc.perform(delete("/api/chats/{chatUuid}/participants/{userUuid}", chatUuid, member.getUserUuid())
-                        .header("Authorization", intruderBearer()))
+                        .with(auth(intruder)))
                 .andExpect(status().isForbidden());
     }
 
     @Test
     void intruderCannotChangeParticipantRole() throws Exception {
         mvc.perform(put("/api/chats/{chatUuid}/participants/{userUuid}/role", chatUuid, member2.getUserUuid())
-                        .header("Authorization", intruderBearer())
+                        .with(auth(intruder))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"role\":\"ADMIN\"}"))
                 .andExpect(status().isForbidden());
@@ -250,7 +238,7 @@ class CrossChatAccessIT extends AbstractIntegrationTest {
     @Test
     void intruderCannotDeleteChat() throws Exception {
         mvc.perform(delete("/api/chats/{chatUuid}", chatUuid)
-                        .header("Authorization", intruderBearer()))
+                        .with(auth(intruder)))
                 .andExpect(status().isForbidden());
     }
 
@@ -259,28 +247,28 @@ class CrossChatAccessIT extends AbstractIntegrationTest {
     @Test
     void intruderCannotDownloadAttachment() throws Exception {
         mvc.perform(get("/api/attachments/{attachmentUuid}", attachmentUuid)
-                        .header("Authorization", intruderBearer()))
+                        .with(auth(intruder)))
                 .andExpect(status().isForbidden());
     }
 
     @Test
     void intruderCannotPreviewAttachment() throws Exception {
         mvc.perform(get("/api/attachments/{attachmentUuid}/preview", attachmentUuid)
-                        .header("Authorization", intruderBearer()))
+                        .with(auth(intruder)))
                 .andExpect(status().isForbidden());
     }
 
     @Test
     void intruderCannotListChatAttachments() throws Exception {
         mvc.perform(get("/api/attachments/chat/{chatUuid}", chatUuid)
-                        .header("Authorization", intruderBearer()))
+                        .with(auth(intruder)))
                 .andExpect(status().isForbidden());
     }
 
     @Test
     void intruderCannotListMessageAttachments() throws Exception {
         mvc.perform(get("/api/attachments/message/{messageUuid}", message.getMessageUuid())
-                        .header("Authorization", intruderBearer()))
+                        .with(auth(intruder)))
                 .andExpect(status().isForbidden());
     }
 

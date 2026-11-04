@@ -28,10 +28,7 @@ import com.chat.server.common.BaseEntity;
                 @Index(name = "idx_users_username", columnList = "username"),
                 @Index(name = "idx_users_email", columnList = "email"),
                 @Index(name = "idx_users_user_uuid", columnList = "user_uuid"),
-                @Index(name = "idx_users_status", columnList = "status"),
-                // ⭐ Добавьте индексы для токенов
-                @Index(name = "idx_users_reset_token", columnList = "reset_token"),
-                @Index(name = "idx_users_email_verification_token", columnList = "email_verification_token")
+                @Index(name = "idx_users_status", columnList = "status")
         })
 @SQLRestriction("is_deleted = false")
 public class User extends BaseEntity {
@@ -47,7 +44,7 @@ public class User extends BaseEntity {
 
     /**
      * UUID пользователя в едином IdP (auth-service), claim {@code sub}.
-     * NULL для legacy-аккаунтов, заведённых собственным логином/паролем.
+     * NULL только у legacy-аккаунтов, которые ещё не входили через IdP.
      */
     @Column(name = "auth_subject", unique = true)
     private UUID authSubject;
@@ -57,9 +54,6 @@ public class User extends BaseEntity {
 
     @Column(nullable = false, unique = true, length = 255)
     private String email;
-
-    @Column(name = "password_hash", nullable = false)
-    private String passwordHash;
 
     @Column(name = "first_name", length = 100)
     private String firstName;
@@ -91,22 +85,6 @@ public class User extends BaseEntity {
 
     @Column(name = "email_verified")
     private Boolean emailVerified = false;
-
-    @Column(name = "two_factor_enabled")
-    private Boolean twoFactorEnabled = false;
-
-    @Column(name = "two_factor_secret")
-    private String twoFactorSecret;
-
-    // ⭐ ДОБАВЬТЕ ЭТИ ПОЛЯ ДЛЯ ВОССТАНОВЛЕНИЯ ПАРОЛЯ
-    @Column(name = "reset_token")
-    private String resetToken;
-
-    @Column(name = "reset_token_expiry")
-    private LocalDateTime resetTokenExpiry;
-
-    @Column(name = "email_verification_token")
-    private String emailVerificationToken;
 
     public enum UserStatus {
         ACTIVE, INACTIVE, SUSPENDED, BANNED

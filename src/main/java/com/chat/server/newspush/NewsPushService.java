@@ -3,7 +3,7 @@ package com.chat.server.newspush;
 import com.chat.server.contacts.ContactRepository;
 import com.chat.server.identity.User;
 import com.chat.server.identity.UserService;
-import com.chat.server.identity.UserSessionRepository;
+import com.chat.server.identity.DeviceTokenRepository;
 import com.chat.server.notification.FcmService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,7 +21,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class NewsPushService {
 
-    private final UserSessionRepository userSessionRepository;
+    private final DeviceTokenRepository deviceTokenRepository;
     private final UserService userService;
     private final ContactRepository contactRepository;
     private final FcmService fcmService;
@@ -46,7 +46,7 @@ public class NewsPushService {
             return;
         }
 
-        List<String> tokens = userSessionRepository.findActiveFcmTokensByUserIds(recipientIds).stream()
+        List<String> tokens = deviceTokenRepository.findFcmTokensByUserIds(recipientIds).stream()
                 .filter(token -> token != null && !token.isEmpty())
                 .distinct()
                 .toList();

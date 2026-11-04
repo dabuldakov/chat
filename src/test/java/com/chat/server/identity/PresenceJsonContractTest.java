@@ -40,7 +40,6 @@ class PresenceJsonContractTest {
             .firstName("Alice")
             .lastName("Smith")
             .email("alice@example.com")
-            .passwordHash("hash")
             .emailVerified(true)
             .build();
 

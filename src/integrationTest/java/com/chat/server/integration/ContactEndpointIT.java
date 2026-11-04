@@ -1,6 +1,5 @@
 package com.chat.server.integration;
 
-import com.chat.server.identity.JwtUtil;
 import com.chat.server.contacts.AddContactRequestDto;
 import com.chat.server.contacts.ContactService;
 import com.chat.server.identity.User;
@@ -28,21 +27,17 @@ class ContactEndpointIT extends AbstractIntegrationTest {
     private UserService users;
     @Autowired
     private ContactService contacts;
-    @Autowired
-    private JwtUtil jwt;
 
     @Test
     void contactsEndpointReturnsContactWithOnlineField() throws Exception {
-        User owner = users.createUser("owner1", "owner1@example.com", "password123");
-        User friend = users.createUser("friend1", "friend1@example.com", "password123");
+        User owner = users.createUser("owner1", "owner1@example.com");
+        User friend = users.createUser("friend1", "friend1@example.com");
 
         AddContactRequestDto request = new AddContactRequestDto();
         request.setContactUserUuid(friend.getUserUuid());
         contacts.addContact(owner.getUserId(), request);
 
-        String token = "Bearer " + jwt.generateToken(owner.getUserUuid(), owner.getUsername());
-
-        mvc.perform(get("/api/contacts").header("Authorization", token))
+        mvc.perform(get("/api/contacts").with(auth(owner)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].contactUserUuid").value(friend.getUserUuid().toString()))

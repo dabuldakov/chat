@@ -31,14 +31,12 @@ class ContactServiceIT extends AbstractIntegrationTest {
         user = userRepository.save(User.builder()
                 .username("user")
                 .email("user@example.com")
-                .passwordHash("hash")
                 .isOnline(false)
                 .isDeleted(false)
                 .build());
         contactUser = userRepository.save(User.builder()
                 .username("contact")
                 .email("contact@example.com")
-                .passwordHash("hash")
                 .isOnline(false)
                 .isDeleted(false)
                 .build());

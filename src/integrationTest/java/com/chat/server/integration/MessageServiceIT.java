@@ -66,7 +66,6 @@ class MessageServiceIT extends AbstractIntegrationTest {
         return userRepository.save(User.builder()
                 .username(username)
                 .email(username + "@example.com")
-                .passwordHash("hash")
                 .isOnline(false)
                 .isDeleted(false)
                 .build());
@@ -133,7 +132,8 @@ class MessageServiceIT extends AbstractIntegrationTest {
 
         verify(pushNotificationService).sendMessageNotification(
                 Mockito.eq(user1.getUserId()), Mockito.eq("u1"),
-                Mockito.eq("Hello world"), Mockito.anyList());
+                Mockito.eq("Hello world"), Mockito.anyList(),
+                Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
     }
 
     @Test

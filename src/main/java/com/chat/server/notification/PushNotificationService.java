@@ -1,6 +1,6 @@
 package com.chat.server.notification;
 
-import com.chat.server.identity.UserSessionRepository;
+import com.chat.server.identity.DeviceTokenRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -15,15 +15,15 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PushNotificationService {
 
-    private final UserSessionRepository userSessionRepository;
+    private final DeviceTokenRepository deviceTokenRepository;
     private final FcmService fcmService;
 
     /**
-     * Уникальные FCM-токены активных сессий пользователя.
+     * Уникальные FCM-токены устройств пользователя.
      * Один и тот же токен не должен получать уведомление дважды.
      */
     private List<String> distinctTokens(Long userId) {
-        return userSessionRepository.findActiveFcmTokensByUserId(userId).stream()
+        return deviceTokenRepository.findFcmTokensByUserId(userId).stream()
                 .filter(token -> token != null && !token.isEmpty())
                 .distinct()
                 .toList();
@@ -50,7 +50,7 @@ public class PushNotificationService {
             return;
         }
 
-        List<String> tokens = userSessionRepository.findActiveFcmTokensByUserIds(targetIds).stream()
+        List<String> tokens = deviceTokenRepository.findFcmTokensByUserIds(targetIds).stream()
                 .filter(token -> token != null && !token.isEmpty())
                 .distinct()
                 .toList();

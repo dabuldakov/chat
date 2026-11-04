@@ -1,6 +1,6 @@
 # chat
 
-Бэкенд чата: Java 21, Spring Boot 4.0.5, PostgreSQL, JWT, Firebase Cloud Messaging.
+Бэкенд чата: Java 21, Spring Boot 4.0.5, PostgreSQL, Firebase Cloud Messaging.
 
 ## Архитектура
 
@@ -12,17 +12,17 @@
 ```
 shared (common/config/util/exception)  ← база для всех
 storage (MinIO)                        ← инфраструктура, ни от кого не зависит
-identity (users, auth, sessions, presence) ← все доменные модули
+identity (users, OIDC-пользователи, device_tokens, presence) ← все доменные модули
 conversation (чаты, сообщения, вложения) → identity, block, notification, storage
 contacts → identity        block → identity, contacts
 notification → identity    sync → conversation
 account (удаление аккаунта) → identity, conversation, storage   ← лист-оркестратор
 ```
 
-Приложение не хранит состояние в памяти между запросами (JWT + сессии в БД,
-файлы в MinIO), поэтому его можно запускать в нескольких экземплярах за
-балансировщиком. Каждому экземпляру нужны **своя БД** (через `DATABASE_URL`) и
-общий MinIO — см. «Независимый инстанс».
+Приложение не хранит состояние в памяти между запросами (access-токен единого IdP
+проверяется по JWKS, FCM-токены — в `device_tokens`, файлы в MinIO), поэтому его
+можно запускать в нескольких экземплярах за балансировщиком. Каждому экземпляру
+нужны **своя БД** (через `DATABASE_URL`) и общий MinIO — см. «Независимый инстанс».
 
 ## Независимый инстанс
 
@@ -33,25 +33,24 @@ account (удаление аккаунта) → identity, conversation, storage 
   создаётся Flyway при старте).
 - **MinIO общий** — тот же `MINIO_URL`/ключи и bucket; доступ к объектам идёт
   через API приложения, поэтому bucket остаётся закрытым.
-- **JWT_SECRET** может быть общим (доверие между инстансами) или своим — второй
-  вариант изолирует токены.
-- **FCM и SMTP** общие (`FCM_*`, `MAIL_*`), но необязательны: при
-  `FCM_ENABLED=false` push работает как no-op.
+- **Аутентификация** — общий IdP (`auth-service`): экземпляры принимают его
+  RS256 access-токены по JWKS (`AUTH_OIDC_*`), собственного секрета подписи нет.
+- **FCM** общий (`FCM_*`), но необязателен: при `FCM_ENABLED=false` push работает
+  как no-op.
 
-Секреты задаются только через окружение; профиль `prod` не содержит дефолтов и
-не стартует без `JWT_SECRET`.
+Секреты задаются только через окружение; профиль `prod` не содержит дефолтов.
 
 ## Горизонтальное масштабирование
 
 Несколько нод работают с **одной общей БД** и общим MinIO. Приложение stateless
-(JWT + сессии в БД, файлы в MinIO), sticky sessions не нужны. Что учитывается:
+(access-токен единого IdP, файлы в MinIO), sticky sessions не нужны. Что учитывается:
 
 - **Кеш** — по умолчанию (dev, одна нода) локальный Caffeine. При нескольких
   нодах включается общий **Redis**: `app.cache.redis.enabled=true`
   (`REDIS_HOST`/`REDIS_PORT`). Иначе `@CacheEvict` на одной ноде не виден
   другим, и до TTL отдаётся устаревшее значение.
-- **Шедулеры** — `PresenceSweeper`, `MessagePartitionScheduler` и очистка сессий
-  защищены лидер-локом на PostgreSQL advisory locks
+- **Шедулеры** — `PresenceSweeper` и `MessagePartitionScheduler` защищены
+  лидер-локом на PostgreSQL advisory locks
   (`DistributedLockService`): задачу выполняет ровно одна нода.
 - **Flyway** берёт advisory-lock и накатывает миграции один раз; для лишних нод
   можно выставить `SPRING_FLYWAY_ENABLED=false`.
@@ -82,7 +81,7 @@ Gradle ставить не нужно, используется wrapper — `./g
 ## Аватары пользователей (MinIO)
 
 Android загружает аватар из экрана профиля в `POST /api/users/me/avatar`
-(multipart-поле `file`, chat JWT). Ответ: `{"avatarUrl":"/api/avatars/<userUuid>/<version>.png"}`.
+(multipart-поле `file`, Bearer-токен). Ответ: `{"avatarUrl":"/api/avatars/<userUuid>/<version>.png"}`.
 `GET /api/users/me` возвращает текущий URL, `DELETE /api/users/me/avatar` удаляет аватар.
 Публичный `GET /api/avatars/<userUuid>/<version>.png` выдаёт картинку через chat API:
 bucket остаётся закрытым, внешний адрес MinIO приложению не нужен.
@@ -128,12 +127,12 @@ docker compose exec app wget -qO- http://minio:9000/minio/health/ready && echo "
 
 ## Удаление аккаунта
 
-`DELETE /api/users/me` (chat JWT, `204 No Content`) уничтожает персональные данные,
+`DELETE /api/users/me` (Bearer-токен, `204 No Content`) уничтожает персональные данные,
 а не просто скрывает аккаунт. Реализация — `AccountDeletionService`, тесты —
 `AccountDeletionIT` (16 сценариев, считает строки нативными запросами в обход
 `@SQLRestriction(is_deleted = false)` и проверяет удаление объектов из MinIO).
 
-Удаляется: строка пользователя; каскадом — сессии (вместе с FCM-токенами),
+Удаляется: строка пользователя; каскадом — device_tokens (FCM-токены),
 контакты (в обе стороны) и блокировки; чаты без других активных участников
 (с сообщениями, вложениями и аватаром чата); в общих чатах — сообщения
 пользователя, его вложения и строка участника; аватар пользователя.
@@ -164,7 +163,7 @@ docker compose exec app wget -qO- http://minio:9000/minio/health/ready && echo "
 | Переменная | Назначение | По умолчанию |
 |-----------|-----------|--------------|
 | `SPRING_PROFILES_ACTIVE` | профиль (`dev`/`prod`) | `dev` |
-| `JWT_SECRET` | ключ подписи JWT | dev-заглушка; в `prod` обязателен |
+| `AUTH_OIDC_ENABLED` / `AUTH_ISSUER` / `AUTH_JWKS_URI` / `AUTH_AUDIENCE` | приём access-токенов auth-service | issuer/JWKS `auth.muzea.su`; в `prod` включено |
 | `DATABASE_URL` / `DATABASE_USERNAME` / `DATABASE_PASSWORD` | доступ к БД инстанса | `localhost:5432/chat_db`, `admin/admin` |
 | `APP_CORS_ALLOWED_ORIGINS` | origin-паттерны через запятую | `http://localhost:*` |
 | `MINIO_URL` / `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` | объектное хранилище | `localhost:9000`, `minioadmin/minioadmin` |
@@ -174,10 +173,10 @@ docker compose exec app wget -qO- http://minio:9000/minio/health/ready && echo "
 | `APP_CACHE_REDIS_ENABLED` | общий Redis-кеш вместо локального Caffeine | `false` (в `prod` — `true`) |
 | `REDIS_HOST` / `REDIS_PORT` | адрес Redis | `redis:6379` |
 | `APP_REPLICAS` | число реплик `app` в compose | `1` |
-| `MAIL_HOST` / `MAIL_PORT` / `MAIL_USERNAME` / `MAIL_PASSWORD` | SMTP для писем | пустые |
+| `PUSH_INTERNAL_TOKEN` | общий секрет для внутренних push-запросов (makeup → chat) | пусто |
 | `SERVER_PORT` | порт приложения | `8080` |
 
-Токены сессий хранятся в БД только в виде SHA-256 хэша; refresh-токен ротируется при обновлении.
+FCM-токены устройств хранятся в `device_tokens` (по строке на устройство).
 
 ## Виды тестов
 
@@ -241,7 +240,7 @@ ArchUnit: отсутствие циклов и запрет обратных з�
 
 ```
 src/main/java/com/chat/server/
-├── identity/        # пользователи, аутентификация, сессии, presence, аватары
+├── identity/        # пользователи, OIDC-аутентификация, device_tokens, presence, аватары
 ├── conversation/    # чаты, участники, сообщения, вложения
 ├── storage/         # MinIO: конфиг, файлы, аватары
 ├── contacts/        # контакты

@@ -12,7 +12,6 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,7 +25,6 @@ import java.util.stream.Collectors;
 public class UserService implements UserDetailsService {
 
     private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
 
     /**
      * Самоссылка через прокси, чтобы loadUserByUsername (JWT-фильтр) попадал
@@ -36,10 +34,9 @@ public class UserService implements UserDetailsService {
     private final UserService self;
 
     public UserService(@org.springframework.context.annotation.Lazy UserService self,
-                       UserRepository userRepository, PasswordEncoder passwordEncoder) {
+                       UserRepository userRepository) {
         this.self = self;
         this.userRepository = userRepository;
-        this.passwordEncoder = passwordEncoder;
     }
 
     // ==================== Вспомогательные методы ====================
@@ -66,7 +63,7 @@ public class UserService implements UserDetailsService {
 
             return new org.springframework.security.core.userdetails.User(
                     user.getUserId().toString(),
-                    user.getPasswordHash(),
+                    "",
                     Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
             );
         } catch (IllegalArgumentException e) {
@@ -77,7 +74,7 @@ public class UserService implements UserDetailsService {
     // ==================== Создание пользователя ====================
 
     @Transactional
-    public User createUser(String username, String email, String rawPassword) {
+    public User createUser(String username, String email) {
         log.info("Creating user with username: {}", username);
 
         if (userRepository.existsByUsername(username)) {
@@ -91,7 +88,6 @@ public class UserService implements UserDetailsService {
         User user = User.builder()
                 .username(username)
                 .email(email)
-                .passwordHash(passwordEncoder.encode(rawPassword))
                 .status(User.UserStatus.ACTIVE)
                 .isOnline(false)
                 .isDeleted(false)

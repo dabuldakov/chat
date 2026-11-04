@@ -3,7 +3,6 @@ package com.chat.server.integration;
 import com.chat.server.conversation.ChatRepository;
 import com.chat.server.conversation.ChatService;
 import com.chat.server.conversation.gif.GifCatalogRepository;
-import com.chat.server.identity.JwtUtil;
 import com.chat.server.identity.User;
 import com.chat.server.identity.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,17 +37,11 @@ class GifFlowIT extends AbstractIntegrationTest {
     private ChatService chatService;
     @Autowired
     private GifCatalogRepository gifCatalogRepository;
-    @Autowired
-    private JwtUtil jwtUtil;
 
     private User author;
     private User member;
     private User outsider;
     private UUID chatUuid;
-
-    private String bearer(User user) {
-        return "Bearer " + jwtUtil.generateToken(user.getUserUuid(), user.getUsername());
-    }
 
     private String gifBody(String slug) {
         return "{\"messageType\":\"GIF\",\"gif\":{"
@@ -72,7 +65,6 @@ class GifFlowIT extends AbstractIntegrationTest {
         return userRepository.save(User.builder()
                 .username(username)
                 .email(username + "@example.com")
-                .passwordHash("hash")
                 .isOnline(false)
                 .isDeleted(false)
                 .build());
@@ -81,7 +73,7 @@ class GifFlowIT extends AbstractIntegrationTest {
     @Test
     void sendingGifStoresAttachmentAndCatalog() throws Exception {
         mvc.perform(post("/api/messages/{chatUuid}", chatUuid)
-                        .header("Authorization", bearer(author))
+                        .with(auth(author))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(gifBody("cat")))
                 .andExpect(status().isOk())
@@ -98,16 +90,16 @@ class GifFlowIT extends AbstractIntegrationTest {
     @Test
     void gifAppearsInMyRecentAndChatLists() throws Exception {
         mvc.perform(post("/api/messages/{chatUuid}", chatUuid)
-                        .header("Authorization", bearer(author))
+                        .with(auth(author))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(gifBody("cat")))
                 .andExpect(status().isOk());
 
-        mvc.perform(get("/api/gifs/recent").header("Authorization", bearer(author)))
+        mvc.perform(get("/api/gifs/recent").with(auth(author)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].providerGifId").value("cat"));
 
-        mvc.perform(get("/api/gifs/chat/{chatUuid}", chatUuid).header("Authorization", bearer(author)))
+        mvc.perform(get("/api/gifs/chat/{chatUuid}", chatUuid).with(auth(author)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].providerGifId").value("cat"));
     }
@@ -115,13 +107,13 @@ class GifFlowIT extends AbstractIntegrationTest {
     @Test
     void sameGifIsDeduplicatedInCatalog() throws Exception {
         mvc.perform(post("/api/messages/{chatUuid}", chatUuid)
-                        .header("Authorization", bearer(author))
+                        .with(auth(author))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(gifBody("cat")))
                 .andExpect(status().isOk());
 
         mvc.perform(post("/api/messages/{chatUuid}", chatUuid)
-                        .header("Authorization", bearer(member))
+                        .with(auth(member))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(gifBody("cat")))
                 .andExpect(status().isOk());
@@ -132,14 +124,14 @@ class GifFlowIT extends AbstractIntegrationTest {
 
     @Test
     void outsiderCannotReadChatGifs() throws Exception {
-        mvc.perform(get("/api/gifs/chat/{chatUuid}", chatUuid).header("Authorization", bearer(outsider)))
+        mvc.perform(get("/api/gifs/chat/{chatUuid}", chatUuid).with(auth(outsider)))
                 .andExpect(status().isForbidden());
     }
 
     @Test
     void gifWithoutPayloadIsRejected() throws Exception {
         mvc.perform(post("/api/messages/{chatUuid}", chatUuid)
-                        .header("Authorization", bearer(author))
+                        .with(auth(author))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"messageType\":\"GIF\"}"))
                 .andExpect(status().isBadRequest());
@@ -148,7 +140,7 @@ class GifFlowIT extends AbstractIntegrationTest {
     @Test
     void blankTextIsRejectedForTextMessages() throws Exception {
         mvc.perform(post("/api/messages/{chatUuid}", chatUuid)
-                        .header("Authorization", bearer(author))
+                        .with(auth(author))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"messageType\":\"TEXT\",\"text\":\"  \"}"))
                 .andExpect(status().isBadRequest());

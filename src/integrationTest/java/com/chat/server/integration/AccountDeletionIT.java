@@ -5,8 +5,8 @@ import com.chat.server.conversation.AttachmentRepository;
 import com.chat.server.conversation.AttachmentService;
 import com.chat.server.storage.FileStorage;
 import com.chat.server.storage.AvatarStorage;
-import com.chat.server.identity.JwtUtil;
-import com.chat.server.identity.UserSessionService;
+import com.chat.server.identity.DeviceTokenRepository;
+import com.chat.server.identity.DeviceTokenService;
 import com.chat.server.block.BlockUserRequestDto;
 import com.chat.server.block.BlockedUserService;
 import com.chat.server.conversation.Chat;
@@ -69,10 +69,10 @@ class AccountDeletionIT extends AbstractIntegrationTest {
     @Autowired private AttachmentService attachmentService;
     @Autowired private FileStorage fileUploadService;
     @Autowired private AvatarStorage avatarStorage;
-    @Autowired private UserSessionService sessionService;
+    @Autowired private DeviceTokenService deviceTokenService;
+    @Autowired private DeviceTokenRepository deviceTokenRepository;
     @Autowired private ContactService contactService;
     @Autowired private BlockedUserService blockedUserService;
-    @Autowired private JwtUtil jwt;
     @Autowired private MockMvc mvc;
     @Autowired private DataSource dataSource;
 
@@ -102,18 +102,19 @@ class AccountDeletionIT extends AbstractIntegrationTest {
     }
 
     @Test
-    void removesSessionsWithFcmTokens() {
-        givenSession(alice, "token-alice", "device-alice", "fcm-alice-token");
-        givenSession(bob, "token-bob", "device-bob", "fcm-bob-token");
+    void removesDeviceTokensWithFcmTokens() {
+        givenDeviceToken(alice, "device-alice", "fcm-alice-token");
+        givenDeviceToken(bob, "device-bob", "fcm-bob-token");
+        assertThat(deviceTokenRepository.findByFcmToken("fcm-alice-token")).isPresent();
 
         deletion.purgeAccount(alice.getUserId());
 
-        assertThat(countRows("user_sessions", "user_id", alice.getUserId())).isZero();
+        assertThat(countRows("device_tokens", "user_id", alice.getUserId())).isZero();
         // FCM-токен — трансграничные данные, он тоже обязан исчезнуть.
-        assertThat(countRows("user_sessions", "fcm_token", "fcm-alice-token")).isZero();
-        // Чужие сессии не трогаем.
-        assertThat(countRows("user_sessions", "user_id", bob.getUserId())).isEqualTo(1);
-        assertThat(countRows("user_sessions", "fcm_token", "fcm-bob-token")).isEqualTo(1);
+        assertThat(countRows("device_tokens", "fcm_token", "fcm-alice-token")).isZero();
+        // Чужие устройства не трогаем.
+        assertThat(countRows("device_tokens", "user_id", bob.getUserId())).isEqualTo(1);
+        assertThat(countRows("device_tokens", "fcm_token", "fcm-bob-token")).isEqualTo(1);
     }
 
     @Test
@@ -309,7 +310,7 @@ class AccountDeletionIT extends AbstractIntegrationTest {
 
     @Test
     void deleteAccountEndpointReturnsNoContent() throws Exception {
-        mvc.perform(delete("/api/users/me").header("Authorization", tokenOf(alice)))
+        mvc.perform(delete("/api/users/me").with(auth(alice)))
                 .andExpect(status().isNoContent());
 
         assertThat(countRows("users", "user_id", alice.getUserId())).isZero();
@@ -325,7 +326,7 @@ class AccountDeletionIT extends AbstractIntegrationTest {
 
     @Test
     void deleteAccountEndpointRemovesOnlyOwnAccount() throws Exception {
-        mvc.perform(delete("/api/users/me").header("Authorization", tokenOf(alice)))
+        mvc.perform(delete("/api/users/me").with(auth(alice)))
                 .andExpect(status().isNoContent());
 
         assertThat(countRows("users", "user_id", bob.getUserId())).isEqualTo(1);
@@ -346,7 +347,6 @@ class AccountDeletionIT extends AbstractIntegrationTest {
         return userRepository.save(User.builder()
                 .username(username)
                 .email(username + "@example.com")
-                .passwordHash("hash")
                 .isOnline(false)
                 .isDeleted(false)
                 .build());
@@ -391,18 +391,8 @@ class AccountDeletionIT extends AbstractIntegrationTest {
         return dto;
     }
 
-    private String tokenOf(User user) {
-        return "Bearer " + jwt.generateToken(user.getUserUuid(), user.getUsername());
-    }
-
-    /**
-     * registerFcmToken только обновляет существующую сессию устройства, поэтому
-     * сессию нужно создать явно — иначе токен негде хранить.
-     */
-    private void givenSession(User user, String token, String deviceId, String fcmToken) {
-        sessionService.createSession(user.getUserId(), token, token + "-refresh",
-                deviceId, "Pixel", "ANDROID", "127.0.0.1", "junit");
-        sessionService.registerFcmToken(user.getUserId(), deviceId, fcmToken);
+    private void givenDeviceToken(User user, String deviceId, String fcmToken) {
+        deviceTokenService.registerFcmToken(user.getUserId(), deviceId, fcmToken);
     }
 
     private Attachment uploadAttachment(User user, Chat chat) throws Exception {

@@ -1,6 +1,5 @@
 package com.chat.server.conversation;
 
-import com.chat.server.identity.JwtUtil;
 import com.chat.server.identity.OidcProperties;
 import com.chat.server.identity.OidcUserProvisioner;
 import com.chat.server.identity.User;
@@ -62,9 +61,6 @@ class MessageControllerMappingTest {
 
     @MockitoBean
     private AttachmentRepository attachmentRepository;
-
-    @MockitoBean
-    private JwtUtil jwtUtil;
 
     @MockitoBean
     private OidcUserProvisioner oidcUserProvisioner;

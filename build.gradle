@@ -29,11 +29,6 @@ dependencies {
     // Actuator (health-check для мониторинга доступности)
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
 
-    // JWT
-    implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
-    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
-    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
-
     // Приём RS256-токенов единого IdP (auth-service): Nimbus JWT + JWKS
     implementation 'org.springframework.security:spring-security-oauth2-jose'
 
@@ -42,9 +37,6 @@ dependencies {
 
     // Firebase Cloud Messaging
     implementation 'com.google.firebase:firebase-admin:9.2.0'
-
-    // Spring Boot Mail (для отправки email)
-    implementation 'org.springframework.boot:spring-boot-starter-mail'
 
     // Database
     implementation 'org.postgresql:postgresql:42.7.1'
