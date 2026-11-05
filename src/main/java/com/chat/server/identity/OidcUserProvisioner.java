@@ -23,7 +23,6 @@ public class OidcUserProvisioner {
     private static final int USERNAME_MAX = 50;
 
     private final UserRepository userRepository;
-    private final OidcProperties properties;
 
     /**
      * Создание сериализуем по субъекту: приложение на первом входе шлёт
@@ -57,22 +56,9 @@ public class OidcUserProvisioner {
             return existing.get();
         }
 
-        // Фолбэк миграции: пользователь вводит прежний логин (username) —
-        // привязываем существующий аккаунт. Email для привязки не используется.
-        if (properties.linkByUsername() && username != null && !username.isBlank()) {
-            Optional<User> byUsername = userRepository.findByUsername(username);
-            if (byUsername.isPresent()) {
-                User user = byUsername.get();
-                user.setAuthSubject(subject);
-                log.info("Linked auth subject {} to existing user {} by username", subject, user.getUserId());
-                try {
-                    return userRepository.save(user);
-                } catch (DataIntegrityViolationException e) {
-                    return userRepository.findByAuthSubject(subject).orElseThrow(() -> e);
-                }
-            }
-        }
-
+        // Легаси-аккаунты больше не поддерживаются: линковка по username
+        // отключена (позволяла перехватить чужой аккаунт, зарегистрировав его
+        // логин в IdP). Новый пользователь создаётся только по subject.
         return createUser(subject, username);
     }
 

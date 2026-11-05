@@ -46,7 +46,7 @@ class JwtAuthenticationFilterTest {
         chain = mock(FilterChain.class);
         filter = new JwtAuthenticationFilter(
                 userDetailsService, provisioner,
-                new OidcProperties(true, "issuer", "jwks", List.of(), false),
+                new OidcProperties(true, "issuer", "jwks", List.of()),
                 decoderProvider
         );
         SecurityContextHolder.clearContext();
@@ -120,7 +120,7 @@ class JwtAuthenticationFilterTest {
     void disabledOidcDoesNotAuthenticate() throws Exception {
         filter = new JwtAuthenticationFilter(
                 userDetailsService, provisioner,
-                new OidcProperties(false, "issuer", "jwks", List.of(), false),
+                new OidcProperties(false, "issuer", "jwks", List.of()),
                 decoderProvider
         );
 

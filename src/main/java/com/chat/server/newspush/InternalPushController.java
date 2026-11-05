@@ -10,6 +10,9 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+
 /**
  * Внутренний endpoint для других сервисов (makeup): прислать push о новости.
  *
@@ -33,7 +36,11 @@ public class InternalPushController {
             @RequestHeader(value = TOKEN_HEADER, required = false) String token,
             @RequestBody NewsPushRequest request
     ) {
-        if (internalToken == null || internalToken.isBlank() || !internalToken.equals(token)) {
+        // Сравнение за постоянное время: не даём угадывать секрет по таймингу.
+        if (internalToken == null || internalToken.isBlank() || token == null
+                || !MessageDigest.isEqual(
+                        internalToken.getBytes(StandardCharsets.UTF_8),
+                        token.getBytes(StandardCharsets.UTF_8))) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
         if (request.authorUsername() == null || request.newsId() == null) {

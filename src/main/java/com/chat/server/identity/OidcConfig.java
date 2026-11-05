@@ -26,7 +26,8 @@ public class OidcConfig {
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSetUri(properties.jwksUri()).build();
         OAuth2TokenValidator<Jwt> validator = new DelegatingOAuth2TokenValidator<>(
                 JwtValidators.createDefaultWithIssuer(properties.issuer()),
-                new AudienceValidator(properties.audience()));
+                new AudienceValidator(properties.audience()),
+                new JwtTokenTypeValidator());
         decoder.setJwtValidator(validator);
         return decoder;
     }

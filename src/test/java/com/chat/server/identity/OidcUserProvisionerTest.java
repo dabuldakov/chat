@@ -10,15 +10,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class OidcUserProvisionerTest {
 
     private final UserRepository userRepository = mock(UserRepository.class);
-    private final OidcProperties properties =
-            new OidcProperties(true, "iss", "jwks", java.util.List.of("chat-muzea"), true);
-    private final OidcUserProvisioner provisioner =
-            new OidcUserProvisioner(userRepository, properties);
+    private final OidcUserProvisioner provisioner = new OidcUserProvisioner(userRepository);
 
     @Test
     void returnsExistingUserBySubject() {
@@ -30,16 +29,22 @@ class OidcUserProvisionerTest {
     }
 
     @Test
-    void linksExistingAccountByUsername() {
+    void doesNotLinkExistingAccountByUsername() {
         UUID subject = UUID.randomUUID();
-        User existing = user(4L, "legacylogin");
+        User legacy = user(4L, "legacylogin");
         when(userRepository.findByAuthSubject(subject)).thenReturn(Optional.empty());
-        when(userRepository.findByUsername("legacylogin")).thenReturn(Optional.of(existing));
+        when(userRepository.existsByUsername("legacylogin")).thenReturn(true);
+        when(userRepository.existsByUsername(
+                "legacylogin_" + subject.toString().replace("-", "").substring(0, 6)))
+                .thenReturn(false);
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
         User result = provisioner.findOrCreate(subject, "legacylogin");
 
+        assertThat(result).isNotSameAs(legacy);
         assertThat(result.getAuthSubject()).isEqualTo(subject);
+        assertThat(result.getUsername()).startsWith("legacylogin_");
+        verify(userRepository, never()).findByUsername(anyString());
     }
 
     @Test
