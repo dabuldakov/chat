@@ -30,13 +30,11 @@ class ContactServiceIT extends AbstractIntegrationTest {
     void setUp() {
         user = userRepository.save(User.builder()
                 .username("user")
-                .email("user@example.com")
                 .isOnline(false)
                 .isDeleted(false)
                 .build());
         contactUser = userRepository.save(User.builder()
                 .username("contact")
-                .email("contact@example.com")
                 .isOnline(false)
                 .isDeleted(false)
                 .build());

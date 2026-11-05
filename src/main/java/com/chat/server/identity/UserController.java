@@ -108,13 +108,6 @@ public class UserController {
         return ResponseEntity.ok(UserDto.fromEntity(user, presenceService.presenceOf(user.getUserId())));
     }
 
-    @GetMapping("/by-email/{email}")
-    @Operation(summary = "Получение пользователя по email")
-    public ResponseEntity<UserDto> getUserByEmail(@PathVariable String email) {
-        User user = userService.findByEmail(email);
-        return ResponseEntity.ok(UserDto.fromEntity(user, presenceService.presenceOf(user.getUserId())));
-    }
-
     /**
      * Статус присутствия одного пользователя.
      *

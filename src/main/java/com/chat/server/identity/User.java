@@ -26,7 +26,6 @@ import com.chat.server.common.BaseEntity;
 @Table(name = "users",
         indexes = {
                 @Index(name = "idx_users_username", columnList = "username"),
-                @Index(name = "idx_users_email", columnList = "email"),
                 @Index(name = "idx_users_user_uuid", columnList = "user_uuid"),
                 @Index(name = "idx_users_status", columnList = "status")
         })
@@ -51,9 +50,6 @@ public class User extends BaseEntity {
 
     @Column(nullable = false, unique = true, length = 50)
     private String username;
-
-    @Column(nullable = false, unique = true, length = 255)
-    private String email;
 
     @Column(name = "first_name", length = 100)
     private String firstName;
@@ -82,9 +78,6 @@ public class User extends BaseEntity {
 
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
-
-    @Column(name = "email_verified")
-    private Boolean emailVerified = false;
 
     public enum UserStatus {
         ACTIVE, INACTIVE, SUSPENDED, BANNED

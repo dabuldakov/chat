@@ -39,8 +39,6 @@ class PresenceJsonContractTest {
             .username("alice")
             .firstName("Alice")
             .lastName("Smith")
-            .email("alice@example.com")
-            .emailVerified(true)
             .build();
 
     private static final PresenceInfo ONLINE =

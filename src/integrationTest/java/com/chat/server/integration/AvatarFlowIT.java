@@ -49,8 +49,8 @@ class AvatarFlowIT extends AbstractIntegrationTest {
 
     @Test
     void uploadReplaceDeleteAndPropagateToContactsPrivateChatAndMessages() throws Exception {
-        var owner = users.createUser("avatarowner", "avatarowner@example.com");
-        var viewer = users.createUser("viewer", "viewer@example.com");
+        var owner = users.createUser("avatarowner");
+        var viewer = users.createUser("viewer");
         // Populate both cache keys before mutations to catch stale UUID/ID entries.
         users.getUserByUuid(owner.getUserUuid());
         users.getUserById(owner.getUserId());
@@ -97,7 +97,7 @@ class AvatarFlowIT extends AbstractIntegrationTest {
     void rejectsAnonymousMutationAndInvalidImages() throws Exception {
         mvc.perform(multipart("/api/users/me/avatar").file(image())).andExpect(status().isUnauthorized());
         mvc.perform(delete("/api/users/me/avatar")).andExpect(status().isUnauthorized());
-        var owner = users.createUser("invalidavatar", "invalidavatar@example.com");
+        var owner = users.createUser("invalidavatar");
         mvc.perform(multipart("/api/users/me/avatar")
                         .file(new MockMultipartFile("file", "fake.png", "image/png", "not an image".getBytes()))
                         .with(auth(owner)))

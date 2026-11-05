@@ -1,7 +1,6 @@
 package com.chat.server.identity;
 
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 import org.springframework.dao.DataIntegrityViolationException;
 
 import java.util.Optional;
@@ -27,34 +26,18 @@ class OidcUserProvisionerTest {
         User existing = user(1L, "existing");
         when(userRepository.findByAuthSubject(subject)).thenReturn(Optional.of(existing));
 
-        assertThat(provisioner.findOrCreate(subject, "ignored", null)).isSameAs(existing);
+        assertThat(provisioner.findOrCreate(subject, "ignored")).isSameAs(existing);
     }
 
     @Test
-    void linksExistingAccountByEmail() {
-        UUID subject = UUID.randomUUID();
-        User existing = user(2L, "legacy");
-        existing.setEmailVerified(false);
-        when(userRepository.findByAuthSubject(subject)).thenReturn(Optional.empty());
-        when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.of(existing));
-        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
-
-        User result = provisioner.findOrCreate(subject, "user", "user@example.com");
-
-        assertThat(result.getAuthSubject()).isEqualTo(subject);
-        assertThat(result.getEmailVerified()).isTrue();
-    }
-
-    @Test
-    void linksExistingAccountByUsernameWhenEmailDiffers() {
+    void linksExistingAccountByUsername() {
         UUID subject = UUID.randomUUID();
         User existing = user(4L, "legacylogin");
         when(userRepository.findByAuthSubject(subject)).thenReturn(Optional.empty());
-        when(userRepository.findByEmail("new@example.com")).thenReturn(Optional.empty());
         when(userRepository.findByUsername("legacylogin")).thenReturn(Optional.of(existing));
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        User result = provisioner.findOrCreate(subject, "legacylogin", "new@example.com");
+        User result = provisioner.findOrCreate(subject, "legacylogin");
 
         assertThat(result.getAuthSubject()).isEqualTo(subject);
     }
@@ -63,14 +46,13 @@ class OidcUserProvisionerTest {
     void provisionsNewUserWhenUnknown() {
         UUID subject = UUID.randomUUID();
         when(userRepository.findByAuthSubject(subject)).thenReturn(Optional.empty());
-        when(userRepository.findByEmail(anyString())).thenReturn(Optional.empty());
+        when(userRepository.findByUsername(anyString())).thenReturn(Optional.empty());
         when(userRepository.existsByUsername("newuser")).thenReturn(false);
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        User result = provisioner.findOrCreate(subject, "newuser", "new@example.com");
+        User result = provisioner.findOrCreate(subject, "newuser");
 
         assertThat(result.getUsername()).isEqualTo("newuser");
-        assertThat(result.getEmail()).isEqualTo("new@example.com");
         assertThat(result.getAuthSubject()).isEqualTo(subject);
         assertThat(result.getStatus()).isEqualTo(User.UserStatus.ACTIVE);
     }
@@ -79,28 +61,27 @@ class OidcUserProvisionerTest {
     void suffixesUsernameOnCollision() {
         UUID subject = UUID.randomUUID();
         when(userRepository.findByAuthSubject(subject)).thenReturn(Optional.empty());
-        when(userRepository.findByEmail(anyString())).thenReturn(Optional.empty());
+        when(userRepository.findByUsername(anyString())).thenReturn(Optional.empty());
         when(userRepository.existsByUsername("taken")).thenReturn(true);
         when(userRepository.existsByUsername("taken_" + subject.toString().replace("-", "").substring(0, 6)))
                 .thenReturn(false);
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        User result = provisioner.findOrCreate(subject, "taken", "t@example.com");
+        User result = provisioner.findOrCreate(subject, "taken");
 
         assertThat(result.getUsername()).startsWith("taken_").hasSizeLessThanOrEqualTo(50);
     }
 
     @Test
-    void derivesUsernameFromEmailWhenUsernameMissing() {
+    void usesDefaultUsernameWhenUsernameMissing() {
         UUID subject = UUID.randomUUID();
         when(userRepository.findByAuthSubject(subject)).thenReturn(Optional.empty());
-        when(userRepository.findByEmail("john@example.com")).thenReturn(Optional.empty());
-        when(userRepository.existsByUsername("john")).thenReturn(false);
+        when(userRepository.existsByUsername("user")).thenReturn(false);
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        User result = provisioner.findOrCreate(subject, null, "john@example.com");
+        User result = provisioner.findOrCreate(subject, null);
 
-        assertThat(result.getUsername()).isEqualTo("john");
+        assertThat(result.getUsername()).isEqualTo("user");
     }
 
     @Test
@@ -110,11 +91,11 @@ class OidcUserProvisionerTest {
         when(userRepository.findByAuthSubject(subject))
                 .thenReturn(Optional.empty())
                 .thenReturn(Optional.of(concurrent));
-        when(userRepository.findByEmail(anyString())).thenReturn(Optional.empty());
+        when(userRepository.findByUsername(anyString())).thenReturn(Optional.empty());
         when(userRepository.existsByUsername(anyString())).thenReturn(false);
         when(userRepository.save(any(User.class))).thenThrow(new DataIntegrityViolationException("dup"));
 
-        User result = provisioner.findOrCreate(subject, "racer", "racer@example.com");
+        User result = provisioner.findOrCreate(subject, "racer");
 
         assertThat(result).isSameAs(concurrent);
     }
@@ -122,7 +103,6 @@ class OidcUserProvisionerTest {
     private User user(Long id, String username) {
         User user = User.builder()
                 .username(username)
-                .email(username + "@example.com")
                 .status(User.UserStatus.ACTIVE)
                 .build();
         user.setUserId(id);

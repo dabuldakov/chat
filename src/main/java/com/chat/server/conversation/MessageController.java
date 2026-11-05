@@ -34,6 +34,7 @@ public class MessageController {
     private final ChatService chatService;
     private final UserService userService;
     private final AttachmentRepository attachmentRepository;
+    private final MessageRepository messageRepository;
 
     @PostMapping("/{chatUuid}")
     @Operation(summary = "Отправка сообщения")
@@ -70,6 +71,7 @@ public class MessageController {
         List<MessageDto> dtos = new java.util.ArrayList<>();
         dtos.add(MessageDto.fromEntity(message, userService.getUserById(userId)));
         attachAttachments(List.of(message), dtos);
+        attachReplyReferences(List.of(message), dtos);
         return ResponseEntity.ok(dtos.get(0));
     }
 
@@ -91,6 +93,7 @@ public class MessageController {
             messageDtos.add(MessageDto.fromEntity(msg, senderMap.get(msg.getSenderId())));
         }
         attachAttachments(content, messageDtos);
+        attachReplyReferences(content, messageDtos);
 
         return ResponseEntity.ok(new org.springframework.data.domain.PageImpl<>(
                 messageDtos, PageRequest.of(page, size), messages.getTotalElements()));
@@ -112,6 +115,7 @@ public class MessageController {
                 .map(msg -> MessageDto.fromEntity(msg, senderMap.get(msg.getSenderId())))
                 .toList();
         attachAttachments(messages, messageDtos);
+        attachReplyReferences(messages, messageDtos);
 
         return ResponseEntity.ok(messageDtos);
     }
@@ -132,6 +136,7 @@ public class MessageController {
                 .map(msg -> MessageDto.fromEntity(msg, senderMap.get(msg.getSenderId())))
                 .toList();
         attachAttachments(messages, messageDtos);
+        attachReplyReferences(messages, messageDtos);
 
         return ResponseEntity.ok(messageDtos);
     }
@@ -146,7 +151,9 @@ public class MessageController {
         Message message = messageService.getMessageByUuid(messageUuid);
         chatService.validateUserAccessToChat(message.getChatId(), userId);
 
-        return ResponseEntity.ok(MessageDto.fromEntity(message, userService.getUserById(message.getSenderId())));
+        MessageDto dto = MessageDto.fromEntity(message, userService.getUserById(message.getSenderId()));
+        attachReplyReferences(List.of(message), List.of(dto));
+        return ResponseEntity.ok(dto);
     }
 
     @PutMapping("/{messageUuid}")
@@ -158,7 +165,9 @@ public class MessageController {
         Long userId = Long.parseLong(authentication.getName());
 
         Message message = messageService.editMessage(messageUuid, userId, request.getText());
-        return ResponseEntity.ok(MessageDto.fromEntity(message, userService.getUserById(message.getSenderId())));
+        MessageDto dto = MessageDto.fromEntity(message, userService.getUserById(message.getSenderId()));
+        attachReplyReferences(List.of(message), List.of(dto));
+        return ResponseEntity.ok(dto);
     }
 
     @DeleteMapping("/{messageUuid}")
@@ -182,7 +191,9 @@ public class MessageController {
         Long targetChatId = chatService.getChatIdByUuid(request.getTargetChatUuid());
 
         Message message = messageService.forwardMessage(request.getMessageUuid(), targetChatId, userId);
-        return ResponseEntity.ok(MessageDto.fromEntity(message, userService.getUserById(userId)));
+        MessageDto dto = MessageDto.fromEntity(message, userService.getUserById(userId));
+        attachReplyReferences(List.of(message), List.of(dto));
+        return ResponseEntity.ok(dto);
     }
 
     @PostMapping("/{chatUuid}/read")
@@ -240,6 +251,7 @@ public class MessageController {
         List<MessageDto> messageDtos = messages.stream()
                 .map(msg -> MessageDto.fromEntity(msg, senderMap.get(msg.getSenderId())))
                 .toList();
+        attachReplyReferences(messages.getContent(), messageDtos);
 
         return ResponseEntity.ok(messageDtos);
     }
@@ -259,6 +271,7 @@ public class MessageController {
         List<MessageDto> messageDtos = messages.stream()
                 .map(msg -> MessageDto.fromEntity(msg, senderMap.get(msg.getSenderId())))
                 .toList();
+        attachReplyReferences(messages, messageDtos);
 
         return ResponseEntity.ok(messageDtos);
     }
@@ -304,6 +317,7 @@ public class MessageController {
         List<MessageDto> messageDtos = messages.stream()
                 .map(msg -> MessageDto.fromEntity(msg, senderMap.get(msg.getSenderId())))
                 .toList();
+        attachReplyReferences(messages, messageDtos);
 
         return ResponseEntity.ok(messageDtos);
     }
@@ -326,6 +340,29 @@ public class MessageController {
             List<AttachmentDto> list = byMessage.get(messages.get(i).getMessageId());
             if (list != null) {
                 dtos.get(i).setAttachments(list);
+            }
+        }
+    }
+
+    /**
+     * Подставляет uuid цитируемого сообщения: в БД хранится только
+     * {@code reply_to_message_id}, а клиенту нужен uuid для отрисовки цитаты.
+     */
+    private void attachReplyReferences(List<Message> messages, List<MessageDto> dtos) {
+        List<Long> replyIds = messages.stream()
+                .map(Message::getReplyToMessageId)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .toList();
+        if (replyIds.isEmpty()) {
+            return;
+        }
+        Map<Long, UUID> uuidById = messageRepository.findAllById(replyIds).stream()
+                .collect(Collectors.toMap(Message::getMessageId, Message::getMessageUuid));
+        for (int i = 0; i < messages.size(); i++) {
+            Long replyId = messages.get(i).getReplyToMessageId();
+            if (replyId != null) {
+                dtos.get(i).setReplyToMessageUuid(uuidById.get(replyId));
             }
         }
     }

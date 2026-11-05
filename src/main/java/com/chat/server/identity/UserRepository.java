@@ -19,8 +19,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     Optional<User> findByUsername(String username);
 
-    Optional<User> findByEmail(String email);
-
     Optional<User> findByUserUuid(UUID userUuid);
 
     Optional<User> findByAuthSubject(UUID authSubject);
@@ -31,8 +29,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<Long> findUserIdByUserUuid(@Param("userUuid") UUID userUuid);
 
     boolean existsByUsername(String username);
-
-    boolean existsByEmail(String email);
 
     /**
      * Полнотекстовый поиск по username/first_name/last_name с префиксным
@@ -50,7 +46,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
                   FROM regexp_split_to_table(:query, '\\s+') AS word)
         ORDER BY u.username ASC
         """, nativeQuery = true)
-    Page<User> searchByUsernameOrEmail(@Param("query") String query, Pageable pageable);
+    Page<User> searchByUsernameOrName(@Param("query") String query, Pageable pageable);
 
     @Query("SELECT u FROM User u WHERE u.isOnline = true AND u.isDeleted = false")
     List<User> findOnlineUsers();

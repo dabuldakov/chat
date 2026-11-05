@@ -36,11 +36,9 @@ class DeviceTokenServiceIT extends AbstractIntegrationTest {
     void setUp() {
         user = userRepository.save(User.builder()
                 .username("dev-user")
-                .email("dev-user@example.com")
                 .build());
         other = userRepository.save(User.builder()
                 .username("dev-other")
-                .email("dev-other@example.com")
                 .build());
     }
 

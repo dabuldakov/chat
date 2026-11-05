@@ -35,7 +35,7 @@ class MessagePartitionIT extends AbstractIntegrationTest {
     @BeforeEach
     void setUp() {
         User user = userRepository.save(User.builder()
-                .username("part").email("part@example.com")
+                .username("part")
                 .isOnline(false).isDeleted(false).build());
         senderId = user.getUserId();
         Chat chat = chatRepository.save(Chat.builder()

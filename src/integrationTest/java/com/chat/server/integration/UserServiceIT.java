@@ -28,7 +28,6 @@ class UserServiceIT extends AbstractIntegrationTest {
     void setUp() {
         user = userRepository.save(User.builder()
                 .username("alice")
-                .email("alice@example.com")
                 .isOnline(false)
                 .isDeleted(false)
                 .build());
@@ -43,7 +42,7 @@ class UserServiceIT extends AbstractIntegrationTest {
 
     @Test
     void shouldCreateActiveUserWithoutIdpLinkYet() {
-        var created = userService.createUser("bob", "bob@example.com");
+        var created = userService.createUser("bob");
 
         assertThat(created.getUserId()).isNotNull();
         // Паролей у chat больше нет: вход только через IdP, поэтому auth_subject
@@ -55,16 +54,9 @@ class UserServiceIT extends AbstractIntegrationTest {
 
     @Test
     void shouldRejectDuplicateUsername() {
-        assertThatThrownBy(() -> userService.createUser("alice", "other@example.com"))
+        assertThatThrownBy(() -> userService.createUser("alice"))
                 .isInstanceOf(ConflictException.class)
                 .hasMessageContaining("Username already exists");
-    }
-
-    @Test
-    void shouldRejectDuplicateEmail() {
-        assertThatThrownBy(() -> userService.createUser("bob", "alice@example.com"))
-                .isInstanceOf(ConflictException.class)
-                .hasMessageContaining("Email already exists");
     }
 
     @Test
@@ -84,8 +76,6 @@ class UserServiceIT extends AbstractIntegrationTest {
                 .isInstanceOf(NotFoundException.class);
         assertThatThrownBy(() -> userService.findByUsername("missing"))
                 .isInstanceOf(NotFoundException.class);
-        assertThatThrownBy(() -> userService.findByEmail("missing@example.com"))
-                .isInstanceOf(NotFoundException.class);
     }
 
     @Test
@@ -96,35 +86,13 @@ class UserServiceIT extends AbstractIntegrationTest {
     @Test
     void shouldUpdateProfile() {
         UpdateProfileRequestDto request = profileRequest();
-        request.setUsername("alice2");
 
         var updated = userService.updateUser(user.getUserId(), request);
 
-        assertThat(updated.getUsername()).isEqualTo("alice2");
         assertThat(updated.getFirstName()).isEqualTo("Alice");
         assertThat(updated.getLastName()).isEqualTo("Smith");
-    }
-
-    @Test
-    void shouldRejectTakenUsernameOrEmailOnUpdate() {
-        userRepository.save(User.builder()
-                .username("bob")
-                .email("bob@example.com")
-                .isOnline(false)
-                .isDeleted(false)
-                .build());
-
-        UpdateProfileRequestDto usernameRequest = new UpdateProfileRequestDto();
-        usernameRequest.setUsername("bob");
-        assertThatThrownBy(() -> userService.updateUser(user.getUserId(), usernameRequest))
-                .isInstanceOf(ConflictException.class)
-                .hasMessageContaining("Username already taken");
-
-        UpdateProfileRequestDto emailRequest = new UpdateProfileRequestDto();
-        emailRequest.setEmail("bob@example.com");
-        assertThatThrownBy(() -> userService.updateUser(user.getUserId(), emailRequest))
-                .isInstanceOf(ConflictException.class)
-                .hasMessageContaining("Email already in use");
+        // Username — идентификатор IdP, локально не меняется.
+        assertThat(updated.getUsername()).isEqualTo("alice");
     }
 
     @Test
@@ -141,7 +109,7 @@ class UserServiceIT extends AbstractIntegrationTest {
 
     @Test
     void shouldSearchUsers() {
-        userService.createUser("alicebob", "alicebob@example.com");
+        userService.createUser("alicebob");
 
         var result = userService.searchUsers("alice", PageRequest.of(0, 10));
 

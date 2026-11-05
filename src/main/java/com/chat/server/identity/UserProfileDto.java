@@ -14,7 +14,6 @@ public class UserProfileDto {
 
     private UUID userUuid;
     private String username;
-    private String email;
     private String firstName;
     private String lastName;
     private String fullName;
@@ -28,14 +27,12 @@ public class UserProfileDto {
     private boolean isOnline;
 
     private LocalDateTime lastSeenAt;
-    private boolean emailVerified;
     private LocalDateTime createdAt;
 
     public static UserProfileDto fromEntity(User user, PresenceInfo presence) {
         return UserProfileDto.builder()
                 .userUuid(user.getUserUuid())
                 .username(user.getUsername())
-                .email(user.getEmail())
                 .firstName(user.getFirstName())
                 .lastName(user.getLastName())
                 .fullName(user.getFullName())
@@ -43,7 +40,6 @@ public class UserProfileDto {
                 .phoneNumber(user.getPhoneNumber())
                 .isOnline(presence.online())
                 .lastSeenAt(presence.lastSeenAt())
-                .emailVerified(user.getEmailVerified() != null && user.getEmailVerified())
                 .createdAt(user.getCreatedAt())
                 .build();
     }

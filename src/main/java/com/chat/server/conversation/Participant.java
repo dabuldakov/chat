@@ -73,6 +73,7 @@ public class Participant extends BaseEntity {
     @Column(name = "muted_until")
     private LocalDateTime mutedUntil;
 
+    @Builder.Default
     @Column(name = "is_pinned")
     private Boolean isPinned = false;
 

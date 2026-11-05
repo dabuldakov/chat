@@ -80,7 +80,6 @@ class CrossChatAccessIT extends AbstractIntegrationTest {
     private User createUser(String username) {
         return userRepository.save(User.builder()
                 .username(username)
-                .email(username + "@example.com")
                 .isOnline(false)
                 .isDeleted(false)
                 .build());

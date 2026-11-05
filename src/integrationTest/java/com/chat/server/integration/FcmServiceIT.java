@@ -6,6 +6,7 @@ import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.Message;
 import com.google.firebase.messaging.MessageAccessors;
 import com.google.firebase.messaging.MulticastMessage;
+import com.google.firebase.messaging.SendResponse;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -153,5 +154,49 @@ class FcmServiceIT extends AbstractIntegrationTest {
         fcmService.sendMulticastMessage(List.of(), "Title", "Body", Map.of());
 
         verify(firebaseMessaging, after(500).never()).sendEachForMulticast(any());
+    }
+
+    @Test
+    void shouldSendNewsNotification() throws com.google.firebase.messaging.FirebaseMessagingException {
+        fcmService.sendNewsNotification("token-1", 42L, "Title", "body", "Alice");
+
+        ArgumentCaptor<Message> captor = ArgumentCaptor.forClass(Message.class);
+        verify(firebaseMessaging, timeout(2000)).send(captor.capture());
+
+        Map<String, String> data = MessageAccessors.dataOf(captor.getValue());
+        assertThat(data.get("type")).isEqualTo("NEWS");
+        assertThat(data.get("newsId")).isEqualTo("42");
+        assertThat(data.get("title")).isEqualTo("Title");
+        assertThat(data.get("body")).isEqualTo("body");
+        assertThat(data.get("authorName")).isEqualTo("Alice");
+    }
+
+    @Test
+    void newsNotificationTruncatesBodyAndOmitsNullAuthor() throws com.google.firebase.messaging.FirebaseMessagingException {
+        fcmService.sendNewsNotification("token-1", 1L, "T", "x".repeat(200), null);
+
+        ArgumentCaptor<Message> captor = ArgumentCaptor.forClass(Message.class);
+        verify(firebaseMessaging, timeout(2000)).send(captor.capture());
+
+        Map<String, String> data = MessageAccessors.dataOf(captor.getValue());
+        assertThat(data.get("body")).hasSize(143).endsWith("...");
+        assertThat(data).doesNotContainKey("authorName");
+    }
+
+    @Test
+    void multicastHandlesFailedTokens() throws com.google.firebase.messaging.FirebaseMessagingException {
+        BatchResponse response = mock(BatchResponse.class);
+        SendResponse ok = mock(SendResponse.class);
+        SendResponse failed = mock(SendResponse.class);
+        when(ok.isSuccessful()).thenReturn(true);
+        when(failed.isSuccessful()).thenReturn(false);
+        when(response.getSuccessCount()).thenReturn(1);
+        when(response.getFailureCount()).thenReturn(1);
+        when(response.getResponses()).thenReturn(List.of(ok, failed));
+        when(firebaseMessaging.sendEachForMulticast(any(MulticastMessage.class))).thenReturn(response);
+
+        fcmService.sendMulticastMessage(List.of("t1", "t2"), "Title", "Body", Map.of("key", "value"));
+
+        verify(firebaseMessaging, timeout(2000)).sendEachForMulticast(any(MulticastMessage.class));
     }
 }

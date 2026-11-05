@@ -13,10 +13,9 @@ class UserRepositoryIT extends AbstractIntegrationTest {
     @Autowired
     private UserRepository userRepository;
 
-    private User user(String username, String email) {
+    private User user(String username) {
         return User.builder()
                 .username(username)
-                .email(email)
                 .isOnline(false)
                 .isDeleted(false)
                 .build();
@@ -24,29 +23,28 @@ class UserRepositoryIT extends AbstractIntegrationTest {
 
     @Test
     void shouldFindUserByUsername() {
-        User saved = userRepository.save(user("alice", "alice@example.com"));
+        User saved = userRepository.save(user("alice"));
 
         var found = userRepository.findByUsername("alice");
 
         assertThat(saved.getUserId()).isNotNull();
         assertThat(found).isPresent();
-        assertThat(found.get().getEmail()).isEqualTo("alice@example.com");
+        assertThat(found.get().getUsername()).isEqualTo("alice");
     }
 
     @Test
-    void shouldCheckEmailExistence() {
-        userRepository.save(user("bob", "bob@example.com"));
+    void shouldCheckUsernameExistence() {
+        userRepository.save(user("bob"));
 
-        assertThat(userRepository.existsByEmail("bob@example.com")).isTrue();
-        assertThat(userRepository.existsByEmail("missing@example.com")).isFalse();
+        assertThat(userRepository.existsByUsername("bob")).isTrue();
+        assertThat(userRepository.existsByUsername("missing")).isFalse();
     }
 
     @Test
     void shouldExcludeSoftDeletedUsersFromQueries() {
-        userRepository.save(user("alice", "alice@example.com"));
+        userRepository.save(user("alice"));
         userRepository.save(User.builder()
                 .username("deleted")
-                .email("deleted@example.com")
                 .isOnline(false)
                 .isDeleted(true)
                 .build());
@@ -56,15 +54,14 @@ class UserRepositoryIT extends AbstractIntegrationTest {
                 .containsExactly("alice");
 
         assertThat(userRepository.findByUsername("deleted")).isEmpty();
-        assertThat(userRepository.findByEmail("deleted@example.com")).isEmpty();
     }
 
     @Test
-    void shouldSearchUsersByUsernameOrEmail() {
-        userRepository.save(user("john.doe", "john@example.com"));
-        userRepository.save(user("jane", "jane@other.com"));
+    void shouldSearchUsersByUsernameOrName() {
+        userRepository.save(user("john.doe"));
+        userRepository.save(user("jane"));
 
-        var result = userRepository.searchByUsernameOrEmail("john", PageRequest.of(0, 10));
+        var result = userRepository.searchByUsernameOrName("john", PageRequest.of(0, 10));
 
         assertThat(result.getContent())
                 .extracting(User::getUsername)
@@ -73,10 +70,9 @@ class UserRepositoryIT extends AbstractIntegrationTest {
 
     @Test
     void shouldFindOnlineUsers() {
-        userRepository.save(user("online1", "online1@example.com"));
+        userRepository.save(user("online1"));
         userRepository.save(User.builder()
                 .username("online2")
-                .email("online2@example.com")
                 .isOnline(true)
                 .isDeleted(false)
                 .build());

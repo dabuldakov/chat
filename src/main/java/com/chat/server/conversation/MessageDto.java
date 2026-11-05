@@ -1,8 +1,10 @@
 package com.chat.server.conversation;
 
 import com.chat.server.identity.User;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 import lombok.Data;
+import lombok.Getter;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -26,8 +28,13 @@ public class MessageDto {
     private UUID replyToMessageUuid;
     private UUID forwardedFromMessageUuid;
     private UUID forwardedFromUserUuid;
+    // Явные JSON-имена: Jackson срезает префикс is у boolean-геттеров и отдавал
+    // "edited"/"deleted"/"pinned", а клиент ждёт isEdited/isDeleted/isPinned.
+    @Getter(onMethod_ = @JsonProperty("isEdited"))
     private boolean isEdited;
+    @Getter(onMethod_ = @JsonProperty("isDeleted"))
     private boolean isDeleted;
+    @Getter(onMethod_ = @JsonProperty("isPinned"))
     private boolean isPinned;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

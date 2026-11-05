@@ -167,7 +167,8 @@ public class ParticipantController {
                         messageService.getMessageById(participant.getLastReadMessageId()).getMessageUuid() : null)
                 .isMuted(participant.isMuted())
                 .mutedUntil(participant.getMutedUntil())
-                .isPinned(participant.getIsPinned())
+                // is_pinned может быть NULL у участников, созданных старым кодом.
+                .isPinned(participant.getIsPinned() != null && participant.getIsPinned())
                 .build());
     }
 

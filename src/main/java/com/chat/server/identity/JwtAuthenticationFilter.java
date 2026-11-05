@@ -78,7 +78,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             Jwt jwt = decoder.decode(token);
             UUID subject = UUID.fromString(jwt.getSubject());
             User user = oidcUserProvisioner.findOrCreate(subject,
-                    jwt.getClaimAsString("username"), jwt.getClaimAsString("email"));
+                    jwt.getClaimAsString("username"));
             UserDetails userDetails = userDetailsService.loadUserByUsername(user.getUserUuid().toString());
             SecurityContextHolder.getContext().setAuthentication(createAuthentication(userDetails, request));
             log.debug("Authenticated auth subject {} as chat user {}", subject, user.getUserId());

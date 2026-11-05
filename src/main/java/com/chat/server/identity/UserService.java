@@ -74,24 +74,18 @@ public class UserService implements UserDetailsService {
     // ==================== Создание пользователя ====================
 
     @Transactional
-    public User createUser(String username, String email) {
+    public User createUser(String username) {
         log.info("Creating user with username: {}", username);
 
         if (userRepository.existsByUsername(username)) {
             throw new ConflictException("Username already exists: " + username);
         }
 
-        if (userRepository.existsByEmail(email)) {
-            throw new ConflictException("Email already exists: " + email);
-        }
-
         User user = User.builder()
                 .username(username)
-                .email(email)
                 .status(User.UserStatus.ACTIVE)
                 .isOnline(false)
                 .isDeleted(false)
-                .emailVerified(false)
                 .build();
 
         User savedUser = userRepository.save(user);
@@ -126,12 +120,6 @@ public class UserService implements UserDetailsService {
     }
 
     @Transactional(readOnly = true)
-    public User findByEmail(String email) {
-        return userRepository.findByEmail(email)
-                .orElseThrow(() -> new NotFoundException("User not found with email: " + email));
-    }
-
-    @Transactional(readOnly = true)
     public List<User> getAllUsers() {
         log.debug("Fetching all users");
         return userRepository.findAll();
@@ -140,7 +128,7 @@ public class UserService implements UserDetailsService {
     @Transactional(readOnly = true)
     public Page<User> searchUsers(String query, Pageable pageable) {
         log.debug("Searching users by query: {}", query);
-        return userRepository.searchByUsernameOrEmail(query, pageable);
+        return userRepository.searchByUsernameOrName(query, pageable);
     }
 
     @Transactional(readOnly = true)
@@ -161,21 +149,6 @@ public class UserService implements UserDetailsService {
     public User updateUser(Long userId, UpdateProfileRequestDto request) {
         log.info("Updating user with id: {}", userId);
         User user = getUserById(userId);
-
-        if (request.getUsername() != null && !request.getUsername().equals(user.getUsername())) {
-            if (userRepository.existsByUsername(request.getUsername())) {
-                throw new ConflictException("Username already taken: " + request.getUsername());
-            }
-            user.setUsername(request.getUsername());
-        }
-
-        if (request.getEmail() != null && !request.getEmail().equals(user.getEmail())) {
-            if (userRepository.existsByEmail(request.getEmail())) {
-                throw new ConflictException("Email already in use: " + request.getEmail());
-            }
-            user.setEmail(request.getEmail());
-            user.setEmailVerified(false);
-        }
 
         if (request.getFirstName() != null) {
             user.setFirstName(request.getFirstName());

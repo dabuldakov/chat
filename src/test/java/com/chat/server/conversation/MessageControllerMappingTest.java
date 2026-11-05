@@ -63,6 +63,9 @@ class MessageControllerMappingTest {
     private AttachmentRepository attachmentRepository;
 
     @MockitoBean
+    private MessageRepository messageRepository;
+
+    @MockitoBean
     private OidcUserProvisioner oidcUserProvisioner;
 
     @MockitoBean
@@ -152,6 +155,23 @@ class MessageControllerMappingTest {
 
         verify(messageService).getMessagesBeforeMessage(5L, 7L, beforeMessageUuid, 50);
         verify(messageService, never()).getMessageByUuid(any());
+    }
+
+    @Test
+    void getMessageByUuid_mapsReplyToMessageUuid() throws Exception {
+        stubCommon();
+        UUID originalUuid = UUID.fromString("55555555-5555-5555-5555-555555555555");
+        Message original = message(originalUuid);
+        original.setMessageId(10L);
+
+        Message reply = message(messageUuid);
+        reply.setReplyToMessageId(10L);
+        when(messageService.getMessageByUuid(messageUuid)).thenReturn(reply);
+        when(messageRepository.findAllById(List.of(10L))).thenReturn(List.of(original));
+
+        mockMvc.perform(get("/api/messages/by-uuid/{messageUuid}", messageUuid).with(authPrincipal()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.replyToMessageUuid").value(originalUuid.toString()));
     }
 
     @Test

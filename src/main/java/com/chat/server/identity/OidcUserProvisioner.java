@@ -11,7 +11,9 @@ import java.util.UUID;
 /**
  * Связывает субъект единого IdP (auth-service, claim {@code sub}) с локальным
  * пользователем chat: находит по {@code auth_subject}, при отсутствии —
- * привязывает существующий аккаунт по email или создаёт новый.
+ * привязывает существующий аккаунт по username или создаёт новый.
+ *
+ * <p>Email здесь не хранится: это идентичность IdP, chat её не дублирует.
  */
 @Slf4j
 @Component
@@ -32,11 +34,11 @@ public class OidcUserProvisioner {
     private final java.util.concurrent.ConcurrentHashMap<UUID, Object> provisionLocks =
             new java.util.concurrent.ConcurrentHashMap<>();
 
-    public User findOrCreate(UUID subject, String username, String email) {
+    public User findOrCreate(UUID subject, String username) {
         Object lock = provisionLocks.computeIfAbsent(subject, k -> new Object());
         synchronized (lock) {
             try {
-                return doFindOrCreate(subject, username, email);
+                return doFindOrCreate(subject, username);
             } finally {
                 provisionLocks.remove(subject, lock);
             }
@@ -49,39 +51,19 @@ public class OidcUserProvisioner {
      * Hibernate-сессия уже rollback-only. Транзакции открывают репозиторные
      * методы.
      */
-    private User doFindOrCreate(UUID subject, String username, String email) {
+    private User doFindOrCreate(UUID subject, String username) {
         Optional<User> existing = userRepository.findByAuthSubject(subject);
         if (existing.isPresent()) {
             return existing.get();
         }
 
-        if (email != null && !email.isBlank()) {
-            Optional<User> byEmail = userRepository.findByEmail(email);
-            if (byEmail.isPresent()) {
-                User user = byEmail.get();
-                user.setAuthSubject(subject);
-                if (!Boolean.TRUE.equals(user.getEmailVerified())) {
-                    user.setEmailVerified(true);
-                }
-                log.info("Linked auth subject {} to existing user {} by email", subject, user.getUserId());
-                try {
-                    return userRepository.save(user);
-                } catch (DataIntegrityViolationException e) {
-                    return userRepository.findByAuthSubject(subject).orElseThrow(() -> e);
-                }
-            }
-        }
-
-        // Фолбэк миграции: пользователь вводит прежний логин (username), а email
-        // мог отличаться — привязываем существующий аккаунт по username.
+        // Фолбэк миграции: пользователь вводит прежний логин (username) —
+        // привязываем существующий аккаунт. Email для привязки не используется.
         if (properties.linkByUsername() && username != null && !username.isBlank()) {
             Optional<User> byUsername = userRepository.findByUsername(username);
             if (byUsername.isPresent()) {
                 User user = byUsername.get();
                 user.setAuthSubject(subject);
-                if (!Boolean.TRUE.equals(user.getEmailVerified())) {
-                    user.setEmailVerified(true);
-                }
                 log.info("Linked auth subject {} to existing user {} by username", subject, user.getUserId());
                 try {
                     return userRepository.save(user);
@@ -91,17 +73,15 @@ public class OidcUserProvisioner {
             }
         }
 
-        return createUser(subject, username, email);
+        return createUser(subject, username);
     }
 
-    private User createUser(UUID subject, String username, String email) {
+    private User createUser(UUID subject, String username) {
         User user = User.builder()
-                .username(resolveUsername(username, email, subject))
-                .email(resolveEmail(email, username, subject))
+                .username(resolveUsername(username, subject))
                 .status(User.UserStatus.ACTIVE)
                 .isOnline(false)
                 .isDeleted(false)
-                .emailVerified(true)
                 .authSubject(subject)
                 .build();
         try {
@@ -114,8 +94,8 @@ public class OidcUserProvisioner {
         }
     }
 
-    private String resolveUsername(String username, String email, UUID subject) {
-        String base = firstNonBlank(username, emailLocalPart(email), "user");
+    private String resolveUsername(String username, UUID subject) {
+        String base = firstNonBlank(username, "user");
         base = truncate(base, USERNAME_MAX);
         if (!userRepository.existsByUsername(base)) {
             return base;
@@ -126,22 +106,6 @@ public class OidcUserProvisioner {
             return candidate;
         }
         return truncate(base, USERNAME_MAX - 9) + "_" + subject.toString().replace("-", "").substring(0, 8);
-    }
-
-    private String resolveEmail(String email, String username, UUID subject) {
-        if (email != null && !email.isBlank()) {
-            return email;
-        }
-        String local = firstNonBlank(username, "user");
-        return truncate(local, USERNAME_MAX) + "-" + subject.toString().substring(0, 8) + "@auth.local";
-    }
-
-    private String emailLocalPart(String email) {
-        if (email == null || email.isBlank()) {
-            return null;
-        }
-        int at = email.indexOf('@');
-        return at > 0 ? email.substring(0, at) : email;
     }
 
     private String firstNonBlank(String... values) {
