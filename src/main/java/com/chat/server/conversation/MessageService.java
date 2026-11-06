@@ -178,7 +178,10 @@ public class MessageService {
      */
     private String previewForMessage(Message message) {
         String preview = previewText(message.getMessageText(), message.getMessageType());
-        if (preview == null && Boolean.TRUE.equals(message.getHasAttachments())) {
+        // Пустая строка — тоже «нет текста»: иначе пересланное фото без подписи
+        // оставляло пустое превью в списке чатов.
+        if ((preview == null || preview.isBlank())
+                && Boolean.TRUE.equals(message.getHasAttachments())) {
             return "📎 Вложение";
         }
         return preview;
