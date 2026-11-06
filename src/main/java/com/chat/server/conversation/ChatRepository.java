@@ -30,6 +30,33 @@ public interface ChatRepository extends JpaRepository<Chat, Long> {
                           @Param("text") String text,
                           @Param("senderId") Long senderId);
 
+    /** Обновляет превью без изменения счётчика сообщений (edit/delete/forward). */
+    @Modifying
+    @Query("""
+        UPDATE Chat c
+        SET c.lastMessageId = :messageId,
+            c.lastMessageText = :text,
+            c.lastMessageSenderId = :senderId,
+            c.updatedAt = CURRENT_TIMESTAMP
+        WHERE c.chatId = :chatId
+    """)
+    int setLastMessage(@Param("chatId") Long chatId,
+                       @Param("messageId") Long messageId,
+                       @Param("text") String text,
+                       @Param("senderId") Long senderId);
+
+    /** Очищает превью, когда в чате не осталось неудалённых сообщений. */
+    @Modifying
+    @Query("""
+        UPDATE Chat c
+        SET c.lastMessageId = null,
+            c.lastMessageText = null,
+            c.lastMessageSenderId = null,
+            c.updatedAt = CURRENT_TIMESTAMP
+        WHERE c.chatId = :chatId
+    """)
+    int clearLastMessage(@Param("chatId") Long chatId);
+
     @Query("""
         SELECT c FROM Chat c 
         WHERE c.chatId IN (

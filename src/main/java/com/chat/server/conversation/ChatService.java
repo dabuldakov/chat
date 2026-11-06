@@ -234,6 +234,20 @@ public class ChatService {
         chatRepository.updateLastMessage(chatId, messageId, messageText, senderId);
     }
 
+    /** Обновить превью после edit/delete/forward, не трогая message_count. */
+    @Transactional
+    @CacheEvict(value = "chats", key = "#chatId")
+    public void setLastMessage(Long chatId, Long messageId, String messageText, Long senderId) {
+        chatRepository.setLastMessage(chatId, messageId, messageText, senderId);
+    }
+
+    /** Очистить превью, если в чате больше нет неудалённых сообщений. */
+    @Transactional
+    @CacheEvict(value = "chats", key = "#chatId")
+    public void clearLastMessage(Long chatId) {
+        chatRepository.clearLastMessage(chatId);
+    }
+
     @Transactional(readOnly = true)
     @Cacheable(value = "chats", key = "#chatId")
     public Chat getChatById(Long chatId) {

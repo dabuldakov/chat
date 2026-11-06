@@ -167,6 +167,8 @@ public class MessageController {
         Message message = messageService.editMessage(messageUuid, userId, request.getText());
         MessageDto dto = MessageDto.fromEntity(message, userService.getUserById(message.getSenderId()));
         attachReplyReferences(List.of(message), List.of(dto));
+        // Правка подписи не должна «отрывать» картинку/видео от сообщения.
+        attachAttachments(List.of(message), List.of(dto));
         return ResponseEntity.ok(dto);
     }
 

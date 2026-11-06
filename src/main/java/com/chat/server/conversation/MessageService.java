@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 import com.chat.server.block.BlockedUserService;
@@ -344,6 +345,13 @@ public class MessageService {
         Message updatedMessage = messageRepository.save(message);
         log.info("Message edited: {}", messageUuid);
 
+        // Превью чата должно обновиться, если редактировали последнее сообщение.
+        Chat chat = chatService.getChatById(message.getChatId());
+        if (Objects.equals(chat.getLastMessageId(), message.getMessageId())) {
+            chatService.setLastMessage(message.getChatId(), message.getMessageId(),
+                    previewText(newText, message.getMessageType()), message.getSenderId());
+        }
+
         return updatedMessage;
     }
 
@@ -359,6 +367,11 @@ public class MessageService {
 
         chatService.validateUserAccessToChat(message.getChatId(), userId);
 
+        // Удаление «среднего» сообщения не должно менять превью и поднимать чат.
+        boolean wasLast = messageRepository.findLastMessageInChat(message.getChatId())
+                .map(last -> Objects.equals(last.getMessageId(), message.getMessageId()))
+                .orElse(false);
+
         if (hardDelete) {
             messageRepository.deleteById(message.getMessageId());
             log.info("Message hard deleted: {}", messageUuid);
@@ -366,10 +379,28 @@ public class MessageService {
             message.setIsDeleted(true);
             message.setDeletedAt(LocalDateTime.now(ZoneOffset.UTC));
             message.setDeletedBy(userId);
-            message.setMessageText("[Message deleted]");
+            message.setMessageText(null);
             messageRepository.save(message);
             log.info("Message soft deleted: {}", messageUuid);
         }
+
+        // Если удалили последнее сообщение — превью чата должно откатиться
+        // на предыдущее (или очиститься), иначе в списке чатов остаётся старый текст.
+        if (wasLast) {
+            refreshChatPreview(message.getChatId());
+        }
+    }
+
+    private void refreshChatPreview(Long chatId) {
+        var last = messageRepository.findLastMessageInChat(chatId);
+        if (last.isEmpty()) {
+            chatService.clearLastMessage(chatId);
+            return;
+        }
+        Message previous = last.get();
+        chatService.setLastMessage(chatId, previous.getMessageId(),
+                previewText(previous.getMessageText(), previous.getMessageType()),
+                previous.getSenderId());
     }
 
     @Transactional
@@ -383,11 +414,14 @@ public class MessageService {
         chatService.validateUserAccessToChat(original.getChatId(), userId);
         chatService.validateUserAccessToChat(targetChatId, userId);
 
+        List<Attachment> originals = attachmentRepository.findByMessageId(original.getMessageId());
+
         Message forwarded = Message.builder()
                 .chatId(targetChatId)
                 .senderId(userId)
                 .messageText(original.getMessageText())
                 .messageType(original.getMessageType())
+                .hasAttachments(!originals.isEmpty())
                 .forwardedFromMessageId(original.getMessageId())
                 .forwardedFromUserId(original.getSenderId())
                 .build();
@@ -395,7 +429,30 @@ public class MessageService {
         Message savedMessage = messageRepository.save(forwarded);
         log.info("Message forwarded: {}", savedMessage.getMessageId());
 
-        chatService.updateLastMessage(targetChatId, savedMessage.getMessageId(), savedMessage.getMessageText(), userId);
+        // Копируем вложения: иначе пересланные фото/видео/файлы оставались пустыми.
+        for (Attachment source : originals) {
+            attachmentRepository.save(Attachment.builder()
+                    .messageId(savedMessage.getMessageId())
+                    .chatId(targetChatId)
+                    .uploaderId(userId)
+                    .fileName(source.getFileName())
+                    .fileUrl(source.getFileUrl())
+                    .thumbnailUrl(source.getThumbnailUrl())
+                    .mp4Url(source.getMp4Url())
+                    .fileSize(source.getFileSize())
+                    .mimeType(source.getMimeType())
+                    .width(source.getWidth())
+                    .height(source.getHeight())
+                    .duration(source.getDuration())
+                    .type(source.getType())
+                    .isCompressed(source.getIsCompressed())
+                    .metadata(source.getMetadata())
+                    .gifKey(source.getGifKey())
+                    .build());
+        }
+
+        chatService.updateLastMessage(targetChatId, savedMessage.getMessageId(),
+                previewText(savedMessage.getMessageText(), savedMessage.getMessageType()), userId);
 
         return savedMessage;
     }
