@@ -205,7 +205,8 @@ class MessageServiceIT extends AbstractIntegrationTest {
         assertThat(deleted.getIsDeleted()).isTrue();
         assertThat(deleted.getDeletedBy()).isEqualTo(user1.getUserId());
         assertThat(deleted.getDeletedAt()).isNotNull();
-        assertThat(deleted.getMessageText()).isEqualTo("[Message deleted]");
+        // Заглушку не храним: клиент убирает сообщение и показывает анимацию.
+        assertThat(deleted.getMessageText()).isNull();
     }
 
     @Test
