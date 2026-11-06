@@ -86,7 +86,7 @@ public class MessageService {
             attachmentRepository.saveAll(attachments);
         }
 
-        String preview = previewText(text, effectiveType);
+        String preview = previewForMessage(savedMessage);
         // Обновляем последнее сообщение в чате
         chatService.updateLastMessage(chatId, savedMessage.getMessageId(), preview, senderId);
 
@@ -169,6 +169,19 @@ public class MessageService {
             return Message.MessageType.VIDEO;
         }
         return Message.MessageType.FILE;
+    }
+
+    /**
+     * Превью сообщения: текст, а для медиа — короткая подпись. Учитываем
+     * вложения, даже если тип сообщения TEXT (так приходят некоторые картинки),
+     * иначе в списке чатов появляется пустая строка.
+     */
+    private String previewForMessage(Message message) {
+        String preview = previewText(message.getMessageText(), message.getMessageType());
+        if (preview == null && Boolean.TRUE.equals(message.getHasAttachments())) {
+            return "📎 Вложение";
+        }
+        return preview;
     }
 
     private String previewText(String text, Message.MessageType type) {
@@ -349,7 +362,7 @@ public class MessageService {
         Chat chat = chatService.getChatById(message.getChatId());
         if (Objects.equals(chat.getLastMessageId(), message.getMessageId())) {
             chatService.setLastMessage(message.getChatId(), message.getMessageId(),
-                    previewText(newText, message.getMessageType()), message.getSenderId());
+                    previewForMessage(message), message.getSenderId());
         }
 
         return updatedMessage;
@@ -399,8 +412,7 @@ public class MessageService {
         }
         Message previous = last.get();
         chatService.setLastMessage(chatId, previous.getMessageId(),
-                previewText(previous.getMessageText(), previous.getMessageType()),
-                previous.getSenderId());
+                previewForMessage(previous), previous.getSenderId());
     }
 
     @Transactional
@@ -452,7 +464,7 @@ public class MessageService {
         }
 
         chatService.updateLastMessage(targetChatId, savedMessage.getMessageId(),
-                previewText(savedMessage.getMessageText(), savedMessage.getMessageType()), userId);
+                previewForMessage(savedMessage), userId);
 
         return savedMessage;
     }

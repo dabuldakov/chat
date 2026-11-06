@@ -74,8 +74,12 @@ class MessagePreviewAndForwardIT extends AbstractIntegrationTest {
     }
 
     private String preview(User viewer) {
+        return previewOf(chat, viewer);
+    }
+
+    private String previewOf(Chat target, User viewer) {
         ChatResponseDto dto = chatService.getUserChatsWithDetails(viewer.getUserId()).stream()
-                .filter(c -> c.getChatUuid().equals(chat.getChatUuid()))
+                .filter(c -> c.getChatUuid().equals(target.getChatUuid()))
                 .findFirst()
                 .orElseThrow();
         return dto.getLastMessage() == null ? null : dto.getLastMessage().getText();
@@ -133,5 +137,21 @@ class MessagePreviewAndForwardIT extends AbstractIntegrationTest {
         assertThat(copies).hasSize(1);
         assertThat(copies.get(0).getFileUrl()).isEqualTo(uploaded.getFileUrl());
         assertThat(copies.get(0).getChatId()).isEqualTo(otherChat.getChatId());
+        assertThat(previewOf(otherChat, user1)).isEqualTo("caption");
+    }
+
+    @Test
+    void forwardingAnImageWithoutCaptionKeepsPreviewNotEmpty() {
+        MockMultipartFile png = new MockMultipartFile("file", "photo.png", "image/png",
+                new byte[]{(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A});
+        Attachment uploaded = attachmentService.uploadAttachment(
+                png, null, chat.getChatId(), user1.getUserId(), 10, 20, null);
+        Message original = messageService.sendMessage(chat.getChatId(), user1.getUserId(),
+                null, Message.MessageType.IMAGE, null,
+                List.of(uploaded.getAttachmentUuid()));
+
+        messageService.forwardMessage(original.getMessageUuid(), otherChat.getChatId(), user1.getUserId());
+
+        assertThat(previewOf(otherChat, user1)).isNotBlank();
     }
 }
