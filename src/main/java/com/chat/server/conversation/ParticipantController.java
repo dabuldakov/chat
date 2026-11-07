@@ -42,16 +42,6 @@ public class ParticipantController {
         return ResponseEntity.ok(participants);
     }
 
-    @GetMapping("/candidates")
-    @Operation(summary = "Пользователи, которых можно добавить в группу")
-    public ResponseEntity<List<ParticipantCandidateDto>> getCandidates(
-            @PathVariable UUID chatUuid,
-            Authentication authentication) {
-        Long requesterId = Long.parseLong(authentication.getName());
-        Long chatId = chatService.getChatIdByUuid(chatUuid);
-        return ResponseEntity.ok(participantService.getCandidates(chatId, requesterId));
-    }
-
     @PostMapping
     @Operation(summary = "Добавление участников в групповой чат")
     public ResponseEntity<Void> addParticipants(
