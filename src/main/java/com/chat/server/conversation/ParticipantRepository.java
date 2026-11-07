@@ -34,6 +34,21 @@ public interface ParticipantRepository extends JpaRepository<Participant, Long> 
     @Query("SELECT p.chatId FROM Participant p WHERE p.userId = :userId")
     List<Long> findChatIdsByUserId(@Param("userId") Long userId);
 
+    /**
+     * Собеседники пользователя из личных чатов. Нужны, чтобы в список
+     * добавляемых в группу попадали люди, с которыми уже есть переписка,
+     * даже если они не сохранены в контактах.
+     */
+    @Query("""
+        SELECT DISTINCT p2.userId FROM Participant p1
+        JOIN Participant p2 ON p2.chatId = p1.chatId
+        JOIN Chat c ON c.chatId = p1.chatId
+        WHERE p1.userId = :userId
+          AND p2.userId <> :userId
+          AND c.chatType = 'PRIVATE'
+    """)
+    List<Long> findPrivateChatPartnerIds(@Param("userId") Long userId);
+
     @Query("SELECT count(p.participantId) FROM Participant p WHERE p.chatId = :chatId")
     Long countByChatId(@Param("chatId") Long chatId);
 

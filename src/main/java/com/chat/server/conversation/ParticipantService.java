@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import com.chat.server.contacts.ContactService;
 import com.chat.server.identity.UserService;
 @Slf4j
 @Service
@@ -28,6 +29,7 @@ public class ParticipantService {
     private final ChatService chatService;
     private final UserService userService;
     private final PresenceService presenceService;
+    private final ContactService contactService;
 
     @Transactional(readOnly = true)
     public List<Participant> getChatParticipants(Long chatId) {
@@ -64,6 +66,60 @@ public class ParticipantService {
                     return ParticipantInfoDto.fromEntity(p, user, presence);
                 })
                 .toList();
+    }
+
+    /**
+     * Кандидаты для добавления в группу: контакты пользователя плюс
+     * собеседники из личных чатов, кроме уже добавленных и самого себя.
+     *
+     * Контакты — не единственный источник: человек, с которым уже есть
+     * переписка, но который не сохранён в контактах (или чья запись контакта
+     * устарела), иначе не попадал в список и его нельзя было добавить.
+     * Собеседники из чатов закрывают этот сценарий.
+     */
+    @Transactional(readOnly = true)
+    public List<ParticipantCandidateDto> getCandidates(Long chatId, Long requesterId) {
+        chatService.validateUserAccessToChat(chatId, requesterId);
+
+        java.util.Set<Long> contactIds = new java.util.LinkedHashSet<>(
+                contactService.getContactUserIds(requesterId));
+        java.util.Set<Long> partnerIds = new java.util.LinkedHashSet<>(
+                participantRepository.findPrivateChatPartnerIds(requesterId));
+
+        java.util.Set<Long> candidateIds = new java.util.LinkedHashSet<>();
+        candidateIds.addAll(contactIds);
+        candidateIds.addAll(partnerIds);
+
+        // Не предлагаем себя и тех, кто уже в группе.
+        candidateIds.remove(requesterId);
+        participantRepository.findAllByChatId(chatId)
+                .forEach(p -> candidateIds.remove(p.getUserId()));
+
+        if (candidateIds.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Long, User> users = userService.findAllByIds(List.copyOf(candidateIds)).stream()
+                .collect(Collectors.toMap(User::getUserId, u -> u));
+
+        return candidateIds.stream()
+                .map(users::get)
+                .filter(Objects::nonNull)
+                .map(user -> ParticipantCandidateDto.fromUser(
+                        user, contactIds.contains(user.getUserId())))
+                .sorted(java.util.Comparator.comparing(
+                        this::displayName, String.CASE_INSENSITIVE_ORDER))
+                .toList();
+    }
+
+    private String displayName(ParticipantCandidateDto candidate) {
+        if (candidate.getFullName() != null && !candidate.getFullName().isBlank()) {
+            return candidate.getFullName();
+        }
+        if (candidate.getUsername() != null && !candidate.getUsername().isBlank()) {
+            return candidate.getUsername();
+        }
+        return "";
     }
 
     @Transactional
