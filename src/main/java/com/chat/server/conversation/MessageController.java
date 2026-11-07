@@ -64,7 +64,8 @@ public class MessageController {
                     request.getText(),
                     request.getMessageType(),
                     request.getReplyToMessageUuid(),
-                    request.getAttachments()
+                    request.getAttachments(),
+                    request.getClientMessageId()
             );
         }
 

@@ -17,6 +17,9 @@ public class SendMessageRequestDto {
 
     private UUID replyToMessageUuid;
 
+    /** Клиентский UUID для идемпотентной повторной отправки. */
+    private UUID clientMessageId;
+
     private List<UUID> attachments;
 
     /** Метаданные гифки при messageType=GIF (поиск делает клиент у провайдера). */

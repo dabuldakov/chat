@@ -34,6 +34,7 @@ public class MessageService {
     private static final int DEFAULT_SYNC_LIMIT = 500;
 
     private final MessageRepository messageRepository;
+    private final MessageClientIdRepository messageClientIdRepository;
     private final AttachmentRepository attachmentRepository;
     private final ChatService chatService;
     private final ParticipantService participantService;
@@ -43,11 +44,34 @@ public class MessageService {
     private final GifCatalogPort gifCatalog;
 
     @Transactional
+    /** Совместимый вход для внутренних вызовов без clientMessageId. */
     public Message sendMessage(Long chatId, Long senderId, String text,
-                               Message.MessageType type, UUID replyToMessageUuid, List<UUID> attachmentUuids) {
+                               Message.MessageType type, UUID replyToMessageUuid,
+                               List<UUID> attachmentUuids) {
+        return sendMessage(chatId, senderId, text, type, replyToMessageUuid,
+                attachmentUuids, null);
+    }
+
+    public Message sendMessage(Long chatId, Long senderId, String text,
+                               Message.MessageType type, UUID replyToMessageUuid,
+                               List<UUID> attachmentUuids, UUID clientMessageId) {
         log.info("Sending message to chat: {} from user: {}", chatId, senderId);
 
         chatService.validateUserAccessToChat(chatId, senderId);
+
+        // Повтор после обрыва сети: сообщение уже записано — возвращаем его,
+        // а не создаём дубль. Чужой clientMessageId не раскрываем.
+        if (clientMessageId != null) {
+            var existing = messageClientIdRepository.findByClientMessageId(clientMessageId);
+            if (existing.isPresent()) {
+                MessageClientId link = existing.get();
+                if (!link.getSenderId().equals(senderId)) {
+                    throw new AccessDeniedException("Message belongs to another user");
+                }
+                return messageRepository.findById(link.getMessageId())
+                        .orElseThrow(() -> new NotFoundException("Message not found"));
+            }
+        }
 
         // Получаем участников один раз — используем их и в проверке блокировки,
         // и для статусов доставки (раньше было два отдельных SELECT).
@@ -78,6 +102,29 @@ public class MessageService {
 
         Message savedMessage = messageRepository.save(message);
         log.info("Message sent with id: {}", savedMessage.getMessageId());
+
+        if (clientMessageId != null) {
+            try {
+                messageClientIdRepository.save(MessageClientId.builder()
+                        .clientMessageId(clientMessageId)
+                        .chatId(chatId)
+                        .messageId(savedMessage.getMessageId())
+                        .senderId(senderId)
+                        .createdAt(LocalDateTime.now(ZoneOffset.UTC))
+                        .build());
+            } catch (org.springframework.dao.DataIntegrityViolationException race) {
+                // Параллельный повтор уже связал clientMessageId: возвращаем
+                // существующее сообщение, а не создаём второе.
+                MessageClientId link = messageClientIdRepository
+                        .findByClientMessageId(clientMessageId)
+                        .orElseThrow(() -> race);
+                if (!link.getSenderId().equals(senderId)) {
+                    throw new AccessDeniedException("Message belongs to another user");
+                }
+                return messageRepository.findById(link.getMessageId())
+                        .orElseThrow(() -> new NotFoundException("Message not found"));
+            }
+        }
 
         // Привязываем загруженные вложения к сообщению. Без этого файлы
         // оставались сиротами и удалялись через сутки.
