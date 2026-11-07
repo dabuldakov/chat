@@ -4,6 +4,7 @@ import com.chat.server.identity.OidcProperties;
 import com.chat.server.identity.OidcUserProvisioner;
 import com.chat.server.identity.User;
 import com.chat.server.conversation.ChatService;
+import com.chat.server.identity.ServiceTokenService;
 import com.chat.server.identity.UserService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -58,6 +59,9 @@ class MessageControllerMappingTest {
 
     @MockitoBean
     private UserService userService;
+
+    @MockitoBean
+    private ServiceTokenService serviceTokenService;
 
     @MockitoBean
     private AttachmentRepository attachmentRepository;
