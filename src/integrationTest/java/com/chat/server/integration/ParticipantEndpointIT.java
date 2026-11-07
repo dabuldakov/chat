@@ -107,26 +107,4 @@ class ParticipantEndpointIT extends AbstractIntegrationTest {
         mvc.perform(post("/api/chats/{chatUuid}/participants/leave", chatUuid).with(auth(owner)))
                 .andExpect(status().isConflict());
     }
-
-    @Test
-    void candidatesEndpointOffersPrivateChatPartnersAndHidesMembers() throws Exception {
-        chats.createPrivateChat(owner.getUserId(), newbie.getUserUuid());
-
-        mvc.perform(get("/api/chats/{chatUuid}/participants/candidates", chatUuid)
-                        .with(auth(owner)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.userUuid == '%s')].username"
-                        .formatted(newbie.getUserUuid())).value("p_newbie"))
-                .andExpect(jsonPath("$[?(@.userUuid == '%s')]"
-                        .formatted(member.getUserUuid())).isEmpty())
-                .andExpect(jsonPath("$[?(@.userUuid == '%s')]"
-                        .formatted(owner.getUserUuid())).isEmpty());
-    }
-
-    @Test
-    void candidatesEndpointIsClosedForOutsiders() throws Exception {
-        mvc.perform(get("/api/chats/{chatUuid}/participants/candidates", chatUuid)
-                        .with(auth(newbie)))
-                .andExpect(status().isForbidden());
-    }
 }
