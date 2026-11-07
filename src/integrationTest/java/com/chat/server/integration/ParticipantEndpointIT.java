@@ -107,4 +107,25 @@ class ParticipantEndpointIT extends AbstractIntegrationTest {
         mvc.perform(post("/api/chats/{chatUuid}/participants/leave", chatUuid).with(auth(owner)))
                 .andExpect(status().isConflict());
     }
+
+    @Test
+    void contactCanBeAddedToGroup() throws Exception {
+        mvc.perform(post("/api/contacts")
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"contactUserUuid\":\"" + newbie.getUserUuid() + "\"}"))
+                .andExpect(status().isOk());
+
+        mvc.perform(post("/api/chats/{chatUuid}/participants", chatUuid)
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"memberUuids\":[\"" + newbie.getUserUuid() + "\"]}"))
+                .andExpect(status().isOk());
+
+        mvc.perform(get("/api/chats/{chatUuid}/participants", chatUuid).with(auth(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$[?(@.userUuid == '%s')].username"
+                        .formatted(newbie.getUserUuid())).value("p_newbie"));
+    }
 }
