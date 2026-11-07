@@ -36,6 +36,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final OidcUserProvisioner oidcUserProvisioner;
     private final OidcProperties oidcProperties;
     private final ObjectProvider<JwtDecoder> oidcDecoderProvider;
+    private final ServiceTokenService serviceTokenService;
+    private final UserService userService;
 
     @Override
     protected void doFilterInternal(
@@ -56,13 +58,42 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String token = extractToken(request);
 
             if (token != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                authenticateWithOidc(token, request);
+                // Сначала пробуем service-токен бота: он не JWT и не ходит в IdP.
+                if (!authenticateWithServiceToken(token, request)) {
+                    authenticateWithOidc(token, request);
+                }
             }
         } catch (Exception e) {
             log.warn("Authentication error for request {}: {}", requestPath, e.getMessage());
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    /** Токен бота/интеграции (mz_...). Возвращает true, если он принят. */
+    private boolean authenticateWithServiceToken(String token, HttpServletRequest request) {
+        if (!token.startsWith("mz_")) {
+            return false;
+        }
+        try {
+            return serviceTokenService.authenticate(token)
+                    .map(userId -> {
+                        User user = userService.getUserById(userId);
+                        if (Boolean.TRUE.equals(user.getIsDeleted())) {
+                            return false;
+                        }
+                        UserDetails userDetails = userDetailsService
+                                .loadUserByUsername(user.getUserUuid().toString());
+                        SecurityContextHolder.getContext()
+                                .setAuthentication(createAuthentication(userDetails, request));
+                        log.debug("Authenticated service token as chat user {}", userId);
+                        return true;
+                    })
+                    .orElse(false);
+        } catch (Exception e) {
+            log.warn("Service token authentication failed: {}", e.getMessage());
+            return false;
+        }
     }
 
     /** Access-токен auth-service (RS256). Возвращает true, если он принят. */

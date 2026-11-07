@@ -34,6 +34,8 @@ class JwtAuthenticationFilterTest {
     private OidcUserProvisioner provisioner;
     private ObjectProvider<JwtDecoder> decoderProvider;
     private JwtDecoder decoder;
+    private ServiceTokenService serviceTokens;
+    private UserService users;
     private FilterChain chain;
     private JwtAuthenticationFilter filter;
 
@@ -43,11 +45,13 @@ class JwtAuthenticationFilterTest {
         provisioner = mock(OidcUserProvisioner.class);
         decoderProvider = mock(ObjectProvider.class);
         decoder = mock(JwtDecoder.class);
+        serviceTokens = mock(ServiceTokenService.class);
+        users = mock(UserService.class);
         chain = mock(FilterChain.class);
         filter = new JwtAuthenticationFilter(
                 userDetailsService, provisioner,
                 new OidcProperties(true, "issuer", "jwks", List.of()),
-                decoderProvider
+                decoderProvider, serviceTokens, users
         );
         SecurityContextHolder.clearContext();
     }
@@ -121,7 +125,7 @@ class JwtAuthenticationFilterTest {
         filter = new JwtAuthenticationFilter(
                 userDetailsService, provisioner,
                 new OidcProperties(false, "issuer", "jwks", List.of()),
-                decoderProvider
+                decoderProvider, serviceTokens, users
         );
 
         filter.doFilter(request("GET", "/api/chats", "token"),
