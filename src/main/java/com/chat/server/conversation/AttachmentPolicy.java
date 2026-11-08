@@ -53,7 +53,10 @@ public final class AttachmentPolicy {
                     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", AttachmentPolicy::zip),
             entry("ppt", Attachment.AttachmentType.DOCUMENT, MAX_DOCUMENT_BYTES, "application/vnd.ms-powerpoint", AttachmentPolicy::ole),
             entry("pptx", Attachment.AttachmentType.DOCUMENT, MAX_DOCUMENT_BYTES,
-                    "application/vnd.openxmlformats-officedocument.presentationml.presentation", AttachmentPolicy::zip)
+                    "application/vnd.openxmlformats-officedocument.presentationml.presentation", AttachmentPolicy::zip),
+            // Бета-сборки приложения: APK — это ZIP, проверяем сигнатуру.
+            entry("apk", Attachment.AttachmentType.DOCUMENT, MAX_DOCUMENT_BYTES,
+                    "application/vnd.android.package-archive", AttachmentPolicy::zip)
     );
 
     private AttachmentPolicy() {

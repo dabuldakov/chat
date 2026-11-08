@@ -39,6 +39,15 @@ class AttachmentPolicyTest {
     }
 
     @Test
+    void apkIsAllowedAsDocument() {
+        assertEquals(Attachment.AttachmentType.DOCUMENT,
+                AttachmentPolicy.validate(
+                        file("muzea-1.7.28-beta.apk", new byte[]{0x50, 0x4B, 0x03, 0x04})).type());
+        assertThrows(BadRequestException.class,
+                () -> AttachmentPolicy.validate(file("fake.apk", new byte[]{'M', 'Z'})));
+    }
+
+    @Test
     void audioAndVideoAreAllowed() {
         assertDoesNotThrow(() -> AttachmentPolicy.validate(
                 file("clip.mp4", new byte[]{0, 0, 0, 0, 'f', 't', 'y', 'p'})));
