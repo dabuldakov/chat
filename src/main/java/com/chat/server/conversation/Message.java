@@ -86,6 +86,10 @@ public class Message extends BaseEntity {
     @Column(name = "mentioned_users")
     private String mentionedUsers; // JSON массив ID пользователей
 
+    @Column(name = "power", nullable = false)
+    @Builder.Default
+    private Integer power = 0;
+
     @Column(name = "has_attachments")
     private Boolean hasAttachments = false;
 

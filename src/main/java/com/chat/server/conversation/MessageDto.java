@@ -41,6 +41,8 @@ public class MessageDto {
     private List<AttachmentDto> attachments;
     private MessageStatusDto status;
     private List<ReactionDto> reactions;
+    /** 0..100 — сила «заряда» отправителя. */
+    private int power;
 
     public static MessageDto fromEntity(Message message) {
         return MessageDto.builder()
@@ -51,6 +53,7 @@ public class MessageDto {
                 .isEdited(message.getIsEdited() != null && message.getIsEdited())
                 .isDeleted(message.getIsDeleted() != null && message.getIsDeleted())
                 .isPinned(message.getIsPinned() != null && message.getIsPinned())
+                .power(message.getPower() == null ? 0 : message.getPower())
                 .createdAt(message.getCreatedAt())
                 .updatedAt(message.getUpdatedAt())
                 .build();

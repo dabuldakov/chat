@@ -22,6 +22,9 @@ public class SendMessageRequestDto {
 
     private List<UUID> attachments;
 
+    /** 0..100 — сила удержания кнопки отправки. */
+    private Integer power;
+
     /** Метаданные гифки при messageType=GIF (поиск делает клиент у провайдера). */
     private GifPayload gif;
 }

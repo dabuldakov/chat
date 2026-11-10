@@ -55,6 +55,13 @@ public class MessageService {
     public Message sendMessage(Long chatId, Long senderId, String text,
                                Message.MessageType type, UUID replyToMessageUuid,
                                List<UUID> attachmentUuids, UUID clientMessageId) {
+        return sendMessage(chatId, senderId, text, type, replyToMessageUuid,
+                attachmentUuids, clientMessageId, 0);
+    }
+
+    public Message sendMessage(Long chatId, Long senderId, String text,
+                               Message.MessageType type, UUID replyToMessageUuid,
+                               List<UUID> attachmentUuids, UUID clientMessageId, Integer power) {
         log.info("Sending message to chat: {} from user: {}", chatId, senderId);
 
         chatService.validateUserAccessToChat(chatId, senderId);
@@ -98,6 +105,7 @@ public class MessageService {
                 .messageType(effectiveType)
                 .replyToMessageId(replyToId)
                 .hasAttachments(!attachments.isEmpty())
+                .power(normalizePower(power))
                 .build();
 
         Message savedMessage = messageRepository.save(message);
@@ -486,6 +494,7 @@ public class MessageService {
                 .hasAttachments(!originals.isEmpty())
                 .forwardedFromMessageId(original.getMessageId())
                 .forwardedFromUserId(original.getSenderId())
+                .power(normalizePower(original.getPower()))
                 .build();
 
         Message savedMessage = messageRepository.save(forwarded);
@@ -607,5 +616,10 @@ public class MessageService {
     @Transactional(readOnly = true)
     public List<Message> getPinnedMessages(Long chatId) {
         return messageRepository.findPinnedMessages(chatId);
+    }
+
+    private int normalizePower(Integer power) {
+        if (power == null) return 0;
+        return Math.max(0, Math.min(100, power));
     }
 }
