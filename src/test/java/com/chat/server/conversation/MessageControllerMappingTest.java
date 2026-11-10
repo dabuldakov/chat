@@ -52,6 +52,9 @@ class MessageControllerMappingTest {
     private MessageService messageService;
 
     @MockitoBean
+    private MessageReactionService messageReactionService;
+
+    @MockitoBean
     private MessageStatusService messageStatusService;
 
     @MockitoBean

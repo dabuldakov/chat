@@ -40,6 +40,7 @@ public class MessageDto {
     private LocalDateTime updatedAt;
     private List<AttachmentDto> attachments;
     private MessageStatusDto status;
+    private List<ReactionDto> reactions;
 
     public static MessageDto fromEntity(Message message) {
         return MessageDto.builder()

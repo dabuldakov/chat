@@ -35,6 +35,7 @@ public class MessageController {
     private final UserService userService;
     private final AttachmentRepository attachmentRepository;
     private final MessageRepository messageRepository;
+    private final MessageReactionService messageReactionService;
 
     @PostMapping("/{chatUuid}")
     @Operation(summary = "Отправка сообщения")
@@ -73,6 +74,7 @@ public class MessageController {
         dtos.add(MessageDto.fromEntity(message, userService.getUserById(userId)));
         attachAttachments(List.of(message), dtos);
         attachReplyReferences(List.of(message), dtos);
+        messageReactionService.enrich(List.of(message), dtos, userId);
         return ResponseEntity.ok(dtos.get(0));
     }
 
@@ -95,6 +97,7 @@ public class MessageController {
         }
         attachAttachments(content, messageDtos);
         attachReplyReferences(content, messageDtos);
+        messageReactionService.enrich(content, messageDtos, userId);
 
         return ResponseEntity.ok(new org.springframework.data.domain.PageImpl<>(
                 messageDtos, PageRequest.of(page, size), messages.getTotalElements()));
@@ -117,6 +120,7 @@ public class MessageController {
                 .toList();
         attachAttachments(messages, messageDtos);
         attachReplyReferences(messages, messageDtos);
+        messageReactionService.enrich(messages, messageDtos, userId);
 
         return ResponseEntity.ok(messageDtos);
     }
@@ -138,6 +142,7 @@ public class MessageController {
                 .toList();
         attachAttachments(messages, messageDtos);
         attachReplyReferences(messages, messageDtos);
+        messageReactionService.enrich(messages, messageDtos, userId);
 
         return ResponseEntity.ok(messageDtos);
     }
@@ -154,6 +159,7 @@ public class MessageController {
 
         MessageDto dto = MessageDto.fromEntity(message, userService.getUserById(message.getSenderId()));
         attachReplyReferences(List.of(message), List.of(dto));
+        messageReactionService.enrich(List.of(message), List.of(dto), userId);
         return ResponseEntity.ok(dto);
     }
 
@@ -170,7 +176,19 @@ public class MessageController {
         attachReplyReferences(List.of(message), List.of(dto));
         // Правка подписи не должна «отрывать» картинку/видео от сообщения.
         attachAttachments(List.of(message), List.of(dto));
+        messageReactionService.enrich(List.of(message), List.of(dto), userId);
         return ResponseEntity.ok(dto);
+    }
+
+    @PostMapping("/{messageUuid}/reactions")
+    @Operation(summary = "Поставить или снять реакцию")
+    public ResponseEntity<List<ReactionDto>> toggleReaction(
+            @PathVariable UUID messageUuid,
+            @Valid @RequestBody ReactionRequestDto request,
+            Authentication authentication) {
+        Long userId = Long.parseLong(authentication.getName());
+        return ResponseEntity.ok(
+                messageReactionService.toggle(messageUuid, userId, request.getEmoji()));
     }
 
     @DeleteMapping("/{messageUuid}")
@@ -196,6 +214,7 @@ public class MessageController {
         Message message = messageService.forwardMessage(request.getMessageUuid(), targetChatId, userId);
         MessageDto dto = MessageDto.fromEntity(message, userService.getUserById(userId));
         attachReplyReferences(List.of(message), List.of(dto));
+        messageReactionService.enrich(List.of(message), List.of(dto), userId);
         return ResponseEntity.ok(dto);
     }
 
@@ -255,6 +274,7 @@ public class MessageController {
                 .map(msg -> MessageDto.fromEntity(msg, senderMap.get(msg.getSenderId())))
                 .toList();
         attachReplyReferences(messages.getContent(), messageDtos);
+        messageReactionService.enrich(messages.getContent(), messageDtos, userId);
 
         return ResponseEntity.ok(messageDtos);
     }
@@ -275,6 +295,7 @@ public class MessageController {
                 .map(msg -> MessageDto.fromEntity(msg, senderMap.get(msg.getSenderId())))
                 .toList();
         attachReplyReferences(messages, messageDtos);
+        messageReactionService.enrich(messages, messageDtos, userId);
 
         return ResponseEntity.ok(messageDtos);
     }
@@ -321,6 +342,7 @@ public class MessageController {
                 .map(msg -> MessageDto.fromEntity(msg, senderMap.get(msg.getSenderId())))
                 .toList();
         attachReplyReferences(messages, messageDtos);
+        messageReactionService.enrich(messages, messageDtos, userId);
 
         return ResponseEntity.ok(messageDtos);
     }
