@@ -17,6 +17,9 @@ public class ErrorReportRequest {
     @Size(max = 100)
     private List<@Valid ErrorEventDto> events;
 
+    /** Клиентский буфер достиг лимита: часть ошибок потеряна. */
+    private boolean overflowed;
+
     @Data
     public static class ErrorEventDto {
         @NotBlank

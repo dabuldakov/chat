@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -42,11 +43,14 @@ class ErrorTelemetryControllerTest {
 
         ErrorReportRequest request = new ErrorReportRequest();
         request.setEvents(List.of(dto(first.toString()), dto(second.toString())));
+        request.setOverflowed(true);
 
         var response = controller.upload(request, auth);
 
         assertEquals(1, response.getBody().get("accepted"));
-        verify(repository, times(1)).save(any(ErrorEvent.class));
+        var captor = org.mockito.ArgumentCaptor.forClass(ErrorEvent.class);
+        verify(repository, times(1)).save(captor.capture());
+        assertTrue(captor.getValue().isBufferOverflowed());
     }
 
     @Test

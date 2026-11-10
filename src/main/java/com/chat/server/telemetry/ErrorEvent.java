@@ -57,6 +57,9 @@ public class ErrorEvent {
     @Column(name = "event_time")
     private LocalDateTime eventTime;
 
+    @Column(name = "buffer_overflowed", nullable = false)
+    private boolean bufferOverflowed;
+
     @Column(name = "received_at", nullable = false, updatable = false)
     private LocalDateTime receivedAt;
 

@@ -57,6 +57,7 @@ public class ErrorTelemetryController {
                     .message(limit(dto.getMessage(), 1_000))
                     .stack(limit(dto.getStack(), 20_000))
                     .eventTime(parseTime(dto.getTime()))
+                    .bufferOverflowed(request.isOverflowed())
                     .build());
             accepted++;
         }
