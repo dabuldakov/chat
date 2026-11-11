@@ -44,6 +44,9 @@ public class MessageDto {
     /** 0..100 — сила «заряда» отправителя. */
     private int power;
 
+    /** Накопленное повреждение 0..100. */
+    private int damage;
+
     public static MessageDto fromEntity(Message message) {
         return MessageDto.builder()
                 .messageUuid(message.getMessageUuid())
@@ -54,6 +57,7 @@ public class MessageDto {
                 .isDeleted(message.getIsDeleted() != null && message.getIsDeleted())
                 .isPinned(message.getIsPinned() != null && message.getIsPinned())
                 .power(message.getPower() == null ? 0 : message.getPower())
+                .damage(message.getDamage() == null ? 0 : message.getDamage())
                 .createdAt(message.getCreatedAt())
                 .updatedAt(message.getUpdatedAt())
                 .build();

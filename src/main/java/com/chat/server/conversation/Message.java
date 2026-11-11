@@ -90,6 +90,11 @@ public class Message extends BaseEntity {
     @Builder.Default
     private Integer power = 0;
 
+    /** Накопленное повреждение 0..100 от ответов с зарядом. */
+    @Column(name = "damage", nullable = false)
+    @Builder.Default
+    private Integer damage = 0;
+
     @Column(name = "has_attachments")
     private Boolean hasAttachments = false;
 

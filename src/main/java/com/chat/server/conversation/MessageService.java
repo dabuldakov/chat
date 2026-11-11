@@ -87,8 +87,9 @@ public class MessageService {
         enforceBlockingForPrivateChat(chatId, senderId, participantIds);
 
         Long replyToId = null;
+        Message replyTo = null;
         if (replyToMessageUuid != null) {
-            Message replyTo = getMessageByUuid(replyToMessageUuid);
+            replyTo = getMessageByUuid(replyToMessageUuid);
             if (!replyTo.getChatId().equals(chatId)) {
                 throw new BadRequestException("Reply message does not belong to this chat");
             }
@@ -109,6 +110,16 @@ public class MessageService {
                 .build();
 
         Message savedMessage = messageRepository.save(message);
+
+        int chargedPower = normalizePower(power);
+        if (replyTo != null && chargedPower > 0) {
+            // Ответ с зарядом повреждает сообщение, на которое отвечают.
+            // Копим с шагом 0,6 от силы удара, но не выше 100.
+            int damage = replyTo.getDamage() == null ? 0 : replyTo.getDamage();
+            replyTo.setDamage(MessageDamage.afterHit(damage, chargedPower));
+            messageRepository.save(replyTo);
+        }
+
         log.info("Message sent with id: {}", savedMessage.getMessageId());
 
         if (clientMessageId != null) {
@@ -271,8 +282,9 @@ public class MessageService {
         enforceBlockingForPrivateChat(chatId, senderId, participantIds);
 
         Long replyToId = null;
+        Message replyTo = null;
         if (replyToMessageUuid != null) {
-            Message replyTo = getMessageByUuid(replyToMessageUuid);
+            replyTo = getMessageByUuid(replyToMessageUuid);
             if (!replyTo.getChatId().equals(chatId)) {
                 throw new BadRequestException("Reply message does not belong to this chat");
             }
