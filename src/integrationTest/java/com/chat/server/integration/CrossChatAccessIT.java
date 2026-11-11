@@ -284,4 +284,98 @@ class CrossChatAccessIT extends AbstractIntegrationTest {
         mvc.perform(get("/api/chats/{chatUuid}", chatUuid))
                 .andExpect(status().isUnauthorized());
     }
+
+    @Test
+    void intruderCannotReadUpdatedMessages() throws Exception {
+        mvc.perform(get("/api/messages/{chatUuid}/updated/{timestamp}", chatUuid, "2020-01-01T00:00:00Z")
+                        .with(auth(intruder)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void intruderCannotToggleReaction() throws Exception {
+        mvc.perform(post("/api/messages/{messageUuid}/reactions", message.getMessageUuid())
+                        .with(auth(intruder))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"emoji\":\"🔥\"}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void intruderCannotForwardForeignMessage() throws Exception {
+        mvc.perform(post("/api/messages/forward")
+                        .with(auth(intruder))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"messageUuid\":\"" + message.getMessageUuid()
+                                + "\",\"targetChatUuid\":\"" + chatUuid + "\"}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void intruderCannotMarkDelivered() throws Exception {
+        mvc.perform(post("/api/messages/{chatUuid}/delivered", chatUuid)
+                        .param("upToMessageUuid", message.getMessageUuid().toString())
+                        .with(auth(intruder)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void intruderCannotReadReceipts() throws Exception {
+        mvc.perform(get("/api/chats/{chatUuid}/receipts", chatUuid)
+                        .with(auth(intruder)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void intruderCannotArchiveChat() throws Exception {
+        mvc.perform(post("/api/chats/archive/{chatUuid}", chatUuid)
+                        .with(auth(intruder)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void intruderCannotUnarchiveChat() throws Exception {
+        mvc.perform(post("/api/chats/unarchive/{chatUuid}", chatUuid)
+                        .with(auth(intruder)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void intruderCannotReportForeignMessage() throws Exception {
+        mvc.perform(post("/api/reports")
+                        .with(auth(intruder))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"contentType\":\"MESSAGE\",\"contentUuid\":\""
+                                + message.getMessageUuid() + "\",\"reason\":\"SPAM\"}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void anonymousCannotReadUpdatedMessages() throws Exception {
+        mvc.perform(get("/api/messages/{chatUuid}/updated/{timestamp}", chatUuid, "2020-01-01T00:00:00Z"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void anonymousCannotReadOwnProfile() throws Exception {
+        mvc.perform(get("/api/users/me"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void anonymousCannotSendErrorTelemetry() throws Exception {
+        mvc.perform(post("/api/telemetry/errors")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"events\":[],\"overflowed\":false}"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void anonymousCannotReportContent() throws Exception {
+        mvc.perform(post("/api/reports")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"contentType\":\"MESSAGE\",\"contentUuid\":\""
+                                + message.getMessageUuid() + "\",\"reason\":\"SPAM\"}"))
+                .andExpect(status().isUnauthorized());
+    }
 }
