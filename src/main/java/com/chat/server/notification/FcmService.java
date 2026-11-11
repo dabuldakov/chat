@@ -130,7 +130,7 @@ public class FcmService {
             log.debug("Message notification sent successfully");
 
         } catch (FirebaseMessagingException e) {
-            log.error("Failed to send message notification to token: {}", fcmToken, e);
+            log.error("Failed to send message notification to token: {}", maskToken(fcmToken), e);
             handleError(fcmToken, e);
         }
     }
@@ -173,7 +173,7 @@ public class FcmService {
                     .build();
             send(message);
         } catch (FirebaseMessagingException e) {
-            log.error("Failed to send news notification to token: {}", fcmToken, e);
+            log.error("Failed to send news notification to token: {}", maskToken(fcmToken), e);
             handleError(fcmToken, e);
         }
     }
@@ -205,7 +205,7 @@ public class FcmService {
             log.debug("Typing notification sent successfully");
 
         } catch (FirebaseMessagingException e) {
-            log.error("Failed to send typing notification to token: {}", fcmToken, e);
+            log.error("Failed to send typing notification to token: {}", maskToken(fcmToken), e);
         }
     }
 
@@ -243,7 +243,7 @@ public class FcmService {
             log.debug("Call notification sent successfully");
 
         } catch (FirebaseMessagingException e) {
-            log.error("Failed to send call notification to token: {}", fcmToken, e);
+            log.error("Failed to send call notification to token: {}", maskToken(fcmToken), e);
         }
     }
 
@@ -275,7 +275,7 @@ public class FcmService {
             log.debug("Read receipt sent successfully");
 
         } catch (FirebaseMessagingException e) {
-            log.error("Failed to send read receipt to token: {}", fcmToken, e);
+            log.error("Failed to send read receipt to token: {}", maskToken(fcmToken), e);
         }
     }
 
@@ -422,10 +422,10 @@ public class FcmService {
      */
     private void handleError(String fcmToken, FirebaseMessagingException e) {
         if (e.getMessagingErrorCode() == MessagingErrorCode.UNREGISTERED) {
-            log.warn("FCM token is unregistered: {}", fcmToken);
+            log.warn("FCM token is unregistered: {}", maskToken(fcmToken));
             // Здесь можно удалить невалидный токен из базы
         } else if (e.getMessagingErrorCode() == MessagingErrorCode.INVALID_ARGUMENT) {
-            log.warn("Invalid FCM token: {}", fcmToken);
+            log.warn("Invalid FCM token: {}", maskToken(fcmToken));
         } else {
             log.error("FCM error: {}", e.getMessagingErrorCode());
         }
@@ -439,9 +439,17 @@ public class FcmService {
         for (int i = 0; i < responses.size(); i++) {
             if (!responses.get(i).isSuccessful()) {
                 String failedToken = fcmTokens.get(i);
-                log.warn("Failed to send to token: {}", failedToken);
+                log.warn("Failed to send to token: {}", maskToken(failedToken));
                 // Здесь можно пометить токен как невалидный
             }
         }
+    }
+
+    /** В логах оставляем только края push-токена: этого хватает для отладки. */
+    private static String maskToken(String token) {
+        if (token == null || token.length() <= 10) {
+            return "***";
+        }
+        return token.substring(0, 6) + "…" + token.substring(token.length() - 4);
     }
 }
