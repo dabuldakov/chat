@@ -31,6 +31,13 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
             Pageable pageable
     );
 
+    @Query("SELECT m FROM Message m WHERE m.chatId = :chatId AND m.updatedAt > :after AND m.isDeleted = false ORDER BY m.updatedAt ASC")
+    List<Message> findMessagesUpdatedAfter(
+            @Param("chatId") Long chatId,
+            @Param("after") LocalDateTime after,
+            Pageable pageable
+    );
+
     @Query("SELECT m FROM Message m WHERE m.chatId = :chatId AND m.createdAt > :after AND m.isDeleted = false ORDER BY m.createdAt ASC")
     List<Message> findMessagesAfter(
             @Param("chatId") Long chatId,

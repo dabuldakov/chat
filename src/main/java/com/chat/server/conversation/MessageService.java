@@ -385,6 +385,19 @@ public class MessageService {
     }
 
     @Transactional(readOnly = true)
+    public List<Message> getUpdatedMessages(Long chatId, Long userId, LocalDateTime afterTime) {
+        return getUpdatedMessages(chatId, userId, afterTime, DEFAULT_SYNC_LIMIT);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Message> getUpdatedMessages(Long chatId, Long userId, LocalDateTime afterTime, int limit) {
+        chatService.validateUserAccessToChat(chatId, userId);
+        int safeLimit = Math.max(1, Math.min(limit, DEFAULT_SYNC_LIMIT));
+        return messageRepository.findMessagesUpdatedAfter(chatId, afterTime,
+                PageRequest.of(0, safeLimit));
+    }
+
+    @Transactional(readOnly = true)
     public long getTotalMessagesCount(Long chatId, Long userId) {
         chatService.validateUserAccessToChat(chatId, userId);
         return messageRepository.countMessagesInChat(chatId);

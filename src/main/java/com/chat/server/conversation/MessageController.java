@@ -126,6 +126,26 @@ public class MessageController {
         return ResponseEntity.ok(messageDtos);
     }
 
+    @GetMapping("/{chatUuid}/updated/{timestamp}")
+    @Operation(summary = "Изменённые сообщения после указанного времени")
+    public ResponseEntity<List<MessageDto>> getUpdatedMessages(
+            @PathVariable UUID chatUuid,
+            @PathVariable String timestamp,
+            Authentication authentication) {
+        Long userId = Long.parseLong(authentication.getName());
+        Long chatId = chatService.getChatIdByUuid(chatUuid);
+        LocalDateTime since = IsoUtc.parse(timestamp);
+        List<Message> messages = messageService.getUpdatedMessages(chatId, userId, since);
+        Map<Long, User> senderMap = senderMap(messages);
+        List<MessageDto> dtos = messages.stream()
+                .map(msg -> MessageDto.fromEntity(msg, senderMap.get(msg.getSenderId())))
+                .toList();
+        attachAttachments(messages, dtos);
+        attachReplyReferences(messages, dtos);
+        messageReactionService.enrich(messages, dtos, userId);
+        return ResponseEntity.ok(dtos);
+    }
+
     @GetMapping("/{chatUuid}/after/{timestamp}")
     @Operation(summary = "Получение новых сообщений после указанного времени")
     public ResponseEntity<List<MessageDto>> getNewMessages(
