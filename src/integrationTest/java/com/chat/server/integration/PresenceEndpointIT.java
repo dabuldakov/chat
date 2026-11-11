@@ -1,5 +1,6 @@
 package com.chat.server.integration;
 
+import com.chat.server.conversation.ChatService;
 import com.chat.server.identity.User;
 import com.chat.server.identity.UserService;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,6 +27,8 @@ class PresenceEndpointIT extends AbstractIntegrationTest {
     private MockMvc mvc;
     @Autowired
     private UserService users;
+    @Autowired
+    private ChatService chats;
 
     private User user;
     private User other;
@@ -54,6 +57,29 @@ class PresenceEndpointIT extends AbstractIntegrationTest {
                         .with(auth(user)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].online").value(false));
+    }
+
+    @Test
+    void presenceIsLimitedToSharedChats() throws Exception {
+        // other в сети, но общего чата нет: статус не раскрываем.
+        mvc.perform(post("/api/presence/heartbeat").with(auth(other)))
+                .andExpect(status().isNoContent());
+
+        mvc.perform(get("/api/presence")
+                        .param("userUuids", other.getUserUuid().toString())
+                        .with(auth(user)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].online").value(false))
+                .andExpect(jsonPath("$[0].lastSeenAt").doesNotExist());
+
+        // Появился общий чат — статус доступен.
+        chats.createPrivateChat(user.getUserId(), other.getUserUuid());
+
+        mvc.perform(get("/api/presence")
+                        .param("userUuids", other.getUserUuid().toString())
+                        .with(auth(user)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].online").value(true));
     }
 
     @Test

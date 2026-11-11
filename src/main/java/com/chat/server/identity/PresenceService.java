@@ -42,6 +42,7 @@ import java.util.stream.Collectors;
 public class PresenceService {
 
     private final UserRepository userRepository;
+    private final PresenceVisibilityPort visibilityPort;
     private final PresenceProperties properties;
 
     // ==================== Запись активности ====================
@@ -98,6 +99,28 @@ public class PresenceService {
             return Collections.emptyMap();
         }
         return collect(userRepository.findPresenceByUserIds(userIds), PresenceProjection::getUserId);
+    }
+
+    /**
+     * Присутствие только для тех, с кем у зрителя есть общий чат (или он сам).
+     * Посторонним отдаём «неизвестно», чтобы нельзя было пробить онлайн по UUID.
+     */
+    @Transactional(readOnly = true)
+    public Map<UUID, PresenceInfo> presenceVisibleTo(Long viewerId, Collection<UUID> userUuids) {
+        if (userUuids == null || userUuids.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        List<User> found = userRepository.findByUserUuidIn(userUuids);
+        if (found.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        List<Long> ids = found.stream().map(User::getUserId).toList();
+        java.util.Set<Long> visible = visibilityPort.visibleUserIds(viewerId, ids);
+        List<UUID> allowed = found.stream()
+                .filter(u -> visible.contains(u.getUserId()))
+                .map(User::getUserUuid)
+                .toList();
+        return presenceByUserUuids(allowed);
     }
 
     /** Пакетный статус по UUID — для запроса batch-presence от клиента. */

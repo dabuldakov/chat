@@ -49,12 +49,15 @@ public class PresenceController {
     @GetMapping
     @Operation(summary = "Пакетный статус присутствия пользователей по их UUID")
     public ResponseEntity<List<PresenceResponse>> getPresence(
-            @RequestParam(name = "userUuids", required = false) List<String> userUuids) {
+            @RequestParam(name = "userUuids", required = false) List<String> userUuids,
+            Authentication authentication) {
         List<UUID> uuids = presenceService.parseUserUuids(userUuids);
 
         // Неизвестные UUID не ошибка: клиент мог увидеть контакт, удалённого
         // другим пользователем. Такие просто не попадают в ответ.
-        Map<UUID, PresenceInfo> presence = presenceService.presenceByUserUuids(uuids);
+        Long viewerId = Long.parseLong(authentication.getName());
+        Map<UUID, PresenceInfo> presence =
+                presenceService.presenceVisibleTo(viewerId, uuids);
 
         List<PresenceResponse> body = new ArrayList<>(uuids.size());
         for (UUID uuid : uuids) {

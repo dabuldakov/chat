@@ -15,7 +15,10 @@ import static org.mockito.Mockito.mock;
 class PresenceServiceTest {
 
     private final PresenceProperties properties = new PresenceProperties();
-    private final PresenceService service = new PresenceService(mock(UserRepository.class), properties);
+    private final PresenceService service = new PresenceService(
+            mock(UserRepository.class),
+            mock(PresenceVisibilityPort.class),
+            properties);
 
     @Test
     void onlineWhenLastSeenWithinTtl() {

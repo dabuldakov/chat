@@ -31,6 +31,11 @@ public interface ParticipantRepository extends JpaRepository<Participant, Long> 
 
     void deleteByChatIdAndUserId(Long chatId, Long userId);
 
+    @Query("SELECT DISTINCT p2.userId FROM Participant p1, Participant p2 " +
+            "WHERE p1.chatId = p2.chatId AND p1.userId = :viewerId AND p2.userId IN :userIds")
+    List<Long> findSharedChatUserIds(@Param("viewerId") Long viewerId,
+                                     @Param("userIds") List<Long> userIds);
+
     @Query("SELECT p.chatId FROM Participant p WHERE p.userId = :userId")
     List<Long> findChatIdsByUserId(@Param("userId") Long userId);
 

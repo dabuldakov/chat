@@ -21,6 +21,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     Optional<User> findByUserUuid(UUID userUuid);
 
+    List<User> findByUserUuidIn(java.util.Collection<UUID> userUuids);
+
     Optional<User> findByAuthSubject(UUID authSubject);
 
     boolean existsByAuthSubject(UUID authSubject);
