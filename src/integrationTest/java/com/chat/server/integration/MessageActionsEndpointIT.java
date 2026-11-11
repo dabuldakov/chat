@@ -141,6 +141,18 @@ class MessageActionsEndpointIT extends AbstractIntegrationTest {
     }
 
     @Test
+    void updatedMessagesExposeAccumulatedDamage() throws Exception {
+        Message base = send("base");
+        messages.sendMessage(chatId, peer.getUserId(), "hit", Message.MessageType.TEXT,
+                base.getMessageUuid(), null, null, 90);
+
+        mvc.perform(get("/api/messages/{chatUuid}/updated/{timestamp}",
+                        chatUuid, "2000-01-01T00:00:00Z").with(auth(author)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[*].damage").value(org.hamcrest.Matchers.hasItem(54)));
+    }
+
+    @Test
     void beforeAndAfterPagination() throws Exception {
         Message first = send("first");
         Message second = send("second");
